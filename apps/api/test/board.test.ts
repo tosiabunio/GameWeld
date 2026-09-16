@@ -201,7 +201,7 @@ describe('workboard', () => {
     tasks['Arena light'] = card.id;
   });
 
-  it('places an unplaced task from Breakdown when its parent is in scope (D8)', async () => {
+  it('D8 (revised): a task created under an in-scope item is placed at once; returned tasks come back by hand', async () => {
     const created = await t.app.inject({
       method: 'POST',
       url: `/api/projects/${projectId}/backlog/${items['Ranged enemy']}/tasks`,
@@ -209,20 +209,42 @@ describe('workboard', () => {
       payload: { category: 'assets', title: 'Death animation' },
     });
     const taskId = created.json().id;
-    expect(created.json().placement).toBeNull();
-    const placed = await post(`${boards()}/${boardId}/placements`, { taskId }, tester);
-    expect(placed.statusCode).toBe(201);
-    expect(cardTitles(placed.json(), 'todo_assets')).toContain('Death animation');
+    expect(created.json().placement).toMatchObject({ boardId, columnName: 'To Do · Assets' });
+    expect(cardTitles(await board(), 'todo_assets')).toContain('Death animation');
     expect((await post(`${boards()}/${boardId}/placements`, { taskId }, tester)).statusCode).toBe(
       409,
     );
-    // Out-of-scope parent needs a Director.
-    const outside = await post(
-      `${boards()}/${boardId}/placements`,
-      { taskId: tasks['Dress the arena'] },
-      developer,
-    );
-    expect(outside.statusCode).toBe(403);
+    // Returned to Breakdown, it stays unplaced until someone adds it again.
+    expect(
+      (await post(`${boards()}/${boardId}/placements/${taskId}/return`, undefined, tester))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await t.app.inject({
+          method: 'GET',
+          url: `/api/projects/${projectId}/tasks/${taskId}`,
+          headers: { cookie: tester },
+        })
+      ).json().placement,
+    ).toBeNull();
+    const placed = await post(`${boards()}/${boardId}/placements`, { taskId }, tester);
+    expect(placed.statusCode).toBe(201);
+    expect(cardTitles(placed.json(), 'todo_assets')).toContain('Death animation');
+    // A task under an item outside scope stays unplaced; placing it needs a Director.
+    const outsideTask = (
+      await t.app.inject({
+        method: 'POST',
+        url: `/api/projects/${projectId}/backlog/${items['Boss arena']}/tasks`,
+        headers: { cookie: developer },
+        payload: { category: 'content', title: 'Dress the arena 2' },
+      })
+    ).json();
+    expect(outsideTask.placement).toBeNull();
+    expect(
+      (await post(`${boards()}/${boardId}/placements`, { taskId: outsideTask.id }, developer))
+        .statusCode,
+    ).toBe(403);
   });
 
   it('Section 15 "Team renames an intermediate column": no rules change; empty columns delete', async () => {

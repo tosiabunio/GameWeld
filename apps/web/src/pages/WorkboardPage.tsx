@@ -83,8 +83,8 @@ export function WorkboardPage() {
         </p>
       )}
       <ScopePanel board={board} onChange={run} />
-      <RequestsPanel board={board} onBoardChanged={reload} />
       <Columns board={board} onChange={run} onNotice={setNotice} />
+      <RequestsPanel board={board} onBoardChanged={reload} />
       <History query={{ entityType: 'workboard', entityId: board.id }} />
     </div>
   );
@@ -168,11 +168,62 @@ function BoardHeader({
   const { project } = useProject();
   const canManage = project.permissions['board.manage'];
   const [archiving, setArchiving] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(board.name);
   const c = board.counts;
   return (
     <header className="board-header">
       <div>
-        <h2>{board.name}</h2>
+        {renaming ? (
+          <form
+            className="add-item"
+            aria-label="Rename Workboard"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void onSaved(() =>
+                api.updateBoard(project.id, board.id, {
+                  version: board.version,
+                  name: name.trim(),
+                }),
+              ).then((ok) => ok && setRenaming(false));
+            }}
+          >
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-label="Workboard name"
+              maxLength={200}
+              autoFocus
+            />
+            <button type="submit" className="primary" disabled={name.trim() === ''}>
+              Save
+            </button>
+            <button type="button" onClick={() => setRenaming(false)}>
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <h2>
+            {canManage && board.state === 'active' ? (
+              <button
+                type="button"
+                className="title-edit"
+                title="Click to rename this Workboard"
+                onClick={() => {
+                  setName(board.name);
+                  setRenaming(true);
+                }}
+              >
+                {board.name}{' '}
+                <span className="pencil" aria-hidden="true">
+                  ✎
+                </span>
+              </button>
+            ) : (
+              board.name
+            )}
+          </h2>
+        )}
         <p className="muted board-counts" data-testid="board-counts">
           <span>
             <strong>{c.scopeItems}</strong>/{board.scopeLimit} items in scope
@@ -195,6 +246,17 @@ function BoardHeader({
       </div>
       {canManage && (
         <div className="row">
+          {!archiving && !renaming && board.state === 'active' && (
+            <button
+              type="button"
+              onClick={() => {
+                setName(board.name);
+                setRenaming(true);
+              }}
+            >
+              Rename
+            </button>
+          )}
           {!archiving ? (
             <button type="button" onClick={() => setArchiving(true)}>
               Archive Workboard
@@ -239,131 +301,161 @@ function ScopePanel({
 }) {
   const { project } = useProject();
   const canSelect = project.permissions['board.select_scope'];
-  const [open, setOpen] = useState(true);
-  const [confirmAdd, setConfirmAdd] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [removing, setRemoving] = useState<ScopeItem | null>(null);
   const full = board.counts.scopeItems >= board.scopeLimit;
+  const expandedItem = board.scope.find((s) => s.id === expanded) ?? null;
 
   return (
     <section className="panel scope" aria-labelledby="scope-heading" data-testid="scope">
       <div className="row between">
         <h3 id="scope-heading">
-          <button
-            type="button"
-            className="link"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-          >
-            {open ? '▾' : '▸'} Scope
-          </button>
+          Scope{' '}
+          <span className="count">
+            {board.counts.scopeItems}/{board.scopeLimit}
+          </span>
         </h3>
-        {canSelect && board.state === 'active' && !confirmAdd && (
-          <button
-            type="button"
-            className="primary"
-            disabled={!board.nextEligible}
-            onClick={() => setConfirmAdd(true)}
-            title={
-              full
-                ? 'The scope limit is reached'
-                : board.nextEligible
-                  ? undefined
-                  : 'No open item is eligible'
-            }
-          >
-            {board.nextEligible
-              ? `Add next item: ${board.nextEligible.title}`
-              : full
-                ? 'Scope limit reached'
-                : 'No eligible item'}
-          </button>
-        )}
+        <span className="muted small">
+          {board.state !== 'active' ? (
+            ''
+          ) : full ? (
+            'Scope limit reached. Remove an item to make room.'
+          ) : board.nextEligible ? (
+            <>
+              Next in priority: <strong>{board.nextEligible.title}</strong>. Add items from their{' '}
+              <Link to={`/projects/${project.id}/backlog`}>Backlog cards</Link>.
+            </>
+          ) : (
+            'No open item is eligible. Add items from the Backlog when there are some.'
+          )}
+        </span>
       </div>
-      {confirmAdd && board.nextEligible && (
-        <div className="confirm" role="group" aria-label="Activate item">
-          <p>
-            <strong>{board.nextEligible.title}</strong> (
-            {CATEGORY_LABELS[board.nextEligible.category]}) joins the scope and its{' '}
-            {board.nextEligible.unplacedTasks} unfinished task
-            {board.nextEligible.unplacedTasks === 1 ? '' : 's'} enter the To Do columns. Tasks
-            created later in Breakdown are not placed automatically; use “Add to Workboard” there.
-          </p>
-          <button
-            type="button"
-            className="primary"
-            onClick={() =>
-              void onChange(() =>
-                api.addToScope(project.id, board.id, board.nextEligible!.id),
-              ).then(() => setConfirmAdd(false))
-            }
-          >
-            Activate
-          </button>
-          <button type="button" onClick={() => setConfirmAdd(false)}>
-            Cancel
-          </button>
-        </div>
-      )}
-      {open && (
-        <ul className="scope-list">
-          {board.scope.length === 0 && <li className="muted">No items in scope yet.</li>}
-          {board.scope.map((s) => (
-            <li key={s.id} className={s.accepted ? 'accepted' : ''} data-testid="scope-item">
-              <Link to={`/projects/${project.id}/breakdown/${s.id}`}>{s.title}</Link>
-              <span className="muted">
-                {CATEGORY_LABELS[s.category]} · {s.taskCounts.completed}/{s.taskCounts.total} tasks
-              </span>
-              <span
-                className={`badge ${s.accepted ? 'done' : s.state === 'ready_for_review' ? '' : 'neutral'}`}
+      {board.scope.length === 0 ? (
+        <p className="muted small">
+          No items in scope yet. Use “Add to Workboard” on a Backlog card.
+        </p>
+      ) : (
+        <ul className="scope-chips">
+          {board.scope.map((s) => {
+            const open = expanded === s.id;
+            return (
+              <li
+                key={s.id}
+                className={`scope-chip${s.accepted ? ' accepted' : ''}${open ? ' open' : ''}`}
+                data-testid="scope-item"
               >
-                {s.accepted ? 'Accepted' : STATE_LABELS[s.state]}
-              </span>
-              {canSelect && board.state === 'active' && removing?.id !== s.id && (
                 <button
                   type="button"
-                  className="link"
+                  className="scope-toggle"
+                  aria-expanded={open}
+                  title={`${CATEGORY_LABELS[s.category]} · ${s.taskCounts.completed}/${s.taskCounts.total} tasks complete`}
+                  onClick={() => {
+                    setExpanded(open ? null : s.id);
+                    setRemoving(null);
+                  }}
+                >
+                  <span className="scope-title">{s.title}</span>
+                  <span
+                    className={`dot ${s.accepted ? 'done' : s.state === 'ready_for_review' ? 'review' : ''}`}
+                    aria-hidden="true"
+                  />
+                  <span className="sr-only">{s.accepted ? 'Accepted' : STATE_LABELS[s.state]}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {expandedItem && (
+        <div className="scope-details" data-testid="scope-details">
+          <div className="row between">
+            <div>
+              <strong>{expandedItem.title}</strong>{' '}
+              <span
+                className={`badge ${expandedItem.accepted ? 'done' : expandedItem.state === 'ready_for_review' ? '' : 'neutral'}`}
+              >
+                {expandedItem.accepted ? 'Accepted' : STATE_LABELS[expandedItem.state]}
+              </span>
+              <span className="muted small">
+                {' '}
+                · {CATEGORY_LABELS[expandedItem.category]} · {expandedItem.taskCounts.completed}/
+                {expandedItem.taskCounts.total} tasks complete · added{' '}
+                {new Date(expandedItem.addedAt).toLocaleDateString()}
+              </span>
+            </div>
+            <div className="row">
+              <Link to={`/projects/${project.id}/breakdown/${expandedItem.id}`}>
+                Open in Breakdown
+              </Link>
+              {canSelect && board.state === 'active' && removing?.id !== expandedItem.id && (
+                <button
+                  type="button"
                   onClick={() =>
-                    s.accepted
+                    expandedItem.accepted
                       ? void onChange(() =>
-                          api.removeFromScope(project.id, board.id, s.id, { returnTasks: true }),
-                        )
-                      : setRemoving(s)
+                          api.removeFromScope(project.id, board.id, expandedItem.id, {
+                            returnTasks: true,
+                          }),
+                        ).then(() => setExpanded(null))
+                      : setRemoving(expandedItem)
                   }
                 >
                   Remove from scope
                 </button>
               )}
-              {removing?.id === s.id && (
-                <div className="confirm" role="group" aria-label={`Remove ${s.title} from scope`}>
-                  <p>What happens to its unfinished tasks on this board?</p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void onChange(() =>
-                        api.removeFromScope(project.id, board.id, s.id, { returnTasks: true }),
-                      ).then(() => setRemoving(null))
-                    }
-                  >
-                    Return them to Breakdown
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void onChange(() =>
-                        api.removeFromScope(project.id, board.id, s.id, { returnTasks: false }),
-                      ).then(() => setRemoving(null))
-                    }
-                  >
-                    Keep them as out-of-scope work
-                  </button>
-                  <button type="button" onClick={() => setRemoving(null)}>
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+              <button
+                type="button"
+                className="link"
+                onClick={() => setExpanded(null)}
+                aria-label="Close details"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          {removing?.id === expandedItem.id && (
+            <div
+              className="confirm small"
+              role="group"
+              aria-label={`Remove ${expandedItem.title} from scope`}
+            >
+              <p>What happens to its unfinished tasks on this board?</p>
+              <button
+                type="button"
+                onClick={() =>
+                  void onChange(() =>
+                    api.removeFromScope(project.id, board.id, expandedItem.id, {
+                      returnTasks: true,
+                    }),
+                  ).then(() => {
+                    setRemoving(null);
+                    setExpanded(null);
+                  })
+                }
+              >
+                Return them to Breakdown
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void onChange(() =>
+                    api.removeFromScope(project.id, board.id, expandedItem.id, {
+                      returnTasks: false,
+                    }),
+                  ).then(() => {
+                    setRemoving(null);
+                    setExpanded(null);
+                  })
+                }
+              >
+                Keep them as out-of-scope work
+              </button>
+              <button type="button" onClick={() => setRemoving(null)}>
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );
@@ -424,7 +516,11 @@ function Columns({
       }
       renderCard={(card) => (
         <>
-          <Link to={`/projects/${project.id}/tasks/${card.id}`} className="card-title">
+          <Link
+            to={`/projects/${project.id}/tasks/${card.id}`}
+            state={{ from: 'board' }}
+            className="card-title"
+          >
             {card.title}
           </Link>
           <div className="card-meta">

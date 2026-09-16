@@ -1,5 +1,20 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function activateFromBacklog(page: Page, title: string) {
+  await page
+    .getByRole('navigation', { name: 'Project sections' })
+    .getByRole('link', { name: 'Backlog' })
+    .click();
+  const card = page.getByTestId('item-card').filter({ hasText: title });
+  await card.getByRole('button', { name: `Add ${title} to Workboard` }).click();
+  await card
+    .getByRole('group', { name: `Activate ${title}` })
+    .getByRole('button', { name: 'Activate' })
+    .click();
+  await expect(card).toContainText('On ');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+}
+
 async function signIn(page: Page, persona: string) {
   await page.goto('/');
   await page.getByTestId(`persona-${persona}`).click();
@@ -40,11 +55,7 @@ test('Director creates a board, activates the next item, hits the limit, renames
   await expect(page.getByTestId('board-counts')).toContainText('0/1 items in scope');
 
   // Section 15 "Director activates a permitted item".
-  await page.getByRole('button', { name: 'Add next item: Ranged enemy' }).click();
-  await expect(
-    page.getByText('Tasks created later in Breakdown are not placed automatically'),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Activate', exact: true }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
   const columns = page.locator('[data-testid^="column-"]');
   await expect(columns.nth(0).getByTestId('item-card')).toContainText('Targeting');
@@ -52,7 +63,7 @@ test('Director creates a board, activates the next item, hits the limit, renames
   await expect(page.getByTestId('board-counts')).toContainText('1/1 items in scope');
 
   // Section 15 "User exceeds the configured scope limit".
-  await expect(page.getByRole('button', { name: 'Scope limit reached' })).toBeDisabled();
+  await expect(page.getByTestId('scope')).toContainText('Scope limit reached');
 
   // Section 15 "Team renames an intermediate column".
   await page.getByRole('button', { name: 'Add column after To Do · Content' }).click();
@@ -67,6 +78,21 @@ test('Director creates a board, activates the next item, hits the limit, renames
     .click();
   await expect(page.getByRole('region', { name: 'In progress' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Done' })).toBeVisible();
+
+  // Opening a card from the board leads back to the board.
+  await page.getByRole('link', { name: 'Targeting' }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('Targeting');
+  await page.getByRole('link', { name: '← Workboard' }).click();
+  await expect(page.getByTestId('workboard')).toBeVisible();
+
+  // The Director can rename the board; the name carries no rules.
+  await page.getByRole('button', { name: 'Rename', exact: true }).click();
+  await page.getByLabel('Workboard name').fill('Milestone 1');
+  await page
+    .getByRole('form', { name: 'Rename Workboard' })
+    .getByRole('button', { name: 'Save' })
+    .click();
+  await expect(page.getByRole('heading', { name: /Milestone 1/ })).toBeVisible();
 
   // Return to Breakdown asks first, then says where the task went.
   await page
@@ -105,8 +131,7 @@ test('Developer creates cards: default parent with one item in scope, choice wit
   await page.getByRole('link', { name: 'Workboard' }).click();
   await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
   await page.getByRole('button', { name: 'Create Workboard' }).click();
-  await page.getByRole('button', { name: 'Add next item: Ranged enemy' }).click();
-  await page.getByRole('button', { name: 'Activate', exact: true }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
   const url = page.url();
 
@@ -125,14 +150,19 @@ test('Developer creates cards: default parent with one item in scope, choice wit
   await expect(
     codeColumn.getByTestId('item-card').filter({ hasText: 'Hit reaction' }),
   ).toContainText('Ranged enemy');
-  await expect(page.getByRole('button', { name: /Add next item/ })).toHaveCount(0); // not a Director
+  // Not a Director: no activation controls on Backlog cards either.
+  await page
+    .getByRole('navigation', { name: 'Project sections' })
+    .getByRole('link', { name: 'Backlog' })
+    .click();
+  await expect(page.getByRole('button', { name: /to Workboard$/ })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Workboard' }).click();
 
   // Several items in scope: Director activates a second item, then the Developer must choose.
   await page.getByRole('button', { name: 'Switch persona' }).click();
   await page.getByTestId('persona-director').click();
   await page.goto(url);
-  await page.getByRole('button', { name: 'Add next item: Flying enemy' }).click();
-  await page.getByRole('button', { name: 'Activate', exact: true }).click();
+  await activateFromBacklog(page, 'Flying enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(2);
   await page.getByRole('button', { name: 'Switch persona' }).click();
   await page.getByTestId('persona-developer').click();
@@ -156,8 +186,7 @@ test('dragging a card into Done completes its task and the item becomes Ready fo
   await page.getByRole('link', { name: 'Workboard' }).click();
   await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
   await page.getByRole('button', { name: 'Create Workboard' }).click();
-  await page.getByRole('button', { name: 'Add next item: Ranged enemy' }).click();
-  await page.getByRole('button', { name: 'Activate', exact: true }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
 
   const done = page.getByRole('region', { name: 'Done' });

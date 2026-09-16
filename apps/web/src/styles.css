@@ -831,3 +831,159 @@ ul.card-list {
   padding: 4px 0;
   border-top: 1px solid var(--border);
 }
+
+button.link.primary-text {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.title-edit {
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  padding: 2px 8px;
+  margin-left: -8px;
+  border: 1px dashed transparent;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  cursor: text;
+}
+.title-edit:hover,
+.title-edit:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.title-edit .pencil {
+  font-size: 0.75em;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* Scope as a compact vertical stack of expandable cards */
+.scope-cards {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.scope-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.scope-card.accepted {
+  opacity: 0.75;
+}
+.scope-card.open {
+  border-color: var(--accent);
+}
+.scope-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.scope-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.scope-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scope-details {
+  padding: 0 12px 10px;
+  display: grid;
+  gap: 6px;
+}
+.scope-details p {
+  margin: 0;
+}
+
+/* Scope as a horizontal row of chips */
+.panel.scope {
+  padding: 10px 16px;
+}
+.scope .row.between h3 {
+  margin: 0;
+}
+.scope-chips {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.scope-chip .scope-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  max-width: 260px;
+}
+.scope-chip .scope-toggle:hover {
+  border-color: var(--accent);
+}
+.scope-chip.open .scope-toggle {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
+.scope-chip.accepted .scope-toggle {
+  opacity: 0.7;
+}
+.scope-chip .scope-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+.dot.review {
+  background: var(--accent);
+}
+.dot.done {
+  background: #2a8a3e;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.scope-details {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg);
+  display: grid;
+  gap: 6px;
+}

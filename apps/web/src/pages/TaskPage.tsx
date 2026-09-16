@@ -6,7 +6,7 @@ import {
   TASK_CATEGORY_LABELS,
 } from '@gameweld/domain';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { Attachments } from '../components/Attachments.tsx';
 import { Comments } from '../components/Comments.tsx';
@@ -20,6 +20,7 @@ export function TaskPage() {
   const { project } = useProject();
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
+  const fromBoard = (useLocation().state as { from?: string } | null)?.from === 'board';
   const canWork = project.permissions['task.work'];
   const canDirect = project.permissions['backlog.manage'];
   const canComplete = project.permissions['task.complete'];
@@ -59,7 +60,15 @@ export function TaskPage() {
   return (
     <article className="item-page">
       <p>
-        <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>← {task.item.title}</Link>
+        {fromBoard ? (
+          <>
+            <Link to={`/projects/${project.id}/board`}>← Workboard</Link>
+            <span className="muted"> · </span>
+            <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>{task.item.title}</Link>
+          </>
+        ) : (
+          <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>← {task.item.title}</Link>
+        )}
         <span className="muted">
           {' '}
           · {CATEGORY_LABELS[task.item.category]} · {STATE_LABELS[task.item.state]}

@@ -1,4 +1,4 @@
-import type { BacklogItem, BacklogLane, MoscowCategory } from '@gameweld/domain';
+import type { BacklogItem, BacklogLane, BoardView, MoscowCategory } from '@gameweld/domain';
 import {
   BACKLOG_LANES,
   CATEGORY_LABELS,
@@ -21,8 +21,17 @@ export function BacklogPage() {
   const [items, setItems] = useState<BacklogItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const canSelectScope = project.permissions['board.select_scope'];
+  const [board, setBoard] = useState<BoardView | null>(null);
+  const [activating, setActivating] = useState<string | null>(null);
+
   const reload = useCallback(async () => {
-    setItems(await api.backlog(project.id));
+    const [nextItems, nextBoard] = await Promise.all([
+      api.backlog(project.id),
+      api.activeBoard(project.id),
+    ]);
+    setItems(nextItems);
+    setBoard(nextBoard);
   }, [project.id]);
 
   useEffect(() => {
@@ -135,6 +144,54 @@ export function BacklogPage() {
                 <span className="muted">{CATEGORY_LABELS[item.category]}</span>
               )}
             </div>
+            {canSelectScope &&
+              board &&
+              item.state === 'open' &&
+              !item.activeBoard &&
+              activating !== item.id && (
+                <div className="card-actions">
+                  <button
+                    type="button"
+                    className={board.nextEligible?.id === item.id ? 'link primary-text' : 'link'}
+                    disabled={board.counts.scopeItems >= board.scopeLimit}
+                    title={
+                      board.counts.scopeItems >= board.scopeLimit
+                        ? `Scope limit reached (${board.counts.scopeItems}/${board.scopeLimit})`
+                        : board.nextEligible?.id === item.id
+                          ? 'Next in priority'
+                          : board.nextEligible
+                            ? `“${board.nextEligible.title}” is next in priority`
+                            : undefined
+                    }
+                    onClick={() => setActivating(item.id)}
+                    aria-label={`Add ${item.title} to Workboard`}
+                  >
+                    Add to Workboard
+                  </button>
+                </div>
+              )}
+            {activating === item.id && board && (
+              <div className="confirm small" role="group" aria-label={`Activate ${item.title}`}>
+                <p>
+                  Joins the scope of <strong>{board.name}</strong>; its unfinished tasks enter the
+                  To Do columns, and tasks added later in the Breakdown join the board too.
+                </p>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() =>
+                    void run(() => api.addToScope(project.id, board.id, item.id)).then(() =>
+                      setActivating(null),
+                    )
+                  }
+                >
+                  Activate
+                </button>
+                <button type="button" onClick={() => setActivating(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
             {canManage && item.state === 'open' && (
               <div className="card-actions" aria-label={`Move ${item.title}`}>
                 <button

@@ -27,7 +27,7 @@ The plan adopts the following defaults so that design and implementation can sta
 | D5 | Who accepts items | Directors by default; a separate acceptance permission can be granted per project. |
 | D6 | Scope-limit counting | All included items count until the Director removes them from scope, including accepted ones. |
 | D7 | Full-item activation outside priority rule | Not supported in the MVP; use individual out-of-scope tasks. |
-| D8 | New tasks under an active item | Not placed automatically; Breakdown offers "Add to Workboard". |
+| D8 | New tasks under an active item | Placed automatically while the item is in scope (revised in testing after Phase 7); "Add to Workboard" remains for returned tasks. |
 | D9 | Dependencies | Informational item-to-item links only. |
 | D10 | Teams and projects | Deferred: the MVP uses project membership only. A Team entity is not implemented until a concrete need appears. |
 | D11 | Reopening completed tasks | Task editors may reopen, with a visible warning about the effect on the parent's acceptance. |
@@ -37,7 +37,7 @@ The plan adopts the following defaults so that design and implementation can sta
 | R3 | Accepted items in scope | Count toward the limit (see D6). The Workboard shows accepted items distinctly and offers one-click removal from scope. |
 | R4 | Out-of-scope task visibility | The Workboard header shows the item count against the limit and, separately, the out-of-scope task count. |
 | R5 | Removing an item from scope while a task is in an intermediate column | The task returns to Breakdown and its column position is discarded; re-placement starts in To Do. History records the previous column. |
-| R6 | Activation asymmetry | The activation dialog states that tasks created later in Breakdown will not be placed automatically. |
+| R6 | Activation asymmetry | Withdrawn with the D8 revision. |
 | R7 | Source of truth for permissions | The permission table in Section 4 is authoritative once D2 is confirmed; Section 16 will reference it rather than restate it. |
 | T1 | Authentication | Mock sign-in for Phases 0–7: a persona picker with seeded Director, Developer, and Tester accounts, available only in local and test configurations. Real sign-in arrives in Phase 8 as OpenID Connect with Google as the only configured provider, no local accounts, an optional Workspace domain restriction, and a per-project invitation list. Identities are stored as provider and subject from the start, so the mock provider and Google are two entries in the same model. |
 | T2 | Attachment storage | Local filesystem volume in the MVP, behind an interface that also supports S3-compatible storage. |

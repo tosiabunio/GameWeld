@@ -97,7 +97,8 @@ export function ItemBreakdown({
         <h2 id="tasks-heading">Breakdown</h2>
         <p className="muted">
           The tasks needed to produce this item, grouped by nature. Any combination is fine; no
-          category is required. Creating a task does not place it on a Workboard.
+          category is required. While the item is on the Workboard, new tasks go straight to its To
+          Do columns.
         </p>
         <Breakdown
           projectId={project.id}

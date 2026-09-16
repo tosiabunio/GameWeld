@@ -173,7 +173,7 @@ It can be opened from a Backlog card or from the list of scoped backlog items on
 
 Optional writing prompts may suggest a desired result or acceptance method. They are dismissible guidance, not required form fields.
 
-**Confirmed:** creating a task in Breakdown does not automatically place it on a Workboard. If its parent is already in scope, offer an explicit “Add to Workboard” action. The item can therefore contain planned work that is not currently placed on the execution board.
+**Confirmed (revised 16 September 2026):** creating a task in Breakdown under an item that is in the active Workboard's scope places the task in its category's To Do column immediately. Tasks whose item is outside the scope stay unplaced; a task that was returned to Breakdown stays unplaced until “Add to Workboard” is used. The item can therefore still contain planned work that is not currently placed on the execution board.
 
 ## 8. Workboard behavior
 
@@ -199,7 +199,7 @@ Intermediate columns do not receive mandatory meanings such as In Progress, Revi
 
 **Confirmed:** that rule is enforced for full-item activation in the MVP, and exceptions are handled through individual out-of-scope tasks. A full-item override outside the priority rule is not supported.
 
-Adding an item places its existing unfinished, unplaced tasks in the appropriate To Do columns. Completed tasks remain complete and are visible through Breakdown. An empty item may be selected, but cannot automatically become Ready for Review. The activation dialog states that tasks created later in Breakdown will not be placed automatically.
+Adding an item places its existing unfinished, unplaced tasks in the appropriate To Do columns. Completed tasks remain complete and are visible through Breakdown. An empty item may be selected, but cannot automatically become Ready for Review.
 
 **Scope-limit definition — Confirmed:** count all included items until the Director removes them from board scope, including accepted items. Done does not silently alter the scope list. The Workboard shows accepted items distinctly and offers one-click removal from scope. The board header shows the item count against the limit and, separately, the number of out-of-scope tasks. Optional batch locking, which prevents replenishment until the current scope is accepted, is deferred.
 
@@ -369,7 +369,7 @@ All decisions required before implementation were made at the Phase 0 kickoff an
 | D5 | Who accepts backlog items | Directors by default; a separate acceptance permission can be granted per project, for example to a lead tester. |
 | D6 | Scope-limit counting | All included items count until the Director removes them from scope, including accepted ones. |
 | D7 | Full-item activation outside the priority rule | Not supported in the MVP; individual out-of-scope tasks cover exceptions. |
-| D8 | New tasks under an active item | Not placed automatically; Breakdown offers "Add to Workboard". |
+| D8 | New tasks under an active item | Placed automatically in their To Do column while the item is in scope (revised during testing; the original decision was explicit placement). Returned tasks are re-placed through "Add to Workboard". |
 | D9 | Dependencies | Informational item-to-item links only. |
 | D10 | Teams and projects | Teams are not implemented in the MVP; access is by project membership only. |
 | D11 | Reopening completed tasks | Task editors may reopen, with a visible warning about the effect on the parent's acceptance. |
@@ -379,7 +379,7 @@ All decisions required before implementation were made at the Phase 0 kickoff an
 | R3 | Accepted items in scope | Count toward the limit (D6). The Workboard shows accepted items distinctly and offers one-click removal from scope. |
 | R4 | Out-of-scope task visibility | The Workboard header shows the item count against the limit and, separately, the out-of-scope task count. |
 | R5 | Removing an item from scope while a task is in an intermediate column | The task returns to Breakdown and its column position is discarded; re-placement starts in To Do. History records the previous column. |
-| R6 | Activation asymmetry | The activation dialog states that tasks created later in Breakdown will not be placed automatically. |
+| R6 | Activation asymmetry | Withdrawn with the revision of D8: creation and activation both place tasks, so there is no asymmetry to explain. |
 | R7 | Source of truth for permissions | The permission table in Section 4 is authoritative; other sections reference it rather than restate it. |
 | T1 | Authentication | Mock sign-in with seeded Director, Developer, and Tester personas during development, available only in local and test configurations. Before the first shared deployment: OpenID Connect with Google as the only configured provider, no local accounts, optional Workspace domain restriction, per-project invitation list. Identities are stored as provider and subject. |
 | T2 | Attachment storage | Local filesystem volume, behind an interface that also supports S3-compatible storage. |

@@ -1,5 +1,20 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function activateFromBacklog(page: Page, title: string) {
+  await page
+    .getByRole('navigation', { name: 'Project sections' })
+    .getByRole('link', { name: 'Backlog' })
+    .click();
+  const card = page.getByTestId('item-card').filter({ hasText: title });
+  await card.getByRole('button', { name: `Add ${title} to Workboard` }).click();
+  await card
+    .getByRole('group', { name: `Activate ${title}` })
+    .getByRole('button', { name: 'Activate' })
+    .click();
+  await expect(card).toContainText('On ');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+}
+
 async function signIn(page: Page, persona: string) {
   await page.goto('/');
   await page.getByTestId(`persona-${persona}`).click();
@@ -24,8 +39,7 @@ test('finish all tasks, accept the item, then reopen it by adding a task', async
   await page.getByRole('link', { name: 'Workboard' }).click();
   await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
   await page.getByRole('button', { name: 'Create Workboard' }).click();
-  await page.getByRole('button', { name: 'Add next item: Ranged enemy' }).click();
-  await page.getByRole('button', { name: 'Activate', exact: true }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
   const card = page.getByTestId('item-card').filter({ hasText: 'Targeting' });
   const done = page.getByRole('region', { name: 'Done' });
   const from = (await card.boundingBox())!;
@@ -39,7 +53,11 @@ test('finish all tasks, accept the item, then reopen it by adding a task', async
   await expect(page.getByTestId('scope-item').first()).toContainText('Ready for Review');
 
   // Reject first, with a visible comment; the item stays Ready for Review.
-  await page.getByTestId('scope-item').getByRole('link', { name: 'Ranged enemy' }).click();
+  await page
+    .getByTestId('scope-item')
+    .getByRole('button', { name: /Ranged enemy/ })
+    .click();
+  await page.getByTestId('scope-details').getByRole('link', { name: 'Open in Breakdown' }).click();
   await page.getByRole('button', { name: 'Reject' }).click();
   await page.getByLabel('What needs to change').fill('Timing feels off.');
   await page.getByRole('button', { name: 'Record rejection' }).click();

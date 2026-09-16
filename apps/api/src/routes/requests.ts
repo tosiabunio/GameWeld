@@ -5,7 +5,8 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
-import { activeBoardFor, placeTask } from './board.ts';
+import { placeTask } from '../services/placement.ts';
+import { activeBoardFor } from './board.ts';
 import { fetchTask } from './tasks.ts';
 
 const uuid = z.string().uuid();

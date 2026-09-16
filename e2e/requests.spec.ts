@@ -1,5 +1,20 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function activateFromBacklog(page: Page, title: string) {
+  await page
+    .getByRole('navigation', { name: 'Project sections' })
+    .getByRole('link', { name: 'Backlog' })
+    .click();
+  const card = page.getByTestId('item-card').filter({ hasText: title });
+  await card.getByRole('button', { name: `Add ${title} to Workboard` }).click();
+  await card
+    .getByRole('group', { name: `Activate ${title}` })
+    .getByRole('button', { name: 'Activate' })
+    .click();
+  await expect(card).toContainText('On ');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+}
+
 async function signIn(page: Page, persona: string) {
   await page.goto('/');
   await page.getByTestId(`persona-${persona}`).click();
@@ -39,8 +54,7 @@ test('a Developer requests out-of-scope work and a Director approves it', async 
   await page.getByRole('link', { name: 'Workboard' }).click();
   await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
   await page.getByRole('button', { name: 'Create Workboard' }).click();
-  await page.getByRole('button', { name: 'Add next item: Ranged enemy' }).click();
-  await page.getByRole('button', { name: 'Activate', exact: true }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
   const boardUrl = page.url();
   // As a Director, Flying enemy's task offers direct placement, not a request.

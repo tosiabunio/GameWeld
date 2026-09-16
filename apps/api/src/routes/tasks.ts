@@ -13,6 +13,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
+import { placeTask } from '../services/placement.ts';
 import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
 
 const uuid = z.string().uuid();
@@ -238,7 +239,8 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // D3: any member may create tasks under an existing item. D8: creation never places the task.
+  // D3: any member may create tasks under an existing item. D8 (revised): when the parent item is
+  // in the active Workboard's scope, the new task is placed in its To Do column right away.
   app.post(
     '/projects/:projectId/backlog/:itemId/tasks',
     projectRoute('task.work'),
@@ -280,6 +282,28 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           entityId: id,
           next: { itemId, category: input.category, title: input.title },
         });
+        const scoped = await tx.query<{ board_id: string }>(
+          `SELECT s.board_id FROM workboard_scope s JOIN workboards w ON w.id = s.board_id
+            WHERE s.item_id = $1 AND w.state = 'active'`,
+          [itemId],
+        );
+        if (scoped.rows[0]) {
+          await placeTask(
+            tx,
+            scoped.rows[0].board_id,
+            { id, category: input.category },
+            actorId,
+            false,
+          );
+          await recordActivity(tx, {
+            projectId,
+            actorId,
+            action: 'task.placed',
+            entityType: 'task',
+            entityId: id,
+            next: { boardId: scoped.rows[0].board_id, reason: 'created under an item in scope' },
+          });
+        }
         await recalculateItemState(tx, itemId, actorId, 'task created');
         return id;
       });

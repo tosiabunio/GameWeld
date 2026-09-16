@@ -122,3 +122,35 @@ test('cards can be dragged between lanes and reordered within a lane', async ({ 
     'Gamma',
   );
 });
+
+test('a Director activates an item straight from its Backlog card', async ({ page }) => {
+  await signIn(page, 'director');
+  await page.getByRole('link', { name: 'Demo project' }).click();
+  // The demo board has Ranged enemy in scope; Flying enemy is next in priority.
+  const flying = page
+    .getByTestId('lane-must')
+    .getByTestId('item-card')
+    .filter({ hasText: 'Flying enemy' });
+  await flying.getByRole('button', { name: 'Add Flying enemy to Workboard' }).click();
+  await flying
+    .getByRole('group', { name: 'Activate Flying enemy' })
+    .getByRole('button', { name: 'Activate' })
+    .click();
+  await expect(flying).toContainText('On September production');
+  await expect(flying.getByRole('button', { name: 'Add Flying enemy to Workboard' })).toHaveCount(
+    0,
+  );
+  // A lower-priority item is refused with an explanation naming the next item.
+  const tooling = page
+    .getByTestId('lane-could')
+    .getByTestId('item-card')
+    .filter({ hasText: 'Improve level iteration tooling' });
+  await tooling
+    .getByRole('button', { name: 'Add Improve level iteration tooling to Workboard' })
+    .click();
+  await tooling
+    .getByRole('group', { name: 'Activate Improve level iteration tooling' })
+    .getByRole('button', { name: 'Activate' })
+    .click();
+  await expect(page.getByRole('alert')).toContainText('"Boss arena" is next in priority');
+});
