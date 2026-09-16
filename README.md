@@ -14,6 +14,7 @@ Pre-implementation. The product and functional specification is a discussion dra
 | --- | --- |
 | [Production specification v0.1](docs/gameweld-production-specification-v0.1.md) | Product purpose, terminology, data model, backlog and Workboard behavior, permissions, MVP acceptance scenarios, and open decisions. |
 | [Specification review notes](docs/gameweld-spec-review-notes.md) | Review findings and gaps to fold into the specification's open decisions (Polish). |
+| [Implementation plan](docs/gameweld-implementation-plan.md) | Assumed decisions, proposed technical baseline, architecture and invariants, phased delivery mapped to the acceptance scenarios, test strategy, and risks. |
 
 ## Key concepts
 
