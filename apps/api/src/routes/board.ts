@@ -100,7 +100,7 @@ async function fetchColumns(db: Queryable, boardId: string): Promise<BoardColumn
   );
 }
 
-async function fetchBoardRow(
+export async function fetchBoardRow(
   db: Queryable,
   projectId: string,
   boardId: string,
@@ -115,7 +115,7 @@ async function fetchBoardRow(
   return res.rows[0] ?? null;
 }
 
-async function fetchView(
+export async function fetchView(
   db: Queryable,
   projectId: string,
   board: BoardRow,
@@ -215,6 +215,7 @@ async function fetchView(
         inDone: r.column_kind === 'done',
         enteredAsException: r.entered_as_exception,
       },
+      pendingRequest: null,
       version: r.version,
       createdAt: r.created_at.toISOString(),
       updatedAt: r.updated_at.toISOString(),
@@ -229,6 +230,14 @@ async function fetchView(
     board.state === 'active' && scope.length < scopeLimit
       ? await nextEligible(db, projectId, board.id)
       : null;
+  const pending = Number(
+    (
+      await db.query<{ n: string }>(
+        `SELECT count(*) AS n FROM work_requests WHERE board_id = $1 AND status = 'pending'`,
+        [board.id],
+      )
+    ).rows[0]!.n,
+  );
 
   return {
     ...toSummary(board),
@@ -242,6 +251,7 @@ async function fetchView(
       outOfScopeTasks,
       placedTasks: cardRows.rows.length,
       unfinishedTasks: unfinished,
+      pendingRequests: pending,
     },
     nextEligible: next,
   };
@@ -299,13 +309,17 @@ async function columnOfKind(
   return res.rows[0];
 }
 
-/** Places an unplaced task in its category's To Do column. */
-async function placeTask(
+/**
+ * Places an unplaced task in its category's To Do column. A Director placing a task whose item is
+ * outside scope is recorded as an approved exception (Section 9), so the Requests history shows it.
+ */
+export async function placeTask(
   tx: Queryable,
   boardId: string,
   task: { id: string; category: BoardCard['category'] },
   actorId: string,
   exception: boolean,
+  options: { recordApproval?: boolean } = { recordApproval: true },
 ) {
   const column = await columnOfKind(tx, boardId, todoKindFor(task.category));
   await tx.query(
@@ -313,8 +327,21 @@ async function placeTask(
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [task.id, boardId, column.id, await rankAtEndOfColumn(tx, column.id), actorId, exception],
   );
+  if (exception && options.recordApproval) {
+    // Any pending request for this task is superseded by the direct placement.
+    await tx.query(
+      `UPDATE work_requests SET status = 'approved', decided_by = $3, decided_at = now(), decision_note = 'placed directly by a Game Director'
+        WHERE task_id = $1 AND board_id = $2 AND status = 'pending'`,
+      [task.id, boardId, actorId],
+    );
+    await tx.query(
+      `INSERT INTO work_requests (task_id, board_id, requester_id, reason, status, decided_by, decided_at, decision_note)
+       SELECT $1, $2, $3, 'placed directly', 'approved', $3, now(), 'placed directly by a Game Director'
+        WHERE NOT EXISTS (SELECT 1 FROM work_requests WHERE task_id = $1 AND board_id = $2 AND status = 'approved' AND decided_at > now() - interval '1 second')`,
+      [task.id, boardId, actorId],
+    );
+  }
 }
-
 /** Closes the current placement (R5: the column is recorded, the position is discarded). */
 async function returnTask(tx: Queryable, taskId: string, reason: string) {
   await tx.query(
@@ -334,7 +361,7 @@ function requireAction(
     throw new HttpError(403, message);
 }
 
-async function activeBoardFor(
+export async function activeBoardFor(
   tx: Queryable,
   projectId: string,
   boardId: string,

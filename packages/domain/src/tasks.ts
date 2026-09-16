@@ -34,6 +34,8 @@ export interface Task {
   completedAt: string | null;
   archived: boolean;
   placement: TaskPlacement | null;
+  /** A pending out-of-scope placement request for this task, if any (Section 9). */
+  pendingRequest: { id: string; boardId: string; boardName: string; requesterId: string } | null;
   version: number;
   createdAt: string;
   updatedAt: string;

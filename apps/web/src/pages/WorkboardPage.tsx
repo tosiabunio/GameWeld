@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
+import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { useProject } from './ProjectPage.tsx';
 
 export function WorkboardPage() {
@@ -11,6 +12,10 @@ export function WorkboardPage() {
   const canManage = project.permissions['board.manage'];
   const [board, setBoard] = useState<BoardView | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    text: string;
+    link?: { to: string; label: string };
+  } | null>(null);
 
   const reload = useCallback(async () => {
     setBoard(await api.activeBoard(project.id));
@@ -23,6 +28,7 @@ export function WorkboardPage() {
   /** Runs a board mutation; every endpoint returns the fresh view, and conflicts reload. */
   async function run(action: () => Promise<BoardView | void>): Promise<boolean> {
     setError(null);
+    setNotice(null);
     try {
       const next = await action();
       if (next) setBoard(next);
@@ -64,8 +70,20 @@ export function WorkboardPage() {
           {error}
         </p>
       )}
+      {notice && (
+        <p className="notice info" role="status" data-testid="board-notice">
+          {notice.text}
+          {notice.link && (
+            <>
+              {' '}
+              <Link to={notice.link.to}>{notice.link.label}</Link>
+            </>
+          )}
+        </p>
+      )}
       <ScopePanel board={board} onChange={run} />
-      <Columns board={board} onChange={run} />
+      <RequestsPanel board={board} onBoardChanged={reload} />
+      <Columns board={board} onChange={run} onNotice={setNotice} />
     </div>
   );
 }
@@ -165,6 +183,12 @@ function BoardHeader({
           <span>
             {c.placedTasks - c.unfinishedTasks}/{c.placedTasks} tasks done
           </span>
+          {c.pendingRequests > 0 && (
+            <span>
+              <strong>{c.pendingRequests}</strong> pending request
+              {c.pendingRequests === 1 ? '' : 's'}
+            </span>
+          )}
         </p>
       </div>
       {canManage && (
@@ -346,11 +370,14 @@ function ScopePanel({
 function Columns({
   board,
   onChange,
+  onNotice,
 }: {
   board: BoardView;
   onChange: (action: () => Promise<BoardView | void>) => Promise<boolean>;
+  onNotice: (notice: { text: string; link?: { to: string; label: string } } | null) => void;
 }) {
   const { project } = useProject();
+  const [returning, setReturning] = useState<string | null>(null);
   const canWork = project.permissions['task.work'] && board.state === 'active';
   const canComplete = project.permissions['task.complete'];
   const canManage = project.permissions['board.manage'] && board.state === 'active';
@@ -406,15 +433,49 @@ function Columns({
             {card.outOfScope && <span className="badge warn">Out of scope</span>}
             {card.assignee && <span>{card.assignee.displayName}</span>}
           </div>
-          {canWork && !card.completed && (
+          {canWork && !card.completed && returning !== card.id && (
             <div className="card-actions">
               <button
                 type="button"
                 className="link"
-                onClick={() => void onChange(() => api.returnTask(project.id, board.id, card.id))}
+                onClick={() => setReturning(card.id)}
                 aria-label={`Return ${card.title} to Breakdown`}
               >
                 Return to Breakdown
+              </button>
+            </div>
+          )}
+          {returning === card.id && (
+            <div
+              className="confirm small"
+              role="group"
+              aria-label={`Confirm returning ${card.title}`}
+            >
+              <p>
+                Leaves the board and shows as Unplaced in the item's Breakdown. Nothing is lost.
+              </p>
+              <button
+                type="button"
+                className="primary"
+                onClick={() =>
+                  void onChange(() => api.returnTask(project.id, board.id, card.id)).then((ok) => {
+                    setReturning(null);
+                    if (ok) {
+                      onNotice({
+                        text: `“${card.title}” returned to Breakdown.`,
+                        link: {
+                          to: `/projects/${project.id}/breakdown/${card.itemId}`,
+                          label: `Open ${card.itemTitle}`,
+                        },
+                      });
+                    }
+                  })
+                }
+              >
+                Return
+              </button>
+              <button type="button" onClick={() => setReturning(null)}>
+                Cancel
               </button>
             </div>
           )}

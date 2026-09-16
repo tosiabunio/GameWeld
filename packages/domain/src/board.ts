@@ -68,6 +68,7 @@ export interface BoardView extends BoardSummary {
     outOfScopeTasks: number;
     placedTasks: number;
     unfinishedTasks: number;
+    pendingRequests: number;
   };
   /** The item the priority rule would activate next (D7), if any and if room remains. */
   nextEligible: {

@@ -3,6 +3,7 @@ import { TASK_CATEGORIES, TASK_CATEGORY_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { useCurrentUser } from '../session.tsx';
 import { TaskStatus } from './TaskStatus.tsx';
 
 /** The three task groups of an item (Section 7), with inline creation for members. */
@@ -39,12 +40,26 @@ export function Breakdown({
     void reload();
   }, [reload]);
 
+  const me = useCurrentUser();
   const [boardId, setBoardId] = useState<string | null>(null);
+  const [requesting, setRequesting] = useState<{ taskId: string; reason: string } | null>(null);
   useEffect(() => {
     if (activeBoard) setBoardId(activeBoard.id);
-    else if (canPlaceOutside) api.activeBoard(projectId).then((b) => setBoardId(b?.id ?? null));
-    else setBoardId(null);
-  }, [activeBoard, canPlaceOutside, projectId]);
+    else api.activeBoard(projectId).then((b) => setBoardId(b?.id ?? null));
+  }, [activeBoard, projectId]);
+
+  async function act(action: () => Promise<unknown>, failure: string) {
+    setError(null);
+    try {
+      await action();
+      await reload();
+      await onChanged();
+      return true;
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : failure);
+      return false;
+    }
+  }
 
   async function place(task: Task) {
     if (!boardId) return;
@@ -125,15 +140,89 @@ export function Breakdown({
                           !task.placement &&
                           !task.completed &&
                           !task.archived && (
-                            <button
-                              type="button"
-                              className="link"
-                              onClick={() => void place(task)}
-                              aria-label={`Add ${task.title} to Workboard`}
-                            >
-                              {activeBoard ? 'Add to Workboard' : 'Place as exception'}
-                            </button>
+                            <>
+                              {activeBoard || canPlaceOutside ? (
+                                <button
+                                  type="button"
+                                  className="link"
+                                  onClick={() => void place(task)}
+                                  aria-label={`Add ${task.title} to Workboard`}
+                                >
+                                  {activeBoard ? 'Add to Workboard' : 'Place as exception'}
+                                </button>
+                              ) : task.pendingRequest ? (
+                                <>
+                                  <span className="badge neutral">Placement requested</span>
+                                  {task.pendingRequest.requesterId === me.id && (
+                                    <button
+                                      type="button"
+                                      className="link"
+                                      onClick={() =>
+                                        void act(
+                                          () =>
+                                            api.withdrawRequest(
+                                              projectId,
+                                              boardId,
+                                              task.pendingRequest!.id,
+                                            ),
+                                          'Could not withdraw the request',
+                                        )
+                                      }
+                                      aria-label={`Withdraw request for ${task.title}`}
+                                    >
+                                      Withdraw
+                                    </button>
+                                  )}
+                                </>
+                              ) : requesting?.taskId !== task.id ? (
+                                <button
+                                  type="button"
+                                  className="link"
+                                  onClick={() => setRequesting({ taskId: task.id, reason: '' })}
+                                  aria-label={`Request placement of ${task.title}`}
+                                >
+                                  Request placement on Workboard
+                                </button>
+                              ) : null}
+                            </>
                           )}
+                        {requesting?.taskId === task.id && boardId && (
+                          <form
+                            className="confirm small"
+                            aria-label={`Request placement of ${task.title}`}
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              void act(
+                                () =>
+                                  api.createRequest(projectId, boardId, {
+                                    taskId: task.id,
+                                    reason: requesting.reason.trim(),
+                                  }),
+                                'Could not send the request',
+                              ).then((ok) => ok && setRequesting(null));
+                            }}
+                          >
+                            <p>
+                              Asks a Game Director to place this task on the Workboard although its
+                              item is outside the scope.
+                            </p>
+                            <input
+                              value={requesting.reason}
+                              onChange={(e) =>
+                                setRequesting({ taskId: task.id, reason: e.target.value })
+                              }
+                              placeholder="Why now? (optional)"
+                              aria-label="Reason"
+                              maxLength={5000}
+                            />
+                            <button type="submit" className="primary">
+                              Send request
+                            </button>
+                            <button type="button" onClick={() => setRequesting(null)}>
+                              Cancel
+                            </button>
+                          </form>
+                        )}
                       </div>
                     </li>
                   ))}

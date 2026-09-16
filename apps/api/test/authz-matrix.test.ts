@@ -28,6 +28,7 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   let taskId: string;
   let boardId: string;
   let columnId: string;
+  let requestId: string;
   const cookies: Record<ProjectRole, string> = { director: '', developer: '', tester: '' };
 
   beforeAll(async () => {
@@ -118,6 +119,19 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, '{developer}') ON CONFLICT DO NOTHING`,
       [projectId, extraUserId],
     );
+    const request = await t.db.query<{ id: string }>(
+      `INSERT INTO work_requests (task_id, board_id, requester_id) VALUES ($1, $2, $3)
+       ON CONFLICT DO NOTHING RETURNING id`,
+      [taskId, boardId, extraUserId],
+    );
+    requestId =
+      request.rows[0]?.id ??
+      (
+        await t.db.query<{ id: string }>(
+          `SELECT id FROM work_requests WHERE task_id = $1 ORDER BY created_at DESC LIMIT 1`,
+          [taskId],
+        )
+      ).rows[0]!.id;
     const link = await t.db.query<{ id: string }>(
       `INSERT INTO links (project_id, item_id, url) VALUES ($1, $2, 'https://example.com') RETURNING id`,
       [projectId, itemId],
@@ -133,7 +147,8 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       .replace(':linkId', linkId)
       .replace(':taskId', taskId)
       .replace(':boardId', boardId)
-      .replace(':columnId', columnId);
+      .replace(':columnId', columnId)
+      .replace(':requestId', requestId);
   }
 
   it('found project-scoped routes to check', () => {

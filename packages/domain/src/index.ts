@@ -4,3 +4,4 @@ export * from './api.ts';
 export * from './backlog.ts';
 export * from './tasks.ts';
 export * from './board.ts';
+export * from './requests.ts';

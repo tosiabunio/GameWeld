@@ -11,6 +11,7 @@ import { backlogRoutes } from './routes/backlog.ts';
 import { boardRoutes } from './routes/board.ts';
 import { memberRoutes } from './routes/members.ts';
 import { projectRoutes } from './routes/projects.ts';
+import { requestRoutes } from './routes/requests.ts';
 import { taskRoutes } from './routes/tasks.ts';
 import { userRoutes } from './routes/users.ts';
 import { HttpError } from './errors.ts';
@@ -63,6 +64,7 @@ export async function buildApp(
   await app.register(taskRoutes, { prefix: '/api' });
   await app.register(boardRoutes, { prefix: '/api' });
   await app.register(acceptanceRoutes, { prefix: '/api' });
+  await app.register(requestRoutes, { prefix: '/api' });
 
   if (ctx.config.webDist) {
     const root = path.resolve(ctx.config.webDist);

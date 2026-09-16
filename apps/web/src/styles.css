@@ -712,3 +712,50 @@ ul.card-list {
   margin: 4px 0 0;
   white-space: pre-wrap;
 }
+
+.notice.info {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.confirm.small {
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  margin: 0;
+}
+.confirm.small p {
+  font-size: 0.85rem;
+}
+
+/* Phase 6: requests */
+.request-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.request-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.request-list p {
+  margin: 4px 0 0;
+}
+.request-list.decided li {
+  display: block;
+}
+.confirm.small input {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  flex: 1;
+  min-width: 160px;
+}

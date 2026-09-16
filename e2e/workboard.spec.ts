@@ -67,6 +67,25 @@ test('Director creates a board, activates the next item, hits the limit, renames
     .click();
   await expect(page.getByRole('region', { name: 'In progress' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Done' })).toBeVisible();
+
+  // Return to Breakdown asks first, then says where the task went.
+  await page
+    .getByRole('button', { name: 'Return Attack animation to Breakdown', exact: true })
+    .click();
+  await page
+    .getByRole('group', { name: 'Confirm returning Attack animation' })
+    .getByRole('button', { name: 'Return' })
+    .click();
+  await expect(page.getByTestId('board-notice')).toContainText(
+    '“Attack animation” returned to Breakdown.',
+  );
+  await expect(page.getByTestId('item-card').filter({ hasText: 'Attack animation' })).toHaveCount(
+    0,
+  );
+  await page.getByTestId('board-notice').getByRole('link', { name: 'Open Ranged enemy' }).click();
+  await expect(page.getByTestId('tasks-assets').getByTestId('task-row').first()).toContainText(
+    'Unplaced',
+  );
 });
 
 test('Developer creates cards: default parent with one item in scope, choice with several', async ({

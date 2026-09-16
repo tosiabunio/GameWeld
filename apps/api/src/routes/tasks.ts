@@ -54,6 +54,10 @@ interface TaskRow {
   column_name: string | null;
   column_kind: string | null;
   entered_as_exception: boolean | null;
+  request_id: string | null;
+  request_board_id: string | null;
+  request_board_name: string | null;
+  request_requester_id: string | null;
 }
 
 const taskSelect = `
@@ -61,12 +65,15 @@ const taskSelect = `
          u.display_name AS assignee_name, t.completed, t.completed_at, t.archived_at, t.version,
          t.created_at, t.updated_at,
          w.id AS board_id, w.name AS board_name, c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
-         p.entered_as_exception
+         p.entered_as_exception,
+         r.id AS request_id, r.board_id AS request_board_id, rw.name AS request_board_name, r.requester_id AS request_requester_id
     FROM tasks t
     LEFT JOIN users u ON u.id = t.assignee_id
     LEFT JOIN task_placements p ON p.task_id = t.id AND p.is_current
     LEFT JOIN workboards w ON w.id = p.board_id
-    LEFT JOIN board_columns c ON c.id = p.column_id`;
+    LEFT JOIN board_columns c ON c.id = p.column_id
+    LEFT JOIN work_requests r ON r.task_id = t.id AND r.status = 'pending'
+    LEFT JOIN workboards rw ON rw.id = r.board_id`;
 
 function toTask(r: TaskRow): Task {
   return {
@@ -90,6 +97,15 @@ function toTask(r: TaskRow): Task {
             columnName: r.column_name,
             inDone: r.column_kind === 'done',
             enteredAsException: r.entered_as_exception ?? false,
+          }
+        : null,
+    pendingRequest:
+      r.request_id && r.request_board_id && r.request_board_name && r.request_requester_id
+        ? {
+            id: r.request_id,
+            boardId: r.request_board_id,
+            boardName: r.request_board_name,
+            requesterId: r.request_requester_id,
           }
         : null,
     version: r.version,

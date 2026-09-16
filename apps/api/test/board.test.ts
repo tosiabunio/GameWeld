@@ -104,6 +104,7 @@ describe('workboard', () => {
       outOfScopeTasks: 0,
       placedTasks: 0,
       unfinishedTasks: 0,
+      pendingRequests: 0,
     });
     expect(b.nextEligible?.title).toBe('Ranged enemy');
     expect((await post(boards(), { name: 'Second' })).statusCode).toBe(409); // D1

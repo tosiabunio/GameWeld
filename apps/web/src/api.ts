@@ -10,6 +10,9 @@ import type {
   CreateBoardInput,
   CreateBoardTaskInput,
   CreateColumnInput,
+  CreateRequestInput,
+  DecideRequestInput,
+  WorkRequest,
   MovePlacementInput,
   RemoveScopeInput,
   UpdateBoardInput,
@@ -185,6 +188,29 @@ export const api = {
   movePlacement: (projectId: string, boardId: string, taskId: string, input: MovePlacementInput) =>
     request<BoardView>(
       `/api/projects/${projectId}/boards/${boardId}/placements/${taskId}/move`,
+      json('POST', input),
+    ),
+  requests: (projectId: string, boardId: string) =>
+    request<WorkRequest[]>(`/api/projects/${projectId}/boards/${boardId}/requests`),
+  createRequest: (projectId: string, boardId: string, input: CreateRequestInput) =>
+    request<WorkRequest>(
+      `/api/projects/${projectId}/boards/${boardId}/requests`,
+      json('POST', input),
+    ),
+  withdrawRequest: (projectId: string, boardId: string, requestId: string) =>
+    request<WorkRequest>(
+      `/api/projects/${projectId}/boards/${boardId}/requests/${requestId}/withdraw`,
+      { method: 'POST' },
+    ),
+  decideRequest: (
+    projectId: string,
+    boardId: string,
+    requestId: string,
+    verb: 'approve' | 'reject',
+    input: DecideRequestInput,
+  ) =>
+    request<WorkRequest>(
+      `/api/projects/${projectId}/boards/${boardId}/requests/${requestId}/${verb}`,
       json('POST', input),
     ),
   returnTask: (projectId: string, boardId: string, taskId: string) =>
