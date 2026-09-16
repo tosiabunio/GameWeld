@@ -26,3 +26,8 @@ coverage/
 *.log
 tmp/
 temp/
+
+# Test artifacts
+playwright-report/
+test-results/
+.env.local

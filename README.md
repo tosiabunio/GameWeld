@@ -6,13 +6,13 @@ GameWeld is a web application that connects the intended scope of a game with th
 
 ## Status
 
-Pre-implementation. The product and functional specification is a discussion draft (v0.1) and is being reviewed before implementation planning begins. No application code exists yet.
+Phase 0 (foundation) in progress. The product and functional specification (v0.2) is the implementation baseline; delivery follows the implementation plan.
 
 ## Documents
 
 | Document | Description |
 | --- | --- |
-| [Production specification v0.1](docs/gameweld-production-specification-v0.1.md) | Product purpose, terminology, data model, backlog and Workboard behavior, permissions, MVP acceptance scenarios, and open decisions. |
+| [Production specification v0.2](docs/gameweld-production-specification-v0.2.md) | Product purpose, terminology, data model, backlog and Workboard behavior, permissions, MVP acceptance scenarios, and recorded decisions. |
 | [Specification review notes](docs/gameweld-spec-review-notes.md) | Review findings and gaps to fold into the specification's open decisions (Polish). |
 | [Implementation plan](docs/gameweld-implementation-plan.md) | Assumed decisions, proposed technical baseline, architecture and invariants, phased delivery mapped to the acceptance scenarios, test strategy, and risks. |
 
@@ -26,13 +26,25 @@ Pre-implementation. The product and functional specification is a discussion dra
 
 Roles in the first specification are **Game Director**, **Developer**, and **Tester**.
 
+## Running locally
+
+```
+make up
+```
+
+Builds and starts the application with a PostgreSQL database under Docker (OrbStack on macOS), seeds a demo project, and prints the URL. See [Running GameWeld locally](docs/running-locally.md) for the other commands, and `make test` to run the whole test suite.
+
 ## Repository layout
 
 ```
-docs/   Product specification and review notes
+apps/api/          Fastify API, domain services, SQL migrations, integration tests
+apps/web/          React client built with Vite
+packages/domain/   Shared types, permission matrix, personas, unit tests
+e2e/               Browser tests for the specification's acceptance scenarios
+docs/              Specification, implementation plan, review notes, running guide
+compose.yml        Local stack; driven by the Makefile
+Dockerfile         Application image (API plus built client)
 ```
-
-Application code, tooling, and contribution guidelines will be added once the specification is approved.
 
 ## License
 

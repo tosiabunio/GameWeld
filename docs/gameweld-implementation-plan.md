@@ -2,7 +2,7 @@
 
 Version 0.1 · 16 September 2026
 
-**Basis:** [Production specification v0.1](gameweld-production-specification-v0.1.md) and the [specification review notes](gameweld-spec-review-notes.md).
+**Basis:** [Production specification v0.2](gameweld-production-specification-v0.2.md) and the [specification review notes](gameweld-spec-review-notes.md).
 
 **Status:** proposal. Section 2 lists the decisions this plan assumes; each one is a starting point taken from the specification's "Recommended starting point" column or from the review notes, not an approved decision. Confirming or changing them is the first step of the plan.
 
@@ -76,7 +76,7 @@ The person testing progress should not need Docker knowledge. OrbStack provides 
 
 | Command | What it does |
 | --- | --- |
-| `make up` | Builds the application image from the current source, starts the app and PostgreSQL containers, runs pending migrations, seeds demo data if the database is empty, and prints `http://localhost:8080`. Safe to run repeatedly: it rebuilds and restarts only what changed. |
+| `make up` | Builds the application image from the current source, starts the app and PostgreSQL containers, runs pending migrations, seeds demo data if the database is empty, and prints `http://localhost:8090` (the port is configurable through `APP_PORT`). Safe to run repeatedly: it rebuilds and restarts only what changed. |
 | `make down` | Stops the containers. Data is kept. |
 | `make reset` | Stops the containers, deletes the database and attachment volumes, and starts fresh with seed data. Used when a migration changes shape during development or when a clean state is wanted for a walkthrough. |
 | `make logs` | Follows application logs, for when something looks wrong. |

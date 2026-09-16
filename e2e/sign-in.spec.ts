@@ -1,0 +1,24 @@
+import { expect, test } from '@playwright/test';
+
+test('a persona can sign in and sees the demo project', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Sign in as' })).toBeVisible();
+
+  await page.getByTestId('persona-director').click();
+  await expect(page.getByTestId('current-user')).toHaveText('Dana Director');
+
+  const card = page.getByTestId('project-card').first();
+  await expect(card).toContainText('Demo project');
+  await expect(card).toContainText('Your roles: Game Director');
+});
+
+test('switching persona returns to the picker and signs in as someone else', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('persona-developer').click();
+  await expect(page.getByTestId('current-user')).toHaveText('Devin Developer');
+
+  await page.getByRole('button', { name: 'Switch persona' }).click();
+  await page.getByTestId('persona-tester').click();
+  await expect(page.getByTestId('current-user')).toHaveText('Tess Tester');
+  await expect(page.getByTestId('project-card').first()).toContainText('Your roles: Tester');
+});

@@ -1,0 +1,26 @@
+{
+  "name": "@gameweld/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "migrate": "tsx src/migrate.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/static": "^8.2.0",
+    "@gameweld/domain": "*",
+    "fastify": "^5.4.0",
+    "fractional-indexing": "^3.2.0",
+    "pg": "^8.16.0",
+    "tsx": "^4.20.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.0"
+  }
+}

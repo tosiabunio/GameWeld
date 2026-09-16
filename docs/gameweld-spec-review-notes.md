@@ -1,7 +1,7 @@
 # GameWeld — uwagi do specyfikacji v0.1
 
 Data: 16 września 2026
-Dotyczy: `docs/gameweld-production-specification-v0.1.md`
+Dotyczy: `docs/gameweld-production-specification-v0.2.md`
 
 ## Ocena ogólna
 

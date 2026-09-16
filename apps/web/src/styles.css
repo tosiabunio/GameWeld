@@ -1,0 +1,105 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --card: #fff;
+  --border: #ddd;
+  --accent: #2f6fed;
+  --error: #b00020;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141517;
+    --fg: #ececec;
+    --muted: #9a9a9a;
+    --card: #1e2024;
+    --border: #33363c;
+    --accent: #7aa2ff;
+    --error: #ff6b6b;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.page.narrow {
+  max-width: 480px;
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--error);
+}
+h1 {
+  margin: 0 0 4px;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+button {
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+}
+button:hover {
+  border-color: var(--accent);
+}
+ul.persona-list,
+ul.project-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.persona-list button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  text-align: left;
+}
+.project-list li {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.project-list h3 {
+  margin: 0 0 8px;
+}
+.project-list p {
+  margin: 0 0 6px;
+}
