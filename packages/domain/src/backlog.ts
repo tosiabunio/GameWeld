@@ -1,3 +1,4 @@
+import type { Attachment, Comment, Dependency } from './collab.ts';
 /** Backlog vocabulary from specification Section 6. */
 
 export const MOSCOW_CATEGORIES = ['must', 'should', 'could', 'wont'] as const;
@@ -53,6 +54,8 @@ export interface BacklogItem {
   taskCounts: TaskCounts;
   /** The active Workboard whose scope includes this item, if any (the "board badge"). */
   activeBoard: { id: string; name: string } | null;
+  /** Attachment id of the cover image, if one is set. */
+  coverAttachmentId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,17 +76,15 @@ export interface Acceptance {
   invalidatedReason: string | null;
 }
 
-export interface ItemComment {
-  id: string;
-  author: { id: string; displayName: string };
-  body: string;
-  /** 'rejection' comments are written by the acceptance rejection flow. */
-  kind: 'comment' | 'rejection';
-  createdAt: string;
-}
+/** Item comments share the shape of task comments. */
+export type ItemComment = Comment;
 
 export interface BacklogItemDetail extends BacklogItem {
   links: ItemLink[];
+  attachments: Attachment[];
+  /** Items this one depends on, and items that depend on it (D9, informational). */
+  dependsOn: Dependency[];
+  dependents: Dependency[];
   /** The current acceptance while the item is Done, otherwise null. */
   acceptance: Acceptance | null;
   acceptanceHistory: Acceptance[];
@@ -113,6 +114,8 @@ export interface UpdateItemInput {
   title?: string;
   description?: string;
   archived?: boolean;
+  /** An image attachment of this item, or null to clear the cover. */
+  coverAttachmentId?: string | null;
 }
 
 /**

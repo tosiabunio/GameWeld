@@ -8,6 +8,10 @@ import {
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { Attachments } from '../components/Attachments.tsx';
+import { Comments } from '../components/Comments.tsx';
+import { History } from '../components/History.tsx';
+import { LinksList } from '../components/LinksList.tsx';
 import { TaskStatus } from '../components/TaskStatus.tsx';
 import { WritingPrompt } from '../components/WritingPrompt.tsx';
 import { useProject } from './ProjectPage.tsx';
@@ -88,6 +92,38 @@ export function TaskPage() {
           run(() => api.updateTask(project.id, task.id, { version: task.version, ...input }))
         }
       />
+
+      <section className="panel" aria-labelledby="task-comments-heading">
+        <h2 id="task-comments-heading">Comments</h2>
+        <Comments
+          owner={{ taskId: task.id }}
+          comments={task.comments}
+          canComment={canWork}
+          onChanged={reload}
+        />
+      </section>
+
+      <section className="panel" aria-labelledby="task-attachments-heading">
+        <h2 id="task-attachments-heading">Attachments</h2>
+        <Attachments
+          owner={{ taskId: task.id }}
+          attachments={task.attachments}
+          canWork={editable}
+          onChanged={reload}
+        />
+      </section>
+
+      <section className="panel" aria-labelledby="task-links-heading">
+        <h2 id="task-links-heading">Links</h2>
+        <LinksList
+          links={task.links}
+          canEdit={editable}
+          onAdd={(url, label) => run(() => api.addTaskLink(project.id, task.id, { url, label }))}
+          onRemove={(linkId) => run(() => api.removeTaskLink(project.id, task.id, linkId))}
+        />
+      </section>
+
+      <History query={{ entityType: 'task', entityId: task.id }} />
 
       {task.completed && canComplete && !task.archived && (
         <section className="panel" aria-labelledby="reopen-heading">

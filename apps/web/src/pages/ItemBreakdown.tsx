@@ -5,6 +5,10 @@ import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { Breakdown } from '../components/Breakdown.tsx';
 import { ReviewPanel } from '../components/ReviewPanel.tsx';
+import { Attachments } from '../components/Attachments.tsx';
+import { Dependencies } from '../components/Dependencies.tsx';
+import { History } from '../components/History.tsx';
+import { LinksList } from '../components/LinksList.tsx';
 import { WritingPrompt } from '../components/WritingPrompt.tsx';
 import { useProject } from './ProjectPage.tsx';
 
@@ -109,35 +113,41 @@ export function ItemBreakdown({
 
       <section className="panel" aria-labelledby="links-heading">
         <h2 id="links-heading">Links</h2>
-        {item.links.length === 0 ? (
-          <p className="muted">No links yet.</p>
-        ) : (
-          <ul className="links">
-            {item.links.map((l) => (
-              <li key={l.id}>
-                <a href={l.url} target="_blank" rel="noreferrer">
-                  {l.label || l.url}
-                </a>
-                {canManage && (
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={() => void run(() => api.removeLink(project.id, item.id, l.id))}
-                    aria-label={`Remove link ${l.label || l.url}`}
-                  >
-                    Remove
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {canManage && (
-          <AddLinkForm
-            onAdd={(url, label) => run(() => api.addLink(project.id, item.id, { url, label }))}
-          />
-        )}
+        <LinksList
+          links={item.links}
+          canEdit={canManage}
+          onAdd={(url, label) => run(() => api.addLink(project.id, item.id, { url, label }))}
+          onRemove={(linkId) => run(() => api.removeLink(project.id, item.id, linkId))}
+        />
       </section>
+
+      <section className="panel" aria-labelledby="attachments-heading">
+        <h2 id="attachments-heading">Attachments</h2>
+        <Attachments
+          owner={{ itemId: item.id }}
+          attachments={item.attachments}
+          canWork={project.permissions['task.work'] && !item.archived}
+          coverId={item.coverAttachmentId}
+          onSetCover={(coverAttachmentId) =>
+            run(() =>
+              api.updateItem(project.id, item.id, { version: item.version, coverAttachmentId }),
+            )
+          }
+          onChanged={changed}
+        />
+      </section>
+
+      <section className="panel" aria-labelledby="deps-heading">
+        <h2 id="deps-heading">Dependencies</h2>
+        <Dependencies
+          itemId={item.id}
+          dependsOn={item.dependsOn}
+          dependents={item.dependents}
+          onChanged={changed}
+        />
+      </section>
+
+      <History query={{ entityType: 'backlog_item', entityId: item.id }} />
 
       {canManage && (
         <section className="panel" aria-labelledby="archive-item-heading">
@@ -224,44 +234,6 @@ function ItemForm({
           {saved && !dirty && <span className="ok">Saved.</span>}
         </div>
       )}
-    </form>
-  );
-}
-
-function AddLinkForm({ onAdd }: { onAdd: (url: string, label: string) => Promise<boolean> }) {
-  const [url, setUrl] = useState('');
-  const [label, setLabel] = useState('');
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (await onAdd(url.trim(), label.trim())) {
-      setUrl('');
-      setLabel('');
-    }
-  }
-  return (
-    <form className="form inline" onSubmit={submit} aria-label="Add link">
-      <label>
-        URL
-        <input
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://"
-          required
-        />
-      </label>
-      <label>
-        Label
-        <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Optional"
-          maxLength={200}
-        />
-      </label>
-      <button type="submit" disabled={url.trim() === ''}>
-        Add link
-      </button>
     </form>
   );
 }

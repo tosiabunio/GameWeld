@@ -14,6 +14,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
 import { fetchAcceptances, fetchItemComments } from './acceptance.ts';
+import { fetchAttachments, fetchDependencies } from './collab.ts';
 
 const createSchema = z.object({
   title: z.string().trim().min(1).max(500),
@@ -26,6 +27,7 @@ const updateSchema = z.object({
   title: z.string().trim().min(1).max(500).optional(),
   description: z.string().max(50_000).optional(),
   archived: z.boolean().optional(),
+  coverAttachmentId: z.string().uuid().nullable().optional(),
 });
 
 const moveSchema = z.object({
@@ -55,11 +57,12 @@ interface ItemRow {
   task_completed: string;
   board_id: string | null;
   board_name: string | null;
+  cover_attachment_id: string | null;
 }
 
 const itemSelect = `
   SELECT b.id, b.project_id, b.title, b.description, b.category, b.rank, b.state, b.archived_at,
-         b.version, b.created_at, b.updated_at,
+         b.version, b.created_at, b.updated_at, b.cover_attachment_id,
          (SELECT count(*) FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL) AS task_total,
          (SELECT count(*) FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL AND t.completed) AS task_completed,
          w.id AS board_id, w.name AS board_name
@@ -80,6 +83,7 @@ function toItem(r: ItemRow): BacklogItem {
     version: r.version,
     taskCounts: { total: Number(r.task_total), completed: Number(r.task_completed) },
     activeBoard: r.board_id && r.board_name ? { id: r.board_id, name: r.board_name } : null,
+    coverAttachmentId: r.cover_attachment_id,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
@@ -167,14 +171,19 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
       const { itemId } = req.params as { itemId: string };
       const item = await fetchItem(db, req.access!.project.id, itemId);
       if (!item) throw notFound('Backlog item not found');
-      const [links, acceptanceHistory, comments] = await Promise.all([
+      const [links, acceptanceHistory, comments, attachments, deps] = await Promise.all([
         fetchLinks(db, item.id),
         fetchAcceptances(db, item.id),
         fetchItemComments(db, item.id),
+        fetchAttachments(db, { itemId: item.id }),
+        fetchDependencies(db, item.id),
       ]);
       return {
         ...item,
         links,
+        attachments,
+        dependsOn: deps.dependsOn,
+        dependents: deps.dependents,
         acceptance:
           item.state === 'done'
             ? (acceptanceHistory.find((a) => a.invalidatedAt === null) ?? null)
@@ -188,11 +197,20 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
   app.patch(`${base}/:itemId`, projectRoute('backlog.manage'), async (req) => {
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) throw badRequest('Invalid backlog item update', parsed.error.flatten());
-    const { version, archived, ...fields } = parsed.data;
+    const { version, archived, coverAttachmentId, ...fields } = parsed.data;
     const { itemId } = req.params as { itemId: string };
     const projectId = req.access!.project.id;
 
     await withTransaction(db, async (tx) => {
+      if (coverAttachmentId) {
+        const cover = await tx.query<{ content_type: string }>(
+          'SELECT content_type FROM attachments WHERE item_id = $1 AND id = $2',
+          [itemId, coverAttachmentId],
+        );
+        if (!cover.rows[0]) throw badRequest('The cover must be an attachment of this item.');
+        if (!cover.rows[0].content_type.startsWith('image/'))
+          throw badRequest('The cover must be an image.');
+      }
       const locked = await tx.query<ItemRow>(
         `SELECT * FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE`,
         [projectId, itemId],
@@ -227,9 +245,19 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
               : null,
       };
       await tx.query(
-        `UPDATE backlog_items SET title = $3, description = $4, archived_at = $5, version = version + 1, updated_at = now()
+        `UPDATE backlog_items SET title = $3, description = $4, archived_at = $5,
+                cover_attachment_id = CASE WHEN $6::boolean THEN $7::uuid ELSE cover_attachment_id END,
+                version = version + 1, updated_at = now()
           WHERE project_id = $1 AND id = $2`,
-        [projectId, itemId, next.title, next.description, next.archived_at],
+        [
+          projectId,
+          itemId,
+          next.title,
+          next.description,
+          next.archived_at,
+          coverAttachmentId !== undefined,
+          coverAttachmentId ?? null,
+        ],
       );
       await recordActivity(tx, {
         projectId,

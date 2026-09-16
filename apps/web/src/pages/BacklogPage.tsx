@@ -107,6 +107,14 @@ export function BacklogPage() {
         }
         renderCard={(item, { index, count }) => (
           <>
+            {item.coverAttachmentId && (
+              <img
+                className="cover"
+                src={api.attachmentUrl(project.id, item.coverAttachmentId, true)}
+                alt=""
+                loading="lazy"
+              />
+            )}
             <Link to={`/projects/${project.id}/breakdown/${item.id}`} className="card-title">
               {item.title}
             </Link>

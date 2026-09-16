@@ -1,6 +1,7 @@
 import type { BacklogItemDetail } from '@gameweld/domain';
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api.ts';
+import { Comments } from './Comments.tsx';
 import { useProject } from '../pages/ProjectPage.tsx';
 
 /**
@@ -20,7 +21,6 @@ export function ReviewPanel({
   const canComment = project.permissions['task.work'];
   const [mode, setMode] = useState<'idle' | 'accept' | 'reject'>('idle');
   const [note, setNote] = useState('');
-  const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   async function run(action: () => Promise<unknown>) {
@@ -150,48 +150,12 @@ export function ReviewPanel({
       )}
 
       <h3>Comments</h3>
-      {item.comments.length === 0 ? (
-        <p className="muted small">No comments yet.</p>
-      ) : (
-        <ul className="comments" data-testid="comments">
-          {item.comments.map((c) => (
-            <li key={c.id} className={c.kind === 'rejection' ? 'rejection' : ''}>
-              <div className="muted small">
-                {c.kind === 'rejection' && <span className="badge warn">Rejected</span>}{' '}
-                {c.author.displayName} · {fmt(c.createdAt)}
-              </div>
-              <p>{c.body}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-      {canComment && (
-        <form
-          className="form"
-          aria-label="Add comment"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault();
-            void run(() => api.addItemComment(project.id, item.id, { body: comment.trim() })).then(
-              (ok) => ok && setComment(''),
-            );
-          }}
-        >
-          <label>
-            Comment
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={2}
-              placeholder="Notes for the team, review findings, build references…"
-            />
-          </label>
-          <div>
-            <button type="submit" disabled={comment.trim() === ''}>
-              Add comment
-            </button>
-          </div>
-        </form>
-      )}
+      <Comments
+        owner={{ itemId: item.id }}
+        comments={item.comments}
+        canComment={canComment}
+        onChanged={onChanged}
+      />
     </section>
   );
 }

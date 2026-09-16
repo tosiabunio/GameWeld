@@ -1,4 +1,5 @@
 import type { ItemState, MoscowCategory } from './backlog.ts';
+import type { Attachment, Comment } from './collab.ts';
 
 /** Task vocabulary from specification Sections 5, 7, and 11. */
 
@@ -43,6 +44,9 @@ export interface Task {
 
 export interface TaskDetail extends Task {
   item: { id: string; title: string; category: MoscowCategory; state: ItemState };
+  comments: Comment[];
+  attachments: Attachment[];
+  links: { id: string; url: string; label: string }[];
 }
 
 export interface CreateTaskInput {

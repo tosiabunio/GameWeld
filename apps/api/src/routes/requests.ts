@@ -147,31 +147,35 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send(await fetchRequest(db, boardId, requestId));
   });
 
-  app.post(`${base}/:requestId/withdraw`, projectRoute('task.work'), async (req) => {
-    const { boardId, requestId } = req.params as { boardId: string; requestId: string };
-    const projectId = req.access!.project.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      const request = await fetchRequest(tx, boardId, requestId, true);
-      if (!request) throw notFound('Request not found');
-      if (request.requester.id !== req.user!.id)
-        throw new HttpError(403, 'Only the requester can withdraw a request.');
-      if (request.status !== 'pending')
-        throw conflict(`This request was already ${request.status}.`);
-      await tx.query(
-        `UPDATE work_requests SET status = 'withdrawn', version = version + 1 WHERE id = $1`,
-        [requestId],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'request.withdrawn',
-        entityType: 'work_request',
-        entityId: requestId,
+  app.post(
+    `${base}/:requestId/withdraw`,
+    projectRoute('task.work', { ownerScoped: true }),
+    async (req) => {
+      const { boardId, requestId } = req.params as { boardId: string; requestId: string };
+      const projectId = req.access!.project.id;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        const request = await fetchRequest(tx, boardId, requestId, true);
+        if (!request) throw notFound('Request not found');
+        if (request.requester.id !== req.user!.id)
+          throw new HttpError(403, 'Only the requester can withdraw a request.');
+        if (request.status !== 'pending')
+          throw conflict(`This request was already ${request.status}.`);
+        await tx.query(
+          `UPDATE work_requests SET status = 'withdrawn', version = version + 1 WHERE id = $1`,
+          [requestId],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'request.withdrawn',
+          entityType: 'work_request',
+          entityId: requestId,
+        });
       });
-    });
-    return fetchRequest(db, boardId, requestId);
-  });
+      return fetchRequest(db, boardId, requestId);
+    },
+  );
 
   for (const verb of ['approve', 'reject'] as const) {
     app.post(`${base}/:requestId/${verb}`, projectRoute('out_of_scope.approve'), async (req) => {

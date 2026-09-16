@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
+import { History } from '../components/History.tsx';
 import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { useProject } from './ProjectPage.tsx';
 
@@ -84,6 +85,7 @@ export function WorkboardPage() {
       <ScopePanel board={board} onChange={run} />
       <RequestsPanel board={board} onBoardChanged={reload} />
       <Columns board={board} onChange={run} onNotice={setNotice} />
+      <History query={{ entityType: 'workboard', entityId: board.id }} />
     </div>
   );
 }

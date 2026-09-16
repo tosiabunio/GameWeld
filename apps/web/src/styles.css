@@ -759,3 +759,75 @@ ul.card-list {
   flex: 1;
   min-width: 160px;
 }
+
+/* Phase 7: collaboration and history */
+.attachment-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.attachment-list li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.attachment-meta {
+  display: grid;
+  flex: 1;
+  min-width: 160px;
+}
+.thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.upload {
+  display: grid;
+  gap: 4px;
+}
+.upload input {
+  font: inherit;
+}
+.cover {
+  width: 100%;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.dep-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.dep-list li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dependencies h4,
+[data-testid='dependencies'] h4 {
+  margin: 8px 0 4px;
+}
+.history-panel h3 {
+  margin: 0;
+}
+.history-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+.history-list li {
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}

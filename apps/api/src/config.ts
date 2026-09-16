@@ -14,6 +14,7 @@ const schema = z.object({
     .number()
     .positive()
     .default(24 * 14),
+  ATTACHMENT_MAX_MB: z.coerce.number().positive().default(25),
 });
 
 export interface Config {
@@ -27,6 +28,7 @@ export interface Config {
   webDist: string | undefined;
   attachmentsDir: string;
   sessionTtlMs: number;
+  attachmentMaxBytes: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -47,6 +49,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     webDist: e.WEB_DIST,
     attachmentsDir: e.ATTACHMENTS_DIR,
     sessionTtlMs: e.SESSION_TTL_HOURS * 60 * 60 * 1000,
+    attachmentMaxBytes: Math.round(e.ATTACHMENT_MAX_MB * 1024 * 1024),
   };
   assertSafe(config);
   return config;

@@ -13,6 +13,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
+import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
 
 const uuid = z.string().uuid();
 
@@ -142,7 +143,12 @@ async function fetchDetail(
       state: TaskDetail['item']['state'];
     }>('SELECT id, title, category, state FROM backlog_items WHERE id = $1', [task.itemId])
   ).rows[0]!;
-  return { ...task, item };
+  const [comments, attachments, links] = await Promise.all([
+    fetchComments(db, { taskId: task.id }),
+    fetchAttachments(db, { taskId: task.id }),
+    fetchLinks(db, { taskId: task.id }),
+  ]);
+  return { ...task, item, comments, attachments, links };
 }
 
 async function assertMember(tx: Queryable, projectId: string, userId: string): Promise<void> {

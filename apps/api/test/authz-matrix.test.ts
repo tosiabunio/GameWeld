@@ -1,6 +1,6 @@
 import { can, PROJECT_ROLES, type ProjectAction, type ProjectRole } from '@gameweld/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app.ts';
+import { buildApp, createContext } from '../src/app.ts';
 import { createPool } from '../src/db.ts';
 import { seedDemo } from '../src/seed.ts';
 import { signInAs, testConfig, type TestContext } from './helpers.ts';
@@ -11,6 +11,8 @@ interface RouteInfo {
   method: InjectMethod;
   url: string;
   action: ProjectAction;
+  /** Ownership rules (author, uploader, requester) may still answer 403 to an allowed role. */
+  ownerScoped: boolean;
 }
 
 /**
@@ -29,6 +31,9 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   let boardId: string;
   let columnId: string;
   let requestId: string;
+  let attachmentId: string;
+  let commentId: string;
+  let otherItemId: string;
   const cookies: Record<ProjectRole, string> = { director: '', developer: '', tester: '' };
 
   beforeAll(async () => {
@@ -36,12 +41,17 @@ describe('permission matrix is enforced on every project-scoped route', () => {
     const db = createPool(config.databaseUrl);
     await seedDemo(db);
     // Collect routes as they are registered; the hook must exist before the routes do.
-    const app = await buildApp({ config, db }, (instance) => {
+    const app = await buildApp(createContext(config, db), (instance) => {
       instance.addHook('onRoute', (r) => {
         const action = r.config?.projectAction;
         if (!action) return;
         for (const m of Array.isArray(r.method) ? r.method : [r.method]) {
-          routes.push({ method: m as InjectMethod, url: r.url, action });
+          routes.push({
+            method: m as InjectMethod,
+            url: r.url,
+            action,
+            ownerScoped: r.config?.ownerScoped === true,
+          });
         }
       });
     });
@@ -78,6 +88,11 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       [projectId],
     );
     itemId = item.rows[0]!.id;
+    const other = await db.query<{ id: string }>(
+      `INSERT INTO backlog_items (project_id, title, category, rank) VALUES ($1, 'Other item', 'should', 'a0') RETURNING id`,
+      [projectId],
+    );
+    otherItemId = other.rows[0]!.id;
     const task = await db.query<{ id: string }>(
       `INSERT INTO tasks (project_id, item_id, category, title) VALUES ($1, $2, 'code', 'Matrix task') RETURNING id`,
       [projectId, itemId],
@@ -132,6 +147,21 @@ describe('permission matrix is enforced on every project-scoped route', () => {
           [taskId],
         )
       ).rows[0]!.id;
+    const attachment = await t.db.query<{ id: string }>(
+      `INSERT INTO attachments (project_id, item_id, uploaded_by, file_name, content_type, size_bytes, storage_key)
+       VALUES ($1, $2, $3, 'fixture.txt', 'text/plain', 1, $4) RETURNING id`,
+      [projectId, itemId, extraUserId, `${projectId}/${crypto.randomUUID()}`],
+    );
+    attachmentId = attachment.rows[0]!.id;
+    const comment = await t.db.query<{ id: string }>(
+      `INSERT INTO comments (project_id, item_id, author_id, body) VALUES ($1, $2, $3, 'fixture') RETURNING id`,
+      [projectId, itemId, extraUserId],
+    );
+    commentId = comment.rows[0]!.id;
+    await t.db.query(
+      `INSERT INTO item_dependencies (item_id, depends_on_item_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [itemId, otherItemId],
+    );
     const link = await t.db.query<{ id: string }>(
       `INSERT INTO links (project_id, item_id, url) VALUES ($1, $2, 'https://example.com') RETURNING id`,
       [projectId, itemId],
@@ -148,7 +178,10 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       .replace(':taskId', taskId)
       .replace(':boardId', boardId)
       .replace(':columnId', columnId)
-      .replace(':requestId', requestId);
+      .replace(':requestId', requestId)
+      .replace(':attachmentId', attachmentId)
+      .replace(':commentId', commentId)
+      .replace(':dependsOnItemId', otherItemId);
   }
 
   it('found project-scoped routes to check', () => {
@@ -199,7 +232,7 @@ describe('permission matrix is enforced on every project-scoped route', () => {
         });
         const label = `${r.method} ${r.url} as ${role} (action ${r.action})`;
         if (allowed) {
-          expect([401, 403], label).not.toContain(res.statusCode);
+          expect([401, ...(r.ownerScoped ? [] : [403])], label).not.toContain(res.statusCode);
         } else {
           expect(res.statusCode, label).toBe(403);
         }

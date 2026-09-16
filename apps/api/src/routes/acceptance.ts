@@ -5,11 +5,11 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import { fetchComments } from './collab.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 
 const acceptSchema = z.object({ note: z.string().max(5000).default('') });
 const rejectSchema = z.object({ note: z.string().trim().min(1).max(5000) });
-const commentSchema = z.object({ body: z.string().trim().min(1).max(20_000) });
 
 export async function fetchAcceptances(db: Queryable, itemId: string): Promise<Acceptance[]> {
   const res = await db.query<{
@@ -37,26 +37,7 @@ export async function fetchAcceptances(db: Queryable, itemId: string): Promise<A
 }
 
 export async function fetchItemComments(db: Queryable, itemId: string): Promise<ItemComment[]> {
-  const res = await db.query<{
-    id: string;
-    author_id: string;
-    display_name: string;
-    body: string;
-    kind: ItemComment['kind'];
-    created_at: Date;
-  }>(
-    `SELECT c.id, c.author_id, u.display_name, c.body, c.kind, c.created_at
-       FROM comments c JOIN users u ON u.id = c.author_id
-      WHERE c.item_id = $1 ORDER BY c.created_at`,
-    [itemId],
-  );
-  return res.rows.map((r) => ({
-    id: r.id,
-    author: { id: r.author_id, displayName: r.display_name },
-    body: r.body,
-    kind: r.kind,
-    createdAt: r.created_at.toISOString(),
-  }));
+  return fetchComments(db, { itemId });
 }
 
 export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
@@ -163,24 +144,5 @@ export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
     });
     const comments = await fetchItemComments(db, itemId);
     return reply.status(201).send(comments.find((c) => c.id === comment));
-  });
-
-  app.post(`${base}/comments`, projectRoute('task.work'), async (req, reply) => {
-    const parsed = commentSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid comment', parsed.error.flatten());
-    const { itemId } = req.params as { itemId: string };
-    const projectId = req.access!.project.id;
-    if (!/^[0-9a-f-]{36}$/i.test(itemId)) throw notFound('Backlog item not found');
-    const exists = await db.query('SELECT 1 FROM backlog_items WHERE project_id = $1 AND id = $2', [
-      projectId,
-      itemId,
-    ]);
-    if (!exists.rowCount) throw notFound('Backlog item not found');
-    const created = await db.query<{ id: string }>(
-      `INSERT INTO comments (project_id, item_id, author_id, body) VALUES ($1, $2, $3, $4) RETURNING id`,
-      [projectId, itemId, req.user!.id, parsed.data.body],
-    );
-    const comments = await fetchItemComments(db, itemId);
-    return reply.status(201).send(comments.find((c) => c.id === created.rows[0]!.id));
   });
 };

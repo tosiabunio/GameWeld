@@ -1,5 +1,11 @@
 import type {
   AcceptItemInput,
+  ActivityEntry,
+  ActivityQuery,
+  Attachment,
+  Comment,
+  Dependency,
+  UpdateCommentInput,
   AddCommentInput,
   AddLinkInput,
   ItemComment,
@@ -55,7 +61,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     // Fastify rejects an empty body that claims to be JSON, so only label real bodies.
     headers: {
-      ...(init?.body ? { 'content-type': 'application/json' } : {}),
+      ...(init?.body && !(init.body instanceof FormData)
+        ? { 'content-type': 'application/json' }
+        : {}),
       ...(init?.headers ?? {}),
     },
   });
@@ -190,6 +198,60 @@ export const api = {
       `/api/projects/${projectId}/boards/${boardId}/placements/${taskId}/move`,
       json('POST', input),
     ),
+  // Collaboration and history (Phase 7)
+  attachmentUrl: (projectId: string, attachmentId: string, inline = false) =>
+    `/api/projects/${projectId}/attachments/${attachmentId}${inline ? '?inline=1' : ''}`,
+  uploadAttachment: async (
+    projectId: string,
+    owner: { itemId: string } | { taskId: string },
+    file: File,
+  ): Promise<Attachment> => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    const path = 'itemId' in owner ? `backlog/${owner.itemId}` : `tasks/${owner.taskId}`;
+    return request<Attachment>(`/api/projects/${projectId}/${path}/attachments`, {
+      method: 'POST',
+      body: form,
+    });
+  },
+  deleteAttachment: (projectId: string, attachmentId: string) =>
+    request<void>(`/api/projects/${projectId}/attachments/${attachmentId}`, { method: 'DELETE' }),
+  addComment: (projectId: string, owner: { itemId: string } | { taskId: string }, body: string) =>
+    request<Comment>(
+      `/api/projects/${projectId}/${'itemId' in owner ? `backlog/${owner.itemId}` : `tasks/${owner.taskId}`}/comments`,
+      json('POST', { body }),
+    ),
+  updateComment: (projectId: string, commentId: string, input: UpdateCommentInput) =>
+    request<Comment>(`/api/projects/${projectId}/comments/${commentId}`, json('PATCH', input)),
+  deleteComment: (projectId: string, commentId: string) =>
+    request<void>(`/api/projects/${projectId}/comments/${commentId}`, { method: 'DELETE' }),
+  addTaskLink: (projectId: string, taskId: string, input: AddLinkInput) =>
+    request<ItemLink>(`/api/projects/${projectId}/tasks/${taskId}/links`, json('POST', input)),
+  removeTaskLink: (projectId: string, taskId: string, linkId: string) =>
+    request<void>(`/api/projects/${projectId}/tasks/${taskId}/links/${linkId}`, {
+      method: 'DELETE',
+    }),
+  addDependency: (projectId: string, itemId: string, dependsOnItemId: string) =>
+    request<{ dependsOn: Dependency[]; dependents: Dependency[] }>(
+      `/api/projects/${projectId}/backlog/${itemId}/dependencies`,
+      json('POST', { dependsOnItemId }),
+    ),
+  removeDependency: (projectId: string, itemId: string, dependsOnItemId: string) =>
+    request<{ dependsOn: Dependency[]; dependents: Dependency[] }>(
+      `/api/projects/${projectId}/backlog/${itemId}/dependencies/${dependsOnItemId}`,
+      { method: 'DELETE' },
+    ),
+  activity: (projectId: string, query: ActivityQuery = {}) => {
+    const params = new URLSearchParams();
+    if (query.entityType && query.entityId) {
+      params.set('entityType', query.entityType);
+      params.set('entityId', query.entityId);
+    }
+    if (query.limit) params.set('limit', String(query.limit));
+    const qs = params.toString();
+    return request<ActivityEntry[]>(`/api/projects/${projectId}/activity${qs ? `?${qs}` : ''}`);
+  },
+
   requests: (projectId: string, boardId: string) =>
     request<WorkRequest[]>(`/api/projects/${projectId}/boards/${boardId}/requests`),
   createRequest: (projectId: string, boardId: string, input: CreateRequestInput) =>

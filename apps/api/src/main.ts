@@ -1,4 +1,4 @@
-import { buildApp } from './app.ts';
+import { buildApp, createContext } from './app.ts';
 import { loadConfig } from './config.ts';
 import { createPool } from './db.ts';
 import { migrate, resetDatabase } from './migrate.ts';
@@ -19,7 +19,7 @@ if (config.seedDemo) {
   console.log(seeded ? 'demo data seeded' : 'database not empty, seed skipped');
 }
 
-const app = await buildApp({ config, db });
+const app = await buildApp(createContext(config, db));
 await app.listen({ port: config.port, host: config.host });
 console.log(`GameWeld API listening on http://${config.host}:${config.port} (${config.appEnv})`);
 

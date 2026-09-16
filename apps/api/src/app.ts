@@ -1,13 +1,16 @@
 import fastifyCookie from '@fastify/cookie';
+import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import path from 'node:path';
 import { registerAuth } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
+import { FilesystemStorage, type Storage } from './storage.ts';
 import { currentVersion } from './migrate.ts';
 import { acceptanceRoutes } from './routes/acceptance.ts';
 import { backlogRoutes } from './routes/backlog.ts';
+import { collabRoutes } from './routes/collab.ts';
 import { boardRoutes } from './routes/board.ts';
 import { memberRoutes } from './routes/members.ts';
 import { projectRoutes } from './routes/projects.ts';
@@ -19,6 +22,11 @@ import { HttpError } from './errors.ts';
 export interface AppContext {
   config: Config;
   db: Db;
+  storage: Storage;
+}
+
+export function createContext(config: Config, db: Db): AppContext {
+  return { config, db, storage: new FilesystemStorage(config.attachmentsDir) };
 }
 
 declare module 'fastify' {
@@ -37,6 +45,9 @@ export async function buildApp(
   });
   app.decorate('ctx', ctx);
   await app.register(fastifyCookie);
+  await app.register(fastifyMultipart, {
+    limits: { files: 1, fileSize: ctx.config.attachmentMaxBytes },
+  });
   beforeRoutes?.(app);
 
   // Must precede route registration: child contexts inherit the handler that exists at that time.
@@ -65,6 +76,7 @@ export async function buildApp(
   await app.register(boardRoutes, { prefix: '/api' });
   await app.register(acceptanceRoutes, { prefix: '/api' });
   await app.register(requestRoutes, { prefix: '/api' });
+  await app.register(collabRoutes, { prefix: '/api' });
 
   if (ctx.config.webDist) {
     const root = path.resolve(ctx.config.webDist);

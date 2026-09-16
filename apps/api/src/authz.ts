@@ -33,6 +33,8 @@ declare module 'fastify' {
   }
   interface FastifyContextConfig {
     projectAction?: ProjectAction;
+    /** The handler applies an ownership rule (author, uploader, requester) on top of the matrix. */
+    ownerScoped?: boolean;
   }
 }
 
@@ -84,6 +86,12 @@ export async function checkProjectAction(req: FastifyRequest, reply: FastifyRepl
 }
 
 /** Route options that declare the permission a project-scoped route requires. */
-export function projectRoute(action: ProjectAction): RouteShorthandOptions {
-  return { config: { projectAction: action }, preHandler: [requireUser, checkProjectAction] };
+export function projectRoute(
+  action: ProjectAction,
+  options: { ownerScoped?: boolean } = {},
+): RouteShorthandOptions {
+  return {
+    config: { projectAction: action, ...(options.ownerScoped ? { ownerScoped: true } : {}) },
+    preHandler: [requireUser, checkProjectAction],
+  };
 }
