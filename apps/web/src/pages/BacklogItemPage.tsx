@@ -1,0 +1,235 @@
+import type { BacklogItemDetail } from '@gameweld/domain';
+import { CATEGORY_LABELS, STATE_LABELS } from '@gameweld/domain';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { api, ApiError } from '../api.ts';
+import { useProject } from './ProjectPage.tsx';
+
+export function BacklogItemPage() {
+  const { project } = useProject();
+  const { itemId } = useParams<{ itemId: string }>();
+  const navigate = useNavigate();
+  const canManage = project.permissions['backlog.manage'];
+  const [item, setItem] = useState<BacklogItemDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      setItem(await api.item(project.id, itemId!));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not load the item');
+    }
+  }, [project.id, itemId]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  async function run(action: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await action();
+      await reload();
+      return true;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) await reload();
+      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      return false;
+    }
+  }
+
+  if (error && !item) return <p className="error">{error}</p>;
+  if (!item) return <p>Loading…</p>;
+
+  return (
+    <article className="item-page">
+      <p>
+        <Link to="..">← Backlog</Link>
+      </p>
+      <div className="item-status">
+        <span className="badge">{CATEGORY_LABELS[item.category]}</span>
+        <span className="badge">{STATE_LABELS[item.state]}</span>
+        {item.activeBoard && <span className="badge">On {item.activeBoard.name}</span>}
+        {item.archived && <span className="badge warn">Archived</span>}
+        <span className="muted">
+          {item.taskCounts.completed}/{item.taskCounts.total} tasks complete
+        </span>
+      </div>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <ItemForm
+        item={item}
+        readOnly={!canManage}
+        onSave={(input) =>
+          run(() => api.updateItem(project.id, item.id, { version: item.version, ...input }))
+        }
+      />
+
+      <section className="panel" aria-labelledby="tasks-heading">
+        <h2 id="tasks-heading">Breakdown</h2>
+        <p className="muted">Code, Assets, and Content tasks arrive in Phase 3.</p>
+      </section>
+
+      <section className="panel" aria-labelledby="links-heading">
+        <h2 id="links-heading">Links</h2>
+        {item.links.length === 0 ? (
+          <p className="muted">No links yet.</p>
+        ) : (
+          <ul className="links">
+            {item.links.map((l) => (
+              <li key={l.id}>
+                <a href={l.url} target="_blank" rel="noreferrer">
+                  {l.label || l.url}
+                </a>
+                {canManage && (
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => void run(() => api.removeLink(project.id, item.id, l.id))}
+                    aria-label={`Remove link ${l.label || l.url}`}
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {canManage && (
+          <AddLinkForm
+            onAdd={(url, label) => run(() => api.addLink(project.id, item.id, { url, label }))}
+          />
+        )}
+      </section>
+
+      {canManage && (
+        <section className="panel" aria-labelledby="archive-item-heading">
+          <h2 id="archive-item-heading">{item.archived ? 'Archived item' : 'Archive'}</h2>
+          <p className="muted">
+            {item.archived
+              ? 'This item is hidden from the Backlog. Restore it to plan it again.'
+              : 'Archiving hides the item from the Backlog. Tasks placed on a Workboard must be returned or finished first.'}
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              void run(() =>
+                api.updateItem(project.id, item.id, {
+                  version: item.version,
+                  archived: !item.archived,
+                }),
+              ).then((ok) => ok && !item.archived && navigate('..'))
+            }
+          >
+            {item.archived ? 'Restore item' : 'Archive item'}
+          </button>
+        </section>
+      )}
+    </article>
+  );
+}
+
+function ItemForm({
+  item,
+  readOnly,
+  onSave,
+}: {
+  item: BacklogItemDetail;
+  readOnly: boolean;
+  onSave: (input: { title: string; description: string }) => Promise<boolean>;
+}) {
+  const [title, setTitle] = useState(item.title);
+  const [description, setDescription] = useState(item.description);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setTitle(item.title);
+    setDescription(item.description);
+  }, [item.title, item.description]);
+  const dirty = title !== item.title || description !== item.description;
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setSaved(await onSave({ title: title.trim(), description }));
+  }
+
+  return (
+    <form className="form wide" onSubmit={submit}>
+      <label>
+        Title
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          readOnly={readOnly}
+          required
+          maxLength={500}
+        />
+      </label>
+      <label>
+        Description
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          readOnly={readOnly}
+          rows={10}
+          placeholder={
+            readOnly
+              ? 'No description.'
+              : 'Free-form. Describe the intended result however suits the team; nothing here is required.'
+          }
+        />
+      </label>
+      {!readOnly && (
+        <div className="row">
+          <button type="submit" className="primary" disabled={!dirty || title.trim() === ''}>
+            Save
+          </button>
+          {saved && !dirty && <span className="ok">Saved.</span>}
+        </div>
+      )}
+    </form>
+  );
+}
+
+function AddLinkForm({ onAdd }: { onAdd: (url: string, label: string) => Promise<boolean> }) {
+  const [url, setUrl] = useState('');
+  const [label, setLabel] = useState('');
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (await onAdd(url.trim(), label.trim())) {
+      setUrl('');
+      setLabel('');
+    }
+  }
+  return (
+    <form className="form inline" onSubmit={submit} aria-label="Add link">
+      <label>
+        URL
+        <input
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://"
+          required
+        />
+      </label>
+      <label>
+        Label
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Optional"
+          maxLength={200}
+        />
+      </label>
+      <button type="submit" disabled={url.trim() === ''}>
+        Add link
+      </button>
+    </form>
+  );
+}

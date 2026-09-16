@@ -58,9 +58,9 @@ export function ProjectPage() {
   return (
     <Shell title={project.name}>
       <nav className="tabs" aria-label="Project sections">
-        <span className="tab disabled" title="Arrives in Phase 2">
+        <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
           Backlog
-        </span>
+        </NavLink>
         <span className="tab disabled" title="Arrives in Phase 4">
           Workboard
         </span>

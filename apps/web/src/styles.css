@@ -34,12 +34,13 @@ body {
   color: var(--fg);
 }
 .page {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 24px 16px;
+  width: 100%;
+  margin: 0;
+  padding: 24px 24px;
 }
 .page.narrow {
   max-width: 480px;
+  margin: 0 auto;
 }
 .muted {
   color: var(--muted);
@@ -260,4 +261,164 @@ ul.card-list {
 }
 .card-list p {
   margin: 0 0 6px;
+}
+
+/* Phase 2: backlog lanes */
+.lanes {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  align-items: start;
+}
+.lane {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lane.lifecycle {
+  background: transparent;
+  border-style: dashed;
+}
+.lane h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  display: flex;
+  justify-content: space-between;
+}
+.lane .count {
+  color: var(--muted);
+  font-weight: 400;
+}
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+.card.dragging {
+  opacity: 0.4;
+}
+.card.draggable {
+  cursor: grab;
+  touch-action: none;
+}
+.card.draggable:active {
+  cursor: grabbing;
+}
+.card.overlay {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  cursor: grabbing;
+  list-style: none;
+}
+.lane.over {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.card-actions button,
+.card-actions select,
+.card-title {
+  touch-action: auto;
+}
+.card-title {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+.card-title:hover {
+  text-decoration: underline;
+}
+.card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.card-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.card-actions button {
+  padding: 2px 8px;
+}
+.card-actions select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--fg);
+  flex: 1;
+  min-width: 0;
+}
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.8rem;
+}
+.badge.warn {
+  background: #b26a00;
+}
+.add-item {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+}
+.add-item input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.item-page {
+  width: 100%;
+}
+.item-status {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.form.wide {
+  max-width: none;
+  margin-bottom: 20px;
+}
+.links {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: grid;
+  gap: 6px;
+}
+.links li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }

@@ -54,6 +54,7 @@ test('a Director creates a project, changes settings, and manages members', asyn
 test('a non-Director sees settings read-only and cannot manage members', async ({ page }) => {
   await signIn(page, 'developer');
   await page.getByRole('link', { name: 'Demo project' }).click();
+  await page.getByRole('link', { name: 'Settings' }).click();
   await expect(page.getByText('Only a Game Director can change settings.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save settings' })).toHaveCount(0);
   await expect(page.getByRole('form', { name: 'Add member' })).toHaveCount(0);

@@ -23,6 +23,8 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   const routes: RouteInfo[] = [];
   let projectId: string;
   let extraUserId: string;
+  let itemId: string;
+  let linkId: string;
   const cookies: Record<ProjectRole, string> = { director: '', developer: '', tester: '' };
 
   beforeAll(async () => {
@@ -67,6 +69,11 @@ describe('permission matrix is enforced on every project-scoped route', () => {
         payload: { email: `${role}@gameweld.local`, roles: [role] },
       });
     }
+    const item = await db.query<{ id: string }>(
+      `INSERT INTO backlog_items (project_id, title, category, rank) VALUES ($1, 'Matrix item', 'must', 'a0') RETURNING id`,
+      [projectId],
+    );
+    itemId = item.rows[0]!.id;
     const extra = await db.query<{ id: string }>(
       `INSERT INTO users (display_name, email) VALUES ('Extra Member', 'extra@gameweld.local') RETURNING id`,
     );
@@ -76,15 +83,25 @@ describe('permission matrix is enforced on every project-scoped route', () => {
     await t.close();
   });
 
-  async function ensureExtraMember() {
+  /** Recreates disposable fixtures that an allowed call may have consumed. */
+  async function ensureFixtures() {
     await t.db.query(
       `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, '{developer}') ON CONFLICT DO NOTHING`,
       [projectId, extraUserId],
     );
+    const link = await t.db.query<{ id: string }>(
+      `INSERT INTO links (project_id, item_id, url) VALUES ($1, $2, 'https://example.com') RETURNING id`,
+      [projectId, itemId],
+    );
+    linkId = link.rows[0]!.id;
   }
 
   function concrete(url: string, pid = projectId) {
-    return url.replace(':projectId', pid).replace(':userId', extraUserId);
+    return url
+      .replace(':projectId', pid)
+      .replace(':userId', extraUserId)
+      .replace(':itemId', itemId)
+      .replace(':linkId', linkId);
   }
 
   it('found project-scoped routes to check', () => {
@@ -93,6 +110,7 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   });
 
   it('answers 401 to anonymous callers on every route', async () => {
+    await ensureFixtures();
     for (const r of routes) {
       const res = await t.app.inject({ method: r.method, url: concrete(r.url), payload: {} });
       expect(res.statusCode, `${r.method} ${r.url}`).toBe(401);
@@ -107,6 +125,7 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       payload: { name: 'Tester-only project' },
     });
     const otherId = other.json().id;
+    await ensureFixtures();
     for (const r of routes) {
       const res = await t.app.inject({
         method: r.method,
@@ -121,7 +140,7 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   for (const role of PROJECT_ROLES) {
     it(`matches the matrix for a ${role}`, async () => {
       for (const r of routes) {
-        await ensureExtraMember();
+        await ensureFixtures();
         const allowed = can({ roles: [role], canAccept: false }, r.action, {
           doneRestricted: false,
         });

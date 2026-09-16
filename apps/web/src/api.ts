@@ -1,5 +1,12 @@
 import type {
+  AddLinkInput,
   AddMemberInput,
+  BacklogItem,
+  BacklogItemDetail,
+  CreateItemInput,
+  ItemLink,
+  MoveItemInput,
+  UpdateItemInput,
   AuthProviders,
   CreateProjectInput,
   CurrentUser,
@@ -73,4 +80,20 @@ export const api = {
     request<void>(`/api/projects/${projectId}/members/${userId}`, { method: 'DELETE' }),
 
   users: () => request<UserSummary[]>('/api/users'),
+
+  backlog: (projectId: string) => request<BacklogItem[]>(`/api/projects/${projectId}/backlog`),
+  createItem: (projectId: string, input: CreateItemInput) =>
+    request<BacklogItem>(`/api/projects/${projectId}/backlog`, json('POST', input)),
+  item: (projectId: string, itemId: string) =>
+    request<BacklogItemDetail>(`/api/projects/${projectId}/backlog/${itemId}`),
+  updateItem: (projectId: string, itemId: string, input: UpdateItemInput) =>
+    request<BacklogItem>(`/api/projects/${projectId}/backlog/${itemId}`, json('PATCH', input)),
+  moveItem: (projectId: string, itemId: string, input: MoveItemInput) =>
+    request<BacklogItem>(`/api/projects/${projectId}/backlog/${itemId}/move`, json('POST', input)),
+  addLink: (projectId: string, itemId: string, input: AddLinkInput) =>
+    request<ItemLink>(`/api/projects/${projectId}/backlog/${itemId}/links`, json('POST', input)),
+  removeLink: (projectId: string, itemId: string, linkId: string) =>
+    request<void>(`/api/projects/${projectId}/backlog/${itemId}/links/${linkId}`, {
+      method: 'DELETE',
+    }),
 };
