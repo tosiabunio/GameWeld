@@ -61,6 +61,9 @@ export function ProjectPage() {
         <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
           Backlog
         </NavLink>
+        <NavLink to="breakdown" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+          Breakdown
+        </NavLink>
         <span className="tab disabled" title="Arrives in Phase 4">
           Workboard
         </span>

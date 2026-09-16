@@ -55,7 +55,7 @@ export function TaskPage() {
   return (
     <article className="item-page">
       <p>
-        <Link to={`/projects/${project.id}/backlog/${task.item.id}`}>← {task.item.title}</Link>
+        <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>← {task.item.title}</Link>
         <span className="muted">
           {' '}
           · {CATEGORY_LABELS[task.item.category]} · {STATE_LABELS[task.item.state]}
@@ -129,7 +129,7 @@ export function TaskPage() {
                 (ok) =>
                   ok &&
                   !task.archived &&
-                  navigate(`/projects/${project.id}/backlog/${task.item.id}`),
+                  navigate(`/projects/${project.id}/breakdown/${task.item.id}`),
               )
             }
           >

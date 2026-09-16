@@ -501,3 +501,62 @@ ul.card-list {
   background: var(--bg);
   color: var(--fg);
 }
+
+/* Breakdown tab */
+.breakdown-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .breakdown-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.item-nav {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+.item-nav h4 {
+  margin: 10px 8px 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.item-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item-nav a {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+.item-nav a:hover {
+  background: var(--bg);
+}
+.item-nav a.active {
+  background: color-mix(in srgb, var(--accent) 15%, var(--card));
+  font-weight: 600;
+}
+.item-nav-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.breakdown-main {
+  min-width: 0;
+}

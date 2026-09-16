@@ -36,6 +36,9 @@ test('a Developer breaks an item down into tasks and edits one', async ({ page }
 
   // Back on the item, the assignee shows on the task row and the prompt stays dismissed.
   await page.getByRole('link', { name: '← Boss arena' }).click();
+  await expect(page.getByTestId('item-nav').getByRole('link', { name: /Boss arena/ })).toHaveClass(
+    /active/,
+  );
   await expect(page.getByTestId('tasks-code').getByTestId('task-row').first()).toContainText(
     'Devin Developer',
   );

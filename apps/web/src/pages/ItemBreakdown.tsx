@@ -1,15 +1,20 @@
 import type { BacklogItemDetail } from '@gameweld/domain';
 import { CATEGORY_LABELS, STATE_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { Breakdown } from '../components/Breakdown.tsx';
 import { WritingPrompt } from '../components/WritingPrompt.tsx';
 import { useProject } from './ProjectPage.tsx';
 
-export function BacklogItemPage() {
+export function ItemBreakdown({
+  itemId,
+  onChanged,
+}: {
+  itemId: string;
+  onChanged: () => Promise<void>;
+}) {
   const { project } = useProject();
-  const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
   const canManage = project.permissions['backlog.manage'];
   const [item, setItem] = useState<BacklogItemDetail | null>(null);
@@ -17,12 +22,17 @@ export function BacklogItemPage() {
 
   const reload = useCallback(async () => {
     try {
-      setItem(await api.item(project.id, itemId!));
+      setItem(await api.item(project.id, itemId));
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not load the item');
     }
   }, [project.id, itemId]);
+
+  const changed = useCallback(async () => {
+    await reload();
+    await onChanged();
+  }, [reload, onChanged]);
 
   useEffect(() => {
     void reload();
@@ -32,7 +42,7 @@ export function BacklogItemPage() {
     setError(null);
     try {
       await action();
-      await reload();
+      await changed();
       return true;
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) await reload();
@@ -46,9 +56,6 @@ export function BacklogItemPage() {
 
   return (
     <article className="item-page">
-      <p>
-        <Link to="..">← Backlog</Link>
-      </p>
       <div className="item-status">
         <span className="badge">{CATEGORY_LABELS[item.category]}</span>
         <span className="badge">{STATE_LABELS[item.state]}</span>
@@ -90,7 +97,7 @@ export function BacklogItemPage() {
           itemId={item.id}
           canWork={project.permissions['task.work']}
           itemArchived={item.archived}
-          onChanged={reload}
+          onChanged={changed}
         />
       </section>
 
@@ -142,7 +149,7 @@ export function BacklogItemPage() {
                   version: item.version,
                   archived: !item.archived,
                 }),
-              ).then((ok) => ok && !item.archived && navigate('..'))
+              ).then((ok) => ok && !item.archived && navigate(`/projects/${project.id}/backlog`))
             }
           >
             {item.archived ? 'Restore item' : 'Archive item'}

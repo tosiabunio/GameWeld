@@ -1,6 +1,6 @@
-import { Navigate, Route, Routes } from 'react-router';
-import { BacklogItemPage } from './pages/BacklogItemPage.tsx';
+import { Navigate, Route, Routes, useParams } from 'react-router';
 import { BacklogPage } from './pages/BacklogPage.tsx';
+import { BreakdownPage } from './pages/BreakdownPage.tsx';
 import { NewProjectPage } from './pages/NewProjectPage.tsx';
 import { ProjectPage } from './pages/ProjectPage.tsx';
 import { ProjectsPage } from './pages/ProjectsPage.tsx';
@@ -20,11 +20,19 @@ export function App() {
       <Route path="/projects/:projectId" element={<ProjectPage />}>
         <Route index element={<Navigate to="backlog" replace />} />
         <Route path="backlog" element={<BacklogPage />} />
-        <Route path="backlog/:itemId" element={<BacklogItemPage />} />
+        <Route path="backlog/:itemId" element={<RedirectToBreakdown />} />
+        <Route path="breakdown" element={<BreakdownPage />} />
+        <Route path="breakdown/:itemId" element={<BreakdownPage />} />
         <Route path="tasks/:taskId" element={<TaskPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
+}
+
+/** Old item URLs keep working. */
+function RedirectToBreakdown() {
+  const { projectId, itemId } = useParams();
+  return <Navigate to={`/projects/${projectId}/breakdown/${itemId}`} replace />;
 }

@@ -107,7 +107,7 @@ export function BacklogPage() {
         }
         renderCard={(item, { index, count }) => (
           <>
-            <Link to={item.id} className="card-title">
+            <Link to={`/projects/${project.id}/breakdown/${item.id}`} className="card-title">
               {item.title}
             </Link>
             <div className="card-meta">
