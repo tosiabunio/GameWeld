@@ -47,7 +47,8 @@ describe('demo seed and project list', () => {
     const placed = await t.db.query(
       `SELECT t.title, c.kind FROM task_placements p
          JOIN tasks t ON t.id = p.task_id JOIN board_columns c ON c.id = p.column_id
-        WHERE p.is_current ORDER BY c.kind`,
+         JOIN workboards w ON w.id = p.board_id
+        WHERE p.is_current AND w.name = 'September production' ORDER BY c.kind`,
     );
     expect(placed.rows.map((r) => r.kind)).toEqual(['todo_code', 'todo_assets', 'todo_content']);
   });
