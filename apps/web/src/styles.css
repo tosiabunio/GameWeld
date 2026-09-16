@@ -560,3 +560,119 @@ ul.card-list {
 .breakdown-main {
   min-width: 0;
 }
+
+/* Phase 4: workboard */
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.board-header h2 {
+  margin: 0 0 4px;
+}
+.board-counts {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.confirm {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.confirm p {
+  margin: 0;
+  flex-basis: 100%;
+}
+.scope h3 {
+  margin: 0;
+}
+.scope-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.scope-list li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.scope-list li.accepted {
+  opacity: 0.75;
+}
+.lane.column {
+  min-width: 260px;
+}
+.lane.kind-done {
+  border-style: double;
+}
+.lane.rejects {
+  opacity: 0.45;
+}
+.chip {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.chip.cat-code {
+  background: #d9e8ff;
+  color: #1d4ed8;
+}
+.chip.cat-assets {
+  background: #fde7c8;
+  color: #9a4b00;
+}
+.chip.cat-content {
+  background: #dcf5e3;
+  color: #1e6b32;
+}
+@media (prefers-color-scheme: dark) {
+  .chip.cat-code {
+    background: #1e3a8a;
+    color: #bfdbfe;
+  }
+  .chip.cat-assets {
+    background: #7c2d12;
+    color: #fed7aa;
+  }
+  .chip.cat-content {
+    background: #14532d;
+    color: #bbf7d0;
+  }
+}
+.column-footer {
+  display: grid;
+  gap: 6px;
+  margin-top: auto;
+}
+.column-admin {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.form.new-card {
+  gap: 8px;
+}
+.form.new-card label {
+  font-size: 0.9rem;
+}

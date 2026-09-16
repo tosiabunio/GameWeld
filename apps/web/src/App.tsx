@@ -7,6 +7,7 @@ import { ProjectsPage } from './pages/ProjectsPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { SignInPage } from './pages/SignInPage.tsx';
 import { TaskPage } from './pages/TaskPage.tsx';
+import { WorkboardPage } from './pages/WorkboardPage.tsx';
 import { useSession } from './session.tsx';
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
         <Route path="breakdown" element={<BreakdownPage />} />
         <Route path="breakdown/:itemId" element={<BreakdownPage />} />
         <Route path="tasks/:taskId" element={<TaskPage />} />
+        <Route path="board" element={<WorkboardPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

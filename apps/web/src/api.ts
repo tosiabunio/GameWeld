@@ -1,5 +1,15 @@
 import type {
   AddLinkInput,
+  ArchiveBoardInput,
+  BoardSummary,
+  BoardView,
+  CreateBoardInput,
+  CreateBoardTaskInput,
+  CreateColumnInput,
+  MovePlacementInput,
+  RemoveScopeInput,
+  UpdateBoardInput,
+  UpdateColumnInput,
   AddMemberInput,
   BacklogItem,
   BacklogItemDetail,
@@ -113,4 +123,52 @@ export const api = {
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/complete`, { method: 'POST' }),
   reopenTask: (projectId: string, taskId: string) =>
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/reopen`, { method: 'POST' }),
+
+  activeBoard: (projectId: string) => request<BoardView | null>(`/api/projects/${projectId}/board`),
+  boards: (projectId: string) => request<BoardSummary[]>(`/api/projects/${projectId}/boards`),
+  board: (projectId: string, boardId: string) =>
+    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}`),
+  createBoard: (projectId: string, input: CreateBoardInput) =>
+    request<BoardView>(`/api/projects/${projectId}/boards`, json('POST', input)),
+  updateBoard: (projectId: string, boardId: string, input: UpdateBoardInput) =>
+    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}`, json('PATCH', input)),
+  archiveBoard: (projectId: string, boardId: string, input: ArchiveBoardInput) =>
+    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}/archive`, json('POST', input)),
+  createColumn: (projectId: string, boardId: string, input: CreateColumnInput) =>
+    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}/columns`, json('POST', input)),
+  updateColumn: (projectId: string, boardId: string, columnId: string, input: UpdateColumnInput) =>
+    request<BoardView>(
+      `/api/projects/${projectId}/boards/${boardId}/columns/${columnId}`,
+      json('PATCH', input),
+    ),
+  deleteColumn: (projectId: string, boardId: string, columnId: string) =>
+    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}/columns/${columnId}`, {
+      method: 'DELETE',
+    }),
+  addToScope: (projectId: string, boardId: string, itemId: string) =>
+    request<BoardView>(
+      `/api/projects/${projectId}/boards/${boardId}/scope`,
+      json('POST', { itemId }),
+    ),
+  removeFromScope: (projectId: string, boardId: string, itemId: string, input: RemoveScopeInput) =>
+    request<BoardView>(
+      `/api/projects/${projectId}/boards/${boardId}/scope/${itemId}/remove`,
+      json('POST', input),
+    ),
+  placeTask: (projectId: string, boardId: string, taskId: string) =>
+    request<BoardView>(
+      `/api/projects/${projectId}/boards/${boardId}/placements`,
+      json('POST', { taskId }),
+    ),
+  createBoardTask: (projectId: string, boardId: string, input: CreateBoardTaskInput) =>
+    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}/tasks`, json('POST', input)),
+  movePlacement: (projectId: string, boardId: string, taskId: string, input: MovePlacementInput) =>
+    request<BoardView>(
+      `/api/projects/${projectId}/boards/${boardId}/placements/${taskId}/move`,
+      json('POST', input),
+    ),
+  returnTask: (projectId: string, boardId: string, taskId: string) =>
+    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}/placements/${taskId}/return`, {
+      method: 'POST',
+    }),
 };

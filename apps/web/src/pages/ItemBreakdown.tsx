@@ -96,6 +96,8 @@ export function ItemBreakdown({
           projectId={project.id}
           itemId={item.id}
           canWork={project.permissions['task.work']}
+          canPlaceOutside={project.permissions['out_of_scope.approve']}
+          activeBoard={item.activeBoard}
           itemArchived={item.archived}
           onChanged={changed}
         />

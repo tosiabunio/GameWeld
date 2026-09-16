@@ -10,12 +10,18 @@ export function Breakdown({
   projectId,
   itemId,
   canWork,
+  canPlaceOutside,
+  activeBoard,
   itemArchived,
   onChanged,
 }: {
   projectId: string;
   itemId: string;
   canWork: boolean;
+  /** Director permission to place tasks whose item is outside the board scope. */
+  canPlaceOutside: boolean;
+  /** The active board that includes this item, if any (null when out of scope or no board). */
+  activeBoard: { id: string; name: string } | null;
   itemArchived: boolean;
   onChanged: () => Promise<void>;
 }) {
@@ -30,6 +36,25 @@ export function Breakdown({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  const [boardId, setBoardId] = useState<string | null>(null);
+  useEffect(() => {
+    if (activeBoard) setBoardId(activeBoard.id);
+    else if (canPlaceOutside) api.activeBoard(projectId).then((b) => setBoardId(b?.id ?? null));
+    else setBoardId(null);
+  }, [activeBoard, canPlaceOutside, projectId]);
+
+  async function place(task: Task) {
+    if (!boardId) return;
+    setError(null);
+    try {
+      await api.placeTask(projectId, boardId, task.id);
+      await reload();
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not place the task');
+    }
+  }
 
   async function add(category: TaskCategory, title: string) {
     setError(null);
@@ -86,6 +111,20 @@ export function Breakdown({
                       <div className="card-meta">
                         <TaskStatus task={task} />
                         {task.assignee && <span>{task.assignee.displayName}</span>}
+                        {canWork &&
+                          boardId &&
+                          !task.placement &&
+                          !task.completed &&
+                          !task.archived && (
+                            <button
+                              type="button"
+                              className="link"
+                              onClick={() => void place(task)}
+                              aria-label={`Add ${task.title} to Workboard`}
+                            >
+                              {activeBoard ? 'Add to Workboard' : 'Place as exception'}
+                            </button>
+                          )}
                       </div>
                     </li>
                   ))}

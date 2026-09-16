@@ -64,9 +64,9 @@ export function ProjectPage() {
         <NavLink to="breakdown" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
           Breakdown
         </NavLink>
-        <span className="tab disabled" title="Arrives in Phase 4">
+        <NavLink to="board" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
           Workboard
-        </span>
+        </NavLink>
         <NavLink to="settings" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
           Settings
         </NavLink>

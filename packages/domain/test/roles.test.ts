@@ -34,6 +34,7 @@ describe('permission matrix (specification Section 4)', () => {
       'project.settings',
       'members.manage',
       'backlog.manage',
+      'board.manage',
       'board.select_scope',
       'out_of_scope.approve',
     ] as const) {

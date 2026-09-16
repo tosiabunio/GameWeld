@@ -50,6 +50,8 @@ export interface CardLanesProps<T extends { id: string }> {
   canDrag: boolean;
   /** Per-card override, for example to pin cards that are not open. */
   isDraggable?: (item: T) => boolean;
+  /** Per-card, per-lane rule on top of `lane.droppable`, for example category-specific columns. */
+  canDrop?: (item: T, laneId: string) => boolean;
   renderCard: (item: T, ctx: CardRenderContext) => ReactNode;
   onMove: (
     item: T,
@@ -64,6 +66,7 @@ export function CardLanes<T extends { id: string }>({
   lanes,
   canDrag,
   isDraggable,
+  canDrop,
   renderCard,
   onMove,
   testIdPrefix = 'lane',
@@ -103,6 +106,8 @@ export function CardLanes<T extends { id: string }>({
     const toLane = laneOfId(String(over.id));
     if (!fromLane || !toLane || fromLane === toLane) return;
     if (!lanes.find((l) => l.id === toLane)?.droppable) return;
+    const dragged = byId.get(String(active.id));
+    if (dragged && canDrop && !canDrop(dragged, toLane)) return;
 
     setLocal((prev) => {
       const source = prev[fromLane]!;
@@ -176,6 +181,9 @@ export function CardLanes<T extends { id: string }>({
             lane={lane}
             items={local[lane.id] ?? lane.items}
             testId={`${testIdPrefix}-${lane.id}`}
+            rejects={
+              activeItem !== undefined && canDrop !== undefined && !canDrop(activeItem, lane.id)
+            }
           >
             {(local[lane.id] ?? lane.items).map((item, index, all) => (
               <Card
@@ -204,18 +212,23 @@ function LaneView<T extends { id: string }>({
   lane,
   items,
   testId,
+  rejects,
   children,
 }: {
   lane: Lane<T>;
   items: T[];
   testId: string;
+  rejects: boolean;
   children: ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: lane.id, disabled: !lane.droppable });
+  const { setNodeRef, isOver } = useDroppable({
+    id: lane.id,
+    disabled: !lane.droppable || rejects,
+  });
   return (
     <section
       ref={setNodeRef}
-      className={`lane${lane.className ? ` ${lane.className}` : ''}${isOver && lane.droppable ? ' over' : ''}`}
+      className={`lane${lane.className ? ` ${lane.className}` : ''}${isOver && lane.droppable && !rejects ? ' over' : ''}${rejects ? ' rejects' : ''}`}
       aria-label={lane.title}
       data-testid={testId}
     >

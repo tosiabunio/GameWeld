@@ -18,6 +18,7 @@ export const PROJECT_ACTIONS = [
   'project.settings',
   'members.manage',
   'backlog.manage',
+  'board.manage',
   'board.select_scope',
   'task.work',
   'task.complete',
@@ -59,6 +60,7 @@ export function can(
     case 'project.settings':
     case 'members.manage':
     case 'backlog.manage':
+    case 'board.manage':
     case 'board.select_scope':
     case 'out_of_scope.approve':
       return has('director');

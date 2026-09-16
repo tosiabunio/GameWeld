@@ -155,13 +155,14 @@ export async function setTaskCompleted(
   completed: boolean,
   actorId: string,
   reason: string,
+  syncPlacement = true,
 ): Promise<void> {
   if (task.completed === completed) return;
   await tx.query(
     `UPDATE tasks SET completed = $2, completed_at = $3, completed_by = $4, version = version + 1, updated_at = now() WHERE id = $1`,
     [task.id, completed, completed ? new Date() : null, completed ? actorId : null],
   );
-  if (task.placement) {
+  if (syncPlacement && task.placement) {
     const targetKind = completed ? 'done' : `todo_${task.category}`;
     const column = (
       await tx.query<{ id: string }>(

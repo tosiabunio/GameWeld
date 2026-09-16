@@ -7,6 +7,7 @@ import type { Config } from './config.ts';
 import type { Db } from './db.ts';
 import { currentVersion } from './migrate.ts';
 import { backlogRoutes } from './routes/backlog.ts';
+import { boardRoutes } from './routes/board.ts';
 import { memberRoutes } from './routes/members.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { taskRoutes } from './routes/tasks.ts';
@@ -59,6 +60,7 @@ export async function buildApp(
   await app.register(userRoutes, { prefix: '/api' });
   await app.register(backlogRoutes, { prefix: '/api' });
   await app.register(taskRoutes, { prefix: '/api' });
+  await app.register(boardRoutes, { prefix: '/api' });
 
   if (ctx.config.webDist) {
     const root = path.resolve(ctx.config.webDist);

@@ -26,6 +26,8 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   let itemId: string;
   let linkId: string;
   let taskId: string;
+  let boardId: string;
+  let columnId: string;
   const cookies: Record<ProjectRole, string> = { director: '', developer: '', tester: '' };
 
   beforeAll(async () => {
@@ -80,6 +82,27 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       [projectId, itemId],
     );
     taskId = task.rows[0]!.id;
+    const board = await db.query<{ id: string }>(
+      `INSERT INTO workboards (project_id, name) VALUES ($1, 'Matrix board') RETURNING id`,
+      [projectId],
+    );
+    boardId = board.rows[0]!.id;
+    const column = await db.query<{ id: string }>(
+      `INSERT INTO board_columns (board_id, name, kind, rank) VALUES ($1, 'Making', 'intermediate', 'm') RETURNING id`,
+      [boardId],
+    );
+    columnId = column.rows[0]!.id;
+    for (const [kind, rank] of [
+      ['todo_code', 'a'],
+      ['todo_assets', 'b'],
+      ['todo_content', 'c'],
+      ['done', 'z'],
+    ] as const) {
+      await db.query(
+        `INSERT INTO board_columns (board_id, name, kind, rank) VALUES ($1, $2, $3, $4)`,
+        [boardId, kind, kind, rank],
+      );
+    }
     const extra = await db.query<{ id: string }>(
       `INSERT INTO users (display_name, email) VALUES ('Extra Member', 'extra@gameweld.local') RETURNING id`,
     );
@@ -108,7 +131,9 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       .replace(':userId', extraUserId)
       .replace(':itemId', itemId)
       .replace(':linkId', linkId)
-      .replace(':taskId', taskId);
+      .replace(':taskId', taskId)
+      .replace(':boardId', boardId)
+      .replace(':columnId', columnId);
   }
 
   it('found project-scoped routes to check', () => {
