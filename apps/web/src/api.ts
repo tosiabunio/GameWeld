@@ -4,9 +4,13 @@ import type {
   BacklogItem,
   BacklogItemDetail,
   CreateItemInput,
+  CreateTaskInput,
   ItemLink,
   MoveItemInput,
   UpdateItemInput,
+  Task,
+  TaskDetail,
+  UpdateTaskInput,
   AuthProviders,
   CreateProjectInput,
   CurrentUser,
@@ -96,4 +100,17 @@ export const api = {
     request<void>(`/api/projects/${projectId}/backlog/${itemId}/links/${linkId}`, {
       method: 'DELETE',
     }),
+
+  tasks: (projectId: string, itemId: string) =>
+    request<Task[]>(`/api/projects/${projectId}/backlog/${itemId}/tasks`),
+  createTask: (projectId: string, itemId: string, input: CreateTaskInput) =>
+    request<Task>(`/api/projects/${projectId}/backlog/${itemId}/tasks`, json('POST', input)),
+  task: (projectId: string, taskId: string) =>
+    request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`),
+  updateTask: (projectId: string, taskId: string, input: UpdateTaskInput) =>
+    request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`, json('PATCH', input)),
+  completeTask: (projectId: string, taskId: string) =>
+    request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/complete`, { method: 'POST' }),
+  reopenTask: (projectId: string, taskId: string) =>
+    request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/reopen`, { method: 'POST' }),
 };

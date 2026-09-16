@@ -3,6 +3,8 @@ import { CATEGORY_LABELS, STATE_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { Breakdown } from '../components/Breakdown.tsx';
+import { WritingPrompt } from '../components/WritingPrompt.tsx';
 import { useProject } from './ProjectPage.tsx';
 
 export function BacklogItemPage() {
@@ -62,6 +64,13 @@ export function BacklogItemPage() {
         </p>
       )}
 
+      {canManage && (
+        <WritingPrompt id="item-description">
+          <strong>Optional prompts.</strong> What should players experience when this is done? How
+          will the team know it is good enough? Answer in the description if it helps; nothing here
+          is required.
+        </WritingPrompt>
+      )}
       <ItemForm
         item={item}
         readOnly={!canManage}
@@ -72,7 +81,17 @@ export function BacklogItemPage() {
 
       <section className="panel" aria-labelledby="tasks-heading">
         <h2 id="tasks-heading">Breakdown</h2>
-        <p className="muted">Code, Assets, and Content tasks arrive in Phase 3.</p>
+        <p className="muted">
+          The tasks needed to produce this item, grouped by nature. Any combination is fine; no
+          category is required. Creating a task does not place it on a Workboard.
+        </p>
+        <Breakdown
+          projectId={project.id}
+          itemId={item.id}
+          canWork={project.permissions['task.work']}
+          itemArchived={item.archived}
+          onChanged={reload}
+        />
       </section>
 
       <section className="panel" aria-labelledby="links-heading">

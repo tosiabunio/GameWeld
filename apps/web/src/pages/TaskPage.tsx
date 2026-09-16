@@ -1,0 +1,296 @@
+import type { BacklogItem, TaskCategory, TaskDetail } from '@gameweld/domain';
+import {
+  CATEGORY_LABELS,
+  STATE_LABELS,
+  TASK_CATEGORIES,
+  TASK_CATEGORY_LABELS,
+} from '@gameweld/domain';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { api, ApiError } from '../api.ts';
+import { TaskStatus } from '../components/TaskStatus.tsx';
+import { WritingPrompt } from '../components/WritingPrompt.tsx';
+import { useProject } from './ProjectPage.tsx';
+
+export function TaskPage() {
+  const { project } = useProject();
+  const { taskId } = useParams<{ taskId: string }>();
+  const navigate = useNavigate();
+  const canWork = project.permissions['task.work'];
+  const canDirect = project.permissions['backlog.manage'];
+  const canComplete = project.permissions['task.complete'];
+  const [task, setTask] = useState<TaskDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      setTask(await api.task(project.id, taskId!));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not load the task');
+    }
+  }, [project.id, taskId]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  async function run(action: () => Promise<unknown>): Promise<boolean> {
+    setError(null);
+    try {
+      await action();
+      await reload();
+      return true;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) await reload();
+      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      return false;
+    }
+  }
+
+  if (error && !task) return <p className="error">{error}</p>;
+  if (!task) return <p>Loading…</p>;
+  const editable = canWork && !task.archived;
+
+  return (
+    <article className="item-page">
+      <p>
+        <Link to={`/projects/${project.id}/backlog/${task.item.id}`}>← {task.item.title}</Link>
+        <span className="muted">
+          {' '}
+          · {CATEGORY_LABELS[task.item.category]} · {STATE_LABELS[task.item.state]}
+        </span>
+      </p>
+      <div className="item-status">
+        <span className="badge neutral">{TASK_CATEGORY_LABELS[task.category]} task</span>
+        <TaskStatus task={task} />
+        {task.completedAt && (
+          <span className="muted">completed {new Date(task.completedAt).toLocaleString()}</span>
+        )}
+      </div>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+
+      {editable && (
+        <WritingPrompt id="task-description">
+          <strong>Optional prompts.</strong> What is the desired result, and how could someone check
+          it? Write as much or as little as helps.
+        </WritingPrompt>
+      )}
+      <TaskForm
+        task={task}
+        readOnly={!editable}
+        members={project.members}
+        onSave={(input) =>
+          run(() => api.updateTask(project.id, task.id, { version: task.version, ...input }))
+        }
+      />
+
+      {task.completed && canComplete && !task.archived && (
+        <section className="panel" aria-labelledby="reopen-heading">
+          <h2 id="reopen-heading">Reopen</h2>
+          <p className="muted">
+            Reopening marks the task unfinished. If its backlog item is Ready for Review or accepted
+            as Done, the item returns to Open and any acceptance is kept in history.
+          </p>
+          <button type="button" onClick={() => void run(() => api.reopenTask(project.id, task.id))}>
+            Reopen task
+          </button>
+        </section>
+      )}
+
+      {canDirect && (
+        <section className="panel" aria-labelledby="task-admin-heading">
+          <h2 id="task-admin-heading">Game Director actions</h2>
+          <ReparentForm
+            task={task}
+            projectId={project.id}
+            onMove={(itemId) =>
+              run(() => api.updateTask(project.id, task.id, { version: task.version, itemId }))
+            }
+          />
+          <p className="muted">
+            {task.archived
+              ? 'This task is archived and excluded from its item’s completion check.'
+              : 'Archiving removes the task from completion checks without counting it as done. A task on a Workboard must be returned or finished first.'}
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              void run(() =>
+                api.updateTask(project.id, task.id, {
+                  version: task.version,
+                  archived: !task.archived,
+                }),
+              ).then(
+                (ok) =>
+                  ok &&
+                  !task.archived &&
+                  navigate(`/projects/${project.id}/backlog/${task.item.id}`),
+              )
+            }
+          >
+            {task.archived ? 'Restore task' : 'Archive task'}
+          </button>
+        </section>
+      )}
+    </article>
+  );
+}
+
+function TaskForm({
+  task,
+  readOnly,
+  members,
+  onSave,
+}: {
+  task: TaskDetail;
+  readOnly: boolean;
+  members: { userId: string; displayName: string }[];
+  onSave: (input: {
+    title: string;
+    description: string;
+    category: TaskCategory;
+    assigneeId: string | null;
+  }) => Promise<boolean>;
+}) {
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description);
+  const [category, setCategory] = useState<TaskCategory>(task.category);
+  const [assigneeId, setAssigneeId] = useState<string | null>(task.assignee?.id ?? null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setTitle(task.title);
+    setDescription(task.description);
+    setCategory(task.category);
+    setAssigneeId(task.assignee?.id ?? null);
+  }, [task]);
+
+  const dirty =
+    title !== task.title ||
+    description !== task.description ||
+    category !== task.category ||
+    assigneeId !== (task.assignee?.id ?? null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setSaved(await onSave({ title: title.trim(), description, category, assigneeId }));
+  }
+
+  return (
+    <form className="form wide" onSubmit={submit}>
+      <label>
+        Title
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          readOnly={readOnly}
+          required
+          maxLength={500}
+        />
+      </label>
+      <div className="row">
+        <label>
+          Category
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as TaskCategory)}
+            disabled={readOnly || task.placement !== null}
+            title={
+              task.placement
+                ? 'Return the task from the Workboard before changing its category'
+                : undefined
+            }
+          >
+            {TASK_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {TASK_CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Assignee
+          <select
+            value={assigneeId ?? ''}
+            onChange={(e) => setAssigneeId(e.target.value || null)}
+            disabled={readOnly}
+          >
+            <option value="">Unassigned</option>
+            {members.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label>
+        Description
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          readOnly={readOnly}
+          rows={8}
+          placeholder={
+            readOnly ? 'No description.' : 'Free-form notes, links to references, anything useful.'
+          }
+        />
+      </label>
+      {!readOnly && (
+        <div className="row">
+          <button type="submit" className="primary" disabled={!dirty || title.trim() === ''}>
+            Save
+          </button>
+          {saved && !dirty && <span className="ok">Saved.</span>}
+        </div>
+      )}
+    </form>
+  );
+}
+
+function ReparentForm({
+  task,
+  projectId,
+  onMove,
+}: {
+  task: TaskDetail;
+  projectId: string;
+  onMove: (itemId: string) => Promise<boolean>;
+}) {
+  const [items, setItems] = useState<BacklogItem[]>([]);
+  const [target, setTarget] = useState('');
+  useEffect(() => {
+    api.backlog(projectId).then(setItems);
+  }, [projectId, task.item.id]);
+  const others = items.filter((i) => i.id !== task.item.id);
+  return (
+    <form
+      className="form inline"
+      aria-label="Move task to another item"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (target) void onMove(target).then((ok) => ok && setTarget(''));
+      }}
+    >
+      <label>
+        Move to another backlog item
+        <select value={target} onChange={(e) => setTarget(e.target.value)}>
+          <option value="">Choose an item…</option>
+          {others.map((i) => (
+            <option key={i.id} value={i.id}>
+              {i.title} ({CATEGORY_LABELS[i.category]})
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="submit" disabled={!target}>
+        Move task
+      </button>
+    </form>
+  );
+}

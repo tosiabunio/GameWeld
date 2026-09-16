@@ -25,6 +25,7 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   let extraUserId: string;
   let itemId: string;
   let linkId: string;
+  let taskId: string;
   const cookies: Record<ProjectRole, string> = { director: '', developer: '', tester: '' };
 
   beforeAll(async () => {
@@ -74,6 +75,11 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       [projectId],
     );
     itemId = item.rows[0]!.id;
+    const task = await db.query<{ id: string }>(
+      `INSERT INTO tasks (project_id, item_id, category, title) VALUES ($1, $2, 'code', 'Matrix task') RETURNING id`,
+      [projectId, itemId],
+    );
+    taskId = task.rows[0]!.id;
     const extra = await db.query<{ id: string }>(
       `INSERT INTO users (display_name, email) VALUES ('Extra Member', 'extra@gameweld.local') RETURNING id`,
     );
@@ -101,7 +107,8 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       .replace(':projectId', pid)
       .replace(':userId', extraUserId)
       .replace(':itemId', itemId)
-      .replace(':linkId', linkId);
+      .replace(':linkId', linkId)
+      .replace(':taskId', taskId);
   }
 
   it('found project-scoped routes to check', () => {

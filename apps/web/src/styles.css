@@ -422,3 +422,82 @@ ul.card-list {
   gap: 12px;
   align-items: center;
 }
+
+/* Phase 3: breakdown and tasks */
+.task-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.task-group {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.task-group h3 {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  justify-content: space-between;
+}
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.task-list li {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  display: grid;
+  gap: 4px;
+}
+.task-list li.archived {
+  opacity: 0.6;
+}
+.task-title {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+.task-title:hover {
+  text-decoration: underline;
+}
+.small {
+  font-size: 0.9rem;
+  margin: 0;
+}
+.badge.neutral {
+  background: var(--border);
+  color: var(--fg);
+}
+.badge.done {
+  background: #2a8a3e;
+}
+.prompt {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+}
+.form select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+}

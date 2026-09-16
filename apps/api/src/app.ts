@@ -9,6 +9,7 @@ import { currentVersion } from './migrate.ts';
 import { backlogRoutes } from './routes/backlog.ts';
 import { memberRoutes } from './routes/members.ts';
 import { projectRoutes } from './routes/projects.ts';
+import { taskRoutes } from './routes/tasks.ts';
 import { userRoutes } from './routes/users.ts';
 import { HttpError } from './errors.ts';
 
@@ -57,6 +58,7 @@ export async function buildApp(
   await app.register(memberRoutes, { prefix: '/api' });
   await app.register(userRoutes, { prefix: '/api' });
   await app.register(backlogRoutes, { prefix: '/api' });
+  await app.register(taskRoutes, { prefix: '/api' });
 
   if (ctx.config.webDist) {
     const root = path.resolve(ctx.config.webDist);

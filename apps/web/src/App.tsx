@@ -6,6 +6,7 @@ import { ProjectPage } from './pages/ProjectPage.tsx';
 import { ProjectsPage } from './pages/ProjectsPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { SignInPage } from './pages/SignInPage.tsx';
+import { TaskPage } from './pages/TaskPage.tsx';
 import { useSession } from './session.tsx';
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
         <Route index element={<Navigate to="backlog" replace />} />
         <Route path="backlog" element={<BacklogPage />} />
         <Route path="backlog/:itemId" element={<BacklogItemPage />} />
+        <Route path="tasks/:taskId" element={<TaskPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
