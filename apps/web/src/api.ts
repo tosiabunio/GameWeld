@@ -1,5 +1,9 @@
 import type {
+  AcceptItemInput,
+  AddCommentInput,
   AddLinkInput,
+  ItemComment,
+  RejectItemInput,
   ArchiveBoardInput,
   BoardSummary,
   BoardView,
@@ -110,6 +114,22 @@ export const api = {
     request<void>(`/api/projects/${projectId}/backlog/${itemId}/links/${linkId}`, {
       method: 'DELETE',
     }),
+
+  acceptItem: (projectId: string, itemId: string, input: AcceptItemInput) =>
+    request<{ ok: true }>(
+      `/api/projects/${projectId}/backlog/${itemId}/accept`,
+      json('POST', input),
+    ),
+  rejectItem: (projectId: string, itemId: string, input: RejectItemInput) =>
+    request<ItemComment>(
+      `/api/projects/${projectId}/backlog/${itemId}/reject`,
+      json('POST', input),
+    ),
+  addItemComment: (projectId: string, itemId: string, input: AddCommentInput) =>
+    request<ItemComment>(
+      `/api/projects/${projectId}/backlog/${itemId}/comments`,
+      json('POST', input),
+    ),
 
   tasks: (projectId: string, itemId: string) =>
     request<Task[]>(`/api/projects/${projectId}/backlog/${itemId}/tasks`),

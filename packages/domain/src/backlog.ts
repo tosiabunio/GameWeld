@@ -63,8 +63,43 @@ export interface ItemLink {
   label: string;
 }
 
+/** Section 11: an explicit acceptance. Invalidated ones stay in history (D4). */
+export interface Acceptance {
+  id: string;
+  acceptedBy: { id: string; displayName: string };
+  acceptedAt: string;
+  note: string;
+  invalidatedAt: string | null;
+  invalidatedReason: string | null;
+}
+
+export interface ItemComment {
+  id: string;
+  author: { id: string; displayName: string };
+  body: string;
+  /** 'rejection' comments are written by the acceptance rejection flow. */
+  kind: 'comment' | 'rejection';
+  createdAt: string;
+}
+
 export interface BacklogItemDetail extends BacklogItem {
   links: ItemLink[];
+  /** The current acceptance while the item is Done, otherwise null. */
+  acceptance: Acceptance | null;
+  acceptanceHistory: Acceptance[];
+  comments: ItemComment[];
+}
+
+export interface AcceptItemInput {
+  note?: string;
+}
+
+export interface RejectItemInput {
+  note: string;
+}
+
+export interface AddCommentInput {
+  body: string;
 }
 
 export interface CreateItemInput {

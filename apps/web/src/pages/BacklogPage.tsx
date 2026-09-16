@@ -119,6 +119,10 @@ export function BacklogPage() {
                 <span className="muted">No tasks yet</span>
               )}
               {item.activeBoard && <span className="badge">On {item.activeBoard.name}</span>}
+              {item.state === 'ready_for_review' && (
+                <span className="badge">Awaiting acceptance</span>
+              )}
+              {item.state === 'done' && <span className="badge done">Accepted</span>}
               {item.state !== 'open' && (
                 <span className="muted">{CATEGORY_LABELS[item.category]}</span>
               )}

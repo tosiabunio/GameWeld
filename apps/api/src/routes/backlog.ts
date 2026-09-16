@@ -13,6 +13,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import { fetchAcceptances, fetchItemComments } from './acceptance.ts';
 
 const createSchema = z.object({
   title: z.string().trim().min(1).max(500),
@@ -166,7 +167,21 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
       const { itemId } = req.params as { itemId: string };
       const item = await fetchItem(db, req.access!.project.id, itemId);
       if (!item) throw notFound('Backlog item not found');
-      return { ...item, links: await fetchLinks(db, item.id) };
+      const [links, acceptanceHistory, comments] = await Promise.all([
+        fetchLinks(db, item.id),
+        fetchAcceptances(db, item.id),
+        fetchItemComments(db, item.id),
+      ]);
+      return {
+        ...item,
+        links,
+        acceptance:
+          item.state === 'done'
+            ? (acceptanceHistory.find((a) => a.invalidatedAt === null) ?? null)
+            : null,
+        acceptanceHistory,
+        comments,
+      };
     },
   );
 

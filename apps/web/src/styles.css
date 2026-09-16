@@ -676,3 +676,39 @@ ul.card-list {
 .form.new-card label {
   font-size: 0.9rem;
 }
+
+/* Phase 5: review and comments */
+.notice {
+  background: color-mix(in srgb, #b26a00 12%, var(--card));
+  border: 1px solid color-mix(in srgb, #b26a00 45%, var(--border));
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+}
+.review-state {
+  margin-bottom: 12px;
+}
+.history summary {
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.comments {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.comments li {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+}
+.comments li.rejection {
+  border-color: #b26a00;
+}
+.comments p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}

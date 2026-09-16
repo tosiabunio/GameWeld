@@ -13,6 +13,7 @@ export function Breakdown({
   canPlaceOutside,
   activeBoard,
   itemArchived,
+  itemState,
   onChanged,
 }: {
   projectId: string;
@@ -23,6 +24,7 @@ export function Breakdown({
   /** The active board that includes this item, if any (null when out of scope or no board). */
   activeBoard: { id: string; name: string } | null;
   itemArchived: boolean;
+  itemState: 'open' | 'ready_for_review' | 'done';
   onChanged: () => Promise<void>;
 }) {
   const [tasks, setTasks] = useState<Task[] | null>(null);
@@ -75,6 +77,13 @@ export function Breakdown({
       {error && (
         <p className="error" role="alert">
           {error}
+        </p>
+      )}
+      {canWork && !itemArchived && itemState !== 'open' && (
+        <p className="notice" data-testid="reopen-warning">
+          {itemState === 'done'
+            ? 'This item is accepted. Adding or reopening a task returns it to Open; the acceptance stays in history.'
+            : 'This item is Ready for Review. Adding or reopening a task returns it to Open.'}
         </p>
       )}
       <div className="task-groups">

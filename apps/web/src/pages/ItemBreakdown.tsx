@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { Breakdown } from '../components/Breakdown.tsx';
+import { ReviewPanel } from '../components/ReviewPanel.tsx';
 import { WritingPrompt } from '../components/WritingPrompt.tsx';
 import { useProject } from './ProjectPage.tsx';
 
@@ -86,6 +87,8 @@ export function ItemBreakdown({
         }
       />
 
+      <ReviewPanel item={item} onChanged={changed} />
+
       <section className="panel" aria-labelledby="tasks-heading">
         <h2 id="tasks-heading">Breakdown</h2>
         <p className="muted">
@@ -99,6 +102,7 @@ export function ItemBreakdown({
           canPlaceOutside={project.permissions['out_of_scope.approve']}
           activeBoard={item.activeBoard}
           itemArchived={item.archived}
+          itemState={item.state}
           onChanged={changed}
         />
       </section>
