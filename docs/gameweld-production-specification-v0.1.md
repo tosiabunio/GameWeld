@@ -36,19 +36,19 @@ The tool provides structure and visibility without prescribing how a Game Direct
 
 ## 2. Terminology and product naming
 
-### Recommended interface terminology — Proposed
+### Interface terminology — Confirmed
 
-| Original term | Recommended term | Meaning |
-| --- | --- | --- |
-| Backlog | Backlog | Prioritized production scope and completed outcomes. |
-| Backlog Item | Backlog Item | A user-defined unit of intended production. |
-| Staging Area | Breakdown | An item's tasks, grouped by Code, Assets, and Content. The name describes decomposition without implying a deployment environment or mandatory phase. |
-| Work Stage | Workboard | A board holding the current portion of work. It may represent a sprint, week, milestone, or continuous period. |
-| Finalized | Ready for Review | All constituent tasks are complete; the item awaits acceptance. “Finalized” could be mistaken for final approval. |
-| Done | Done | A completed task or an accepted backlog item, depending on context. |
-| Task outside the active scope | Out-of-scope task | A task whose parent item is not included in the receiving Workboard's scope. This refers to board scope, not unauthorized work. |
+| Term | Meaning |
+| --- | --- |
+| Backlog | Prioritized production scope and completed outcomes. |
+| Backlog Item | A user-defined unit of intended production. |
+| Breakdown | An item's tasks, grouped by Code, Assets, and Content. It describes decomposition, not a deployment environment or a mandatory phase. |
+| Workboard | A board holding the current portion of work. It may represent a sprint, week, milestone, or continuous period. |
+| Ready for Review | All constituent tasks are complete; the item awaits acceptance. |
+| Done | A completed task or an accepted backlog item, depending on context. |
+| Out-of-scope task | A task whose parent item is not included in the receiving Workboard's scope. This refers to board scope, not unauthorized work. |
 
-Retain the role names **Game Director**, **Developer**, and **Tester** for the first specification. Developer includes artists, designers, audio specialists, and other production contributors. **Contributor** is an optional interface alternative if Developer proves too narrow.
+The role names are **Game Director**, **Developer**, and **Tester**. Developer includes artists, designers, audio specialists, and other production contributors.
 
 ### System name — Confirmed
 
@@ -365,7 +365,6 @@ These scenarios verify system behavior without prescribing the team's production
 | Medium | Who may reopen completed tasks? | Task editors, with a visible explanation of any effect on parent acceptance. |
 | Medium | How should board archival handle unfinished work? | Require explicit return to Breakdown or transfer; never mark it complete automatically. |
 | Before deployment | Authentication, hosting, load, attachments, and retention? | Decide against the actual first deployment and document operational limits. |
-| Before public release | Final interface names? | The product name GameWeld is confirmed. Use Breakdown / Workboard / Ready for Review provisionally. |
 
 ## 17. Worked production example
 
