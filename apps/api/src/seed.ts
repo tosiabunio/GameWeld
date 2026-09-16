@@ -10,6 +10,9 @@ import { withTransaction } from './db.ts';
  */
 export async function seedDemo(db: Db): Promise<boolean> {
   return withTransaction(db, async (tx) => {
+    // Serialize concurrent starters (two replicas, or parallel test files) on one lock so the
+    // second one sees the first one's data instead of seeding twice.
+    await tx.query('SELECT pg_advisory_xact_lock(727001)');
     const existing = await tx.query('SELECT 1 FROM users LIMIT 1');
     if (existing.rowCount) return false;
 
