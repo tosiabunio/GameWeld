@@ -12,15 +12,23 @@ export function isProjectRole(value: unknown): value is ProjectRole {
   return typeof value === 'string' && (PROJECT_ROLES as readonly string[]).includes(value);
 }
 
-/** Actions from the permission table in specification Section 4. */
-export type ProjectAction =
-  | 'project.view'
-  | 'backlog.manage'
-  | 'board.select_scope'
-  | 'task.work'
-  | 'task.complete'
-  | 'item.accept'
-  | 'out_of_scope.approve';
+/** Actions from the permission table in specification Section 4, plus project administration. */
+export const PROJECT_ACTIONS = [
+  'project.view',
+  'project.settings',
+  'members.manage',
+  'backlog.manage',
+  'board.select_scope',
+  'task.work',
+  'task.complete',
+  'item.accept',
+  'out_of_scope.approve',
+] as const;
+export type ProjectAction = (typeof PROJECT_ACTIONS)[number];
+
+export function isProjectAction(value: unknown): value is ProjectAction {
+  return typeof value === 'string' && (PROJECT_ACTIONS as readonly string[]).includes(value);
+}
 
 export interface Membership {
   roles: readonly ProjectRole[];
@@ -42,19 +50,30 @@ export function can(
   action: ProjectAction,
   policy: ProjectPolicy,
 ): boolean {
-  if (!membership) return false;
+  if (!membership || membership.roles.length === 0) return false;
   const has = (role: ProjectRole) => membership.roles.includes(role);
   switch (action) {
     case 'project.view':
     case 'task.work':
-      return membership.roles.length > 0;
+      return true;
+    case 'project.settings':
+    case 'members.manage':
     case 'backlog.manage':
     case 'board.select_scope':
     case 'out_of_scope.approve':
       return has('director');
     case 'task.complete':
-      return policy.doneRestricted ? has('tester') : membership.roles.length > 0;
+      return policy.doneRestricted ? has('tester') : true;
     case 'item.accept':
       return has('director') || membership.canAccept;
   }
+}
+
+export type Permissions = Record<ProjectAction, boolean>;
+
+/** Every action evaluated at once, for the client to hide unavailable controls. */
+export function permissionsFor(membership: Membership | null, policy: ProjectPolicy): Permissions {
+  return Object.fromEntries(
+    PROJECT_ACTIONS.map((action) => [action, can(membership, action, policy)]),
+  ) as Permissions;
 }

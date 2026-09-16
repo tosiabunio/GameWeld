@@ -6,7 +6,10 @@ import { registerAuth } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
 import { currentVersion } from './migrate.ts';
+import { memberRoutes } from './routes/members.ts';
 import { projectRoutes } from './routes/projects.ts';
+import { userRoutes } from './routes/users.ts';
+import { HttpError } from './errors.ts';
 
 export interface AppContext {
   config: Config;
@@ -19,13 +22,27 @@ declare module 'fastify' {
   }
 }
 
-export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
+export async function buildApp(
+  ctx: AppContext,
+  beforeRoutes?: (app: FastifyInstance) => void,
+): Promise<FastifyInstance> {
   const app = Fastify({
     logger: ctx.config.appEnv !== 'test',
     trustProxy: true,
   });
   app.decorate('ctx', ctx);
   await app.register(fastifyCookie);
+  beforeRoutes?.(app);
+
+  // Must precede route registration: child contexts inherit the handler that exists at that time.
+  app.setErrorHandler((err: FastifyError | HttpError, _req, reply) => {
+    const status = err.statusCode ?? 500;
+    if (status >= 500) app.log.error(err);
+    reply.status(status).send({
+      message: status >= 500 ? 'Internal error' : err.message,
+      ...(err instanceof HttpError && err.details !== undefined ? { details: err.details } : {}),
+    });
+  });
 
   app.get('/api/health', async () => ({
     ok: true,
@@ -34,13 +51,10 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   }));
 
   await registerAuth(app);
+  app.decorateRequest('access', null);
   await app.register(projectRoutes, { prefix: '/api' });
-
-  app.setErrorHandler((err: FastifyError, _req, reply) => {
-    const status = err.statusCode ?? 500;
-    if (status >= 500) app.log.error(err);
-    reply.status(status).send({ message: status >= 500 ? 'Internal error' : err.message });
-  });
+  await app.register(memberRoutes, { prefix: '/api' });
+  await app.register(userRoutes, { prefix: '/api' });
 
   if (ctx.config.webDist) {
     const root = path.resolve(ctx.config.webDist);
