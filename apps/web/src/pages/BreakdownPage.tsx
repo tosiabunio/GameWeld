@@ -1,14 +1,14 @@
 import type { BacklogItem, BacklogLane } from '@gameweld/domain';
 import { BACKLOG_LANES, LANE_LABELS, laneOf } from '@gameweld/domain';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router';
 import { api } from '../api.ts';
 import { ItemBreakdown } from './ItemBreakdown.tsx';
 import { useProject } from './ProjectPage.tsx';
 
 /**
- * Breakdown tab (specification Section 13): pick an item from the horizontal navigation, then
- * inspect its description and its Code, Assets, and Content task columns.
+ * Breakdown tab (specification Section 13): pick a backlog item on the left, inspect its
+ * description and its Code, Assets, and Content task columns on the right.
  */
 export function BreakdownPage() {
   const { project } = useProject();
@@ -23,6 +23,17 @@ export function BreakdownPage() {
     void reload();
   }, [reload]);
 
+  // The list scrolls on its own, so an item opened from elsewhere may sit out of sight in it.
+  const nav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const list = nav.current;
+    const active = list?.querySelector<HTMLElement>('a.active');
+    if (!list || !active) return;
+    const [outer, inner] = [list.getBoundingClientRect(), active.getBoundingClientRect()];
+    if (inner.top < outer.top || inner.bottom > outer.bottom)
+      list.scrollTop += inner.top - outer.top - (outer.height - inner.height) / 2;
+  }, [itemId, items]);
+
   const grouped = useMemo(() => {
     const map = new Map<BacklogLane, BacklogItem[]>(BACKLOG_LANES.map((l) => [l, []]));
     for (const item of items ?? []) map.get(laneOf(item))!.push(item);
@@ -31,7 +42,7 @@ export function BreakdownPage() {
 
   return (
     <div className="breakdown-layout">
-      <nav className="item-nav" aria-label="Backlog items" data-testid="item-nav">
+      <nav className="item-nav" aria-label="Backlog items" data-testid="item-nav" ref={nav}>
         {items === null ? (
           <p className="muted small">Loading…</p>
         ) : items.length === 0 ? (

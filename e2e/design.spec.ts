@@ -29,6 +29,13 @@ test('production views use the window width and only collapse columns on request
   await must.getByLabel('New item in Must Have').fill('Flight behavior');
   await must.getByRole('button', { name: 'Add', exact: true }).click();
   await must.getByRole('link', { name: 'Flight behavior', exact: true }).click();
+  // The backlog list is a column on the left of the item, not a strip above it.
+  const [list, item] = [
+    (await page.getByTestId('item-nav').boundingBox())!,
+    (await page.locator('.breakdown-main').boundingBox())!,
+  ];
+  expect(list.x + list.width).toBeLessThanOrEqual(item.x);
+  expect(Math.abs(list.y - item.y)).toBeLessThan(4);
   const code = page.getByTestId('tasks-code');
   await code.getByLabel('New Code task').fill('Steering');
   await code.getByRole('button', { name: 'Add', exact: true }).click();
