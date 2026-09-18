@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { activateFromBacklog, signIn, switchPersona } from './helpers.ts';
+import { activateFromBacklog, createWorkboard, signIn, switchPersona } from './helpers.ts';
 
 test('a Developer requests out-of-scope work and a Director approves it', async ({ page }) => {
   // Director sets up: two Must Have items, one task each, a board with the first item in scope.
@@ -32,8 +32,7 @@ test('a Developer requests out-of-scope work and a Director approves it', async 
   await page.getByTestId('tasks-assets').getByRole('button', { name: 'Add' }).click();
   await expect(page.getByTestId('tasks-assets').getByTestId('task-row')).toHaveCount(1);
   await page.getByRole('link', { name: 'Workboard' }).click();
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
   await activateFromBacklog(page, 'Ranged enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
   const boardUrl = page.url();

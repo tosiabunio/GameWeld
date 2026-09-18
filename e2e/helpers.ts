@@ -81,3 +81,13 @@ export async function pressAndSettle(page: Page, key: string) {
     () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
   );
 }
+
+/**
+ * Creates the project's Workboard and waits for it. Creation is a request; moving on before it
+ * answers finds no active board elsewhere, and the Backlog then offers no "Add to Workboard".
+ */
+export async function createWorkboard(page: Page, name: string) {
+  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill(name);
+  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await expect(page.getByTestId('workboard')).toBeVisible();
+}

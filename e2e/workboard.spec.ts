@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   activateFromBacklog,
+  createWorkboard,
   dropFile,
   expectCoverFrame,
   pressAndSettle,
@@ -37,9 +38,7 @@ test('Director creates a board, activates the next item, hits the limit, renames
   await createProjectWithItems(page, 'Board project');
   await page.getByRole('link', { name: 'Workboard' }).click();
 
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
-  await expect(page.getByTestId('workboard')).toBeVisible();
+  await createWorkboard(page, 'Sprint 1');
   await expect(page.getByTestId('board-counts')).toContainText('0/1 items in scope');
 
   // Section 15 "Director activates a permitted item".
@@ -128,8 +127,7 @@ test('Developer creates cards: default parent with one item in scope, choice wit
   await add.getByRole('button', { name: 'Add member' }).click();
   await expect(page.getByTestId('member-developer@gameweld.local')).toBeVisible();
   await page.getByRole('link', { name: 'Workboard' }).click();
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
   await activateFromBacklog(page, 'Ranged enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
   const url = page.url();
@@ -184,8 +182,7 @@ test('dragging a card into Done completes its task and the item becomes Ready fo
   await signIn(page, 'director');
   await createProjectWithItems(page, 'Done project');
   await page.getByRole('link', { name: 'Workboard' }).click();
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
   await activateFromBacklog(page, 'Ranged enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
 
@@ -213,8 +210,7 @@ test('an image dropped on a Workboard card becomes the task cover', async ({ pag
   await signIn(page, 'director');
   await createProjectWithItems(page, 'Task cover project');
   await page.getByRole('link', { name: 'Workboard' }).click();
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
   await activateFromBacklog(page, 'Ranged enemy');
 
   const card = page.getByTestId('item-card').filter({ hasText: 'Targeting' });
@@ -249,8 +245,7 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
   await add.getByRole('button', { name: 'Add member' }).click();
   await expect(page.getByTestId('member-developer@gameweld.local')).toBeVisible();
   await page.getByRole('link', { name: 'Workboard' }).click();
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
   await activateFromBacklog(page, 'Ranged enemy');
 
   // Unassigned cards show a "?" in the assignee's place.
@@ -327,8 +322,7 @@ test('a card moves across the board by keyboard, skipping columns it cannot ente
   await signIn(page, 'director');
   await createProjectWithItems(page, 'Keyboard board');
   await page.getByRole('link', { name: 'Workboard' }).click();
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
   await activateFromBacklog(page, 'Ranged enemy');
   const code = page.getByRole('region', { name: 'To Do · Code' });
   const done = page.getByRole('region', { name: 'Done' });

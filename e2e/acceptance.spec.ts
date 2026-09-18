@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { activateFromBacklog, signIn } from './helpers.ts';
+import { activateFromBacklog, createWorkboard, signIn } from './helpers.ts';
 
 test('finish all tasks, accept the item, then reopen it by adding a task', async ({ page }) => {
   await signIn(page, 'director');
@@ -17,8 +17,7 @@ test('finish all tasks, accept the item, then reopen it by adding a task', async
 
   // Put it on a board and drag the task into Done (Section 15 "All tasks of an item finish").
   await page.getByRole('link', { name: 'Workboard' }).click();
-  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
-  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
   await activateFromBacklog(page, 'Ranged enemy');
   const card = page.getByTestId('item-card').filter({ hasText: 'Targeting' });
   const done = page.getByRole('region', { name: 'Done' });
