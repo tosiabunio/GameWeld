@@ -82,6 +82,10 @@ function detail(e: ActivityEntry): string | null {
     case 'item.reopened':
     case 'item.ready_for_review':
       return str(n.reason);
+    case 'scope.removed':
+      return str(n.reason) === 'item accepted'
+        ? `the item was accepted; ${Number(n.removedTasks ?? 0)} of its tasks left the board`
+        : null;
     default:
       return null;
   }

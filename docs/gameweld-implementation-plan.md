@@ -25,7 +25,7 @@ The plan adopts the following defaults so that design and implementation can sta
 | D3 | Task creation, editing, reparenting | Developers create and edit tasks; Directors authorize reparenting and archival. |
 | D4 | Accepted work changes | Adding or reopening an unfinished task reopens the parent; earlier acceptance stays in history. |
 | D5 | Who accepts items | Directors by default; a separate acceptance permission can be granted per project. |
-| D6 | Scope-limit counting | All included items count until the Director removes them from scope, including accepted ones. |
+| D6 | Scope-limit counting | All included items count until they are accepted or the Director removes them from scope. Revised 2026-09-18; before, accepted items stayed until removed. |
 | D7 | Full-item activation outside priority rule | Not supported in the MVP; use individual out-of-scope tasks. |
 | D8 | New tasks under an active item | Placed automatically while the item is in scope (revised in testing after Phase 7); "Add to Workboard" remains for returned tasks. |
 | D9 | Dependencies | Informational item-to-item links only. |
@@ -34,7 +34,7 @@ The plan adopts the following defaults so that design and implementation can sta
 | D12 | Board archival with unfinished tasks | Blocked until each unfinished task is explicitly returned to Breakdown. |
 | R1 | Task completion state | Stored on the task as an explicit `completed` flag with timestamp and actor, set on entering Done, cleared on leaving it. Column position alone is not the source of truth. |
 | R2 | Leaving Done under a Done restriction | Requires the same permission as entering Done. |
-| R3 | Accepted items in scope | Count toward the limit (see D6). The Workboard shows accepted items distinctly and offers one-click removal from scope. |
+| R3 | Accepted items in scope | Acceptance removes the item from the active Workboard's scope with all its tasks, which frees its place under the limit (D6). Archived Workboards keep them and mark accepted items distinctly. Revised 2026-09-18. |
 | R4 | Out-of-scope task visibility | The Workboard header shows the item count against the limit and, separately, the out-of-scope task count. |
 | R5 | Removing an item from scope while a task is in an intermediate column | The task returns to Breakdown and its column position is discarded; re-placement starts in To Do. History records the previous column. |
 | R6 | Activation asymmetry | Withdrawn with the D8 revision. |
@@ -194,7 +194,7 @@ Deliverables:
 - Task placement and movement, drag and keyboard alternatives; category-specific To Do columns; Done permission checks (invariant 4, R2).
 - Creating a task on the board with parent selection rules from specification Section 8.
 - Scope removal with the explicit choice from Section 12 and the column-reset rule (R5).
-- Board header counts (R4); accepted-item marking and removal (R3).
+- Board header counts (R4); accepted items leave the active board with their tasks, and archived boards mark them (R3).
 - Board archival rules (D12).
 - Optimistic concurrency and conflict UI (4.4).
 

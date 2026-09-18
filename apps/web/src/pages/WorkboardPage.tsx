@@ -403,18 +403,7 @@ function ScopePanel({
                 Open in Breakdown
               </Link>
               {canSelect && board.state === 'active' && removing?.id !== expandedItem.id && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    expandedItem.accepted
-                      ? void onChange(() =>
-                          api.removeFromScope(project.id, board.id, expandedItem.id, {
-                            returnTasks: true,
-                          }),
-                        ).then(() => setExpanded(null))
-                      : setRemoving(expandedItem)
-                  }
-                >
+                <button type="button" onClick={() => setRemoving(expandedItem)}>
                   Remove from scope
                 </button>
               )}

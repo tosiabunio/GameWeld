@@ -45,8 +45,10 @@ describe('board lifecycle regressions', () => {
     });
     const taskId = created.json<TaskDetail>().id;
     expect((await post(`${f.base}/tasks/${taskId}/complete`)).statusCode).toBe(200);
-    expect((await post(`${f.base}/backlog/${f.itemId}/accept`)).statusCode).toBe(200);
+    // Accepted after the archival: an archived board is history and keeps the completed card.
+    // (Accepting on an active board takes the card off it; see acceptance-board.test.ts.)
     expect((await post(`${f.boardUrl}/archive`)).statusCode).toBe(200);
+    expect((await post(`${f.base}/backlog/${f.itemId}/accept`)).statusCode).toBe(200);
     const next = (await post(`${f.base}/boards`, { name: 'Next board' })).json<BoardView>();
 
     const reopened = await post(`${f.base}/tasks/${taskId}/reopen`, {}, developer);

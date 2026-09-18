@@ -45,10 +45,19 @@ test('finish all tasks, accept the item, then reopen it by adding a task', async
 
   // Section 15 "Director accepts the item".
   await page.getByRole('button', { name: 'Accept as Done' }).click();
+  await expect(page.getByTestId('accept-consequence')).toContainText(
+    'leaves the Workboard with all its tasks, freeing a place in the scope of Sprint 1',
+  );
   await page.getByLabel('Note (optional)').fill('Plays well now.');
   await page.getByRole('button', { name: 'Confirm acceptance' }).click();
   await expect(page.getByTestId('accepted')).toContainText('Accepted by Dana Director');
   await expect(page.getByTestId('reopen-warning')).toContainText('This item is accepted');
+
+  // Accepted work is finished: the item and its tasks have left the Workboard.
+  await page.getByRole('link', { name: 'Workboard' }).click();
+  await expect(page.getByTestId('workboard')).toBeVisible();
+  await expect(page.getByTestId('scope-item')).toHaveCount(0);
+  await expect(page.getByTestId('item-card')).toHaveCount(0);
   await page.getByRole('link', { name: 'Backlog' }).click();
   await expect(page.getByTestId('lane-done').getByTestId('item-card')).toContainText('Accepted');
 

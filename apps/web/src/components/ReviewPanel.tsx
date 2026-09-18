@@ -95,6 +95,15 @@ export function ReviewPanel({
                   autoFocus
                 />
               </label>
+              {mode === 'accept' && (
+                <p className="hint" data-testid="accept-consequence">
+                  Accepted work is finished: the item leaves the Workboard with all its tasks
+                  {item.activeBoard
+                    ? `, freeing a place in the scope of ${item.activeBoard.name}`
+                    : ''}
+                  . The tasks stay complete and remain here in the Breakdown.
+                </p>
+              )}
               {mode === 'reject' && (
                 <p className="hint">
                   The rejection is recorded as a comment. Then reopen a task or add a follow-up task

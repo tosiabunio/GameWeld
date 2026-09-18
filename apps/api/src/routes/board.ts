@@ -619,7 +619,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
         [boardId, item.id],
       );
       if (already.rowCount) throw conflict('That item is already in scope.');
-      // D6: every included item counts until the Director removes it, accepted ones included.
+      // D6: every included item counts until it is accepted or the Director removes it.
       const count = Number(
         (
           await tx.query<{ n: string }>(

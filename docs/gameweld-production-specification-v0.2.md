@@ -205,7 +205,7 @@ Intermediate columns do not receive mandatory meanings such as In Progress, Revi
 
 Adding an item places its existing unfinished, unplaced tasks in the appropriate To Do columns. Completed tasks remain complete and are visible through Breakdown. An empty item may be selected, but cannot automatically become Ready for Review.
 
-**Scope-limit definition — Confirmed:** count all included items until the Director removes them from board scope, including accepted items. Done does not silently alter the scope list. The Workboard shows accepted items distinctly and offers one-click removal from scope. The board header shows the item count against the limit and, separately, the number of out-of-scope tasks. Optional batch locking, which prevents replenishment until the current scope is accepted, is deferred.
+**Scope-limit definition — Confirmed, revised 2026-09-18:** count all included items until they are accepted or the Director removes them from board scope. Accepting an item as Done removes it from the scope of the active Workboard together with all its tasks, including tasks that entered as out-of-scope work; this frees its place under the limit. The tasks keep their completion flag and remain visible through Breakdown, the placement history keeps the column they left from, and the activity history records the removal. The accept action states this consequence before it is confirmed. Archived Workboards are history and keep their scope and cards. If the accepted item later reopens (Section 11), it is no longer in scope: its unfinished tasks are in Breakdown, and the Director adds it to scope again through the normal selection path. The board header shows the item count against the limit and, separately, the number of out-of-scope tasks. Optional batch locking, which prevents replenishment until the current scope is accepted, is deferred.
 
 ### Creating a task directly on a Workboard — Confirmed
 
@@ -358,7 +358,7 @@ These scenarios verify system behavior without prescribing the team's production
 | Team renames an intermediate column | No completion rules or permissions change. |
 | Done restriction is enabled | A user without completion permission cannot complete a task through the UI or API. |
 | All tasks of an item finish | The item becomes Ready for Review, not Done. |
-| Director accepts the item | It becomes Done with an acceptance record. |
+| Director accepts the item | It becomes Done with an acceptance record, and leaves the active Workboard with all its tasks. |
 | An unfinished task is added to a Done item | The item reopens and the earlier acceptance remains in history. |
 | A bug is reported externally | The system requires no duplicate bug record. |
 | A deployment is restored from backup | Item relationships, permissions, task placement, and attachments remain intact. |
@@ -374,7 +374,7 @@ All decisions required before implementation were made at the Phase 0 kickoff an
 | D3 | Task creation, editing, and reparenting | Developers create and edit tasks; Directors authorize reparenting and archival. |
 | D4 | Accepted work changes | Adding or reopening an unfinished task reopens the parent; the earlier acceptance stays in history. |
 | D5 | Who accepts backlog items | Directors by default; a separate acceptance permission can be granted per project, for example to a lead tester. |
-| D6 | Scope-limit counting | All included items count until the Director removes them from scope, including accepted ones. |
+| D6 | Scope-limit counting | All included items count until they are accepted or the Director removes them from scope. Revised 2026-09-18; before, accepted items stayed until removed. |
 | D7 | Full-item activation outside the priority rule | Not supported in the MVP; individual out-of-scope tasks cover exceptions. |
 | D8 | New tasks under an active item | Placed automatically in their To Do column while the item is in scope (revised during testing; the original decision was explicit placement). Returned tasks are re-placed through "Add to Workboard". |
 | D9 | Dependencies | Informational item-to-item links only. |
@@ -383,7 +383,7 @@ All decisions required before implementation were made at the Phase 0 kickoff an
 | D12 | Board archival with unfinished tasks | Blocked until each unfinished task is explicitly returned to Breakdown. |
 | R1 | Task completion state | Stored on the task as an explicit completion flag with timestamp and actor, set on entering Done and cleared on leaving it. Column position alone is not the source of truth. |
 | R2 | Leaving Done under a Done restriction | Requires the same permission as entering Done. |
-| R3 | Accepted items in scope | Count toward the limit (D6). The Workboard shows accepted items distinctly and offers one-click removal from scope. |
+| R3 | Accepted items in scope | Acceptance removes the item from the active Workboard's scope with all its tasks, which frees its place under the limit (D6). Archived Workboards keep them and mark accepted items distinctly. Revised 2026-09-18. |
 | R4 | Out-of-scope task visibility | The Workboard header shows the item count against the limit and, separately, the out-of-scope task count. |
 | R5 | Removing an item from scope while a task is in an intermediate column | The task returns to Breakdown and its column position is discarded; re-placement starts in To Do. History records the previous column. |
 | R6 | Activation asymmetry | Withdrawn with the revision of D8: creation and activation both place tasks, so there is no asymmetry to explain. |

@@ -6,6 +6,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
 import { fetchComments } from './collab.ts';
+import { clearAcceptedItemFromBoards } from '../services/placement.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 
 const acceptSchema = z.object({ note: z.string().max(5000).default('') });
@@ -44,7 +45,10 @@ export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
   const base = '/projects/:projectId/backlog/:itemId';
 
-  /** Section 11: an authorized user explicitly accepts a Ready for Review item as Done. */
+  /**
+   * Section 11: an authorized user explicitly accepts a Ready for Review item as Done. The accepted
+   * item then leaves the active Workboard with all its tasks (Section 8, scope-limit definition).
+   */
   app.post(`${base}/accept`, projectRoute('item.accept'), async (req) => {
     const parsed = acceptSchema.safeParse(req.body ?? {});
     if (!parsed.success) throw badRequest('Invalid acceptance', parsed.error.flatten());
@@ -54,6 +58,12 @@ export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
     if (!/^[0-9a-f-]{36}$/i.test(itemId)) throw notFound('Backlog item not found');
 
     const stale = await withTransaction(db, async (tx) => {
+      // Boards lock before tasks and items everywhere, so acceptance cannot deadlock with a card
+      // move or a scope change that is under way.
+      await tx.query(
+        `SELECT 1 FROM workboards WHERE project_id = $1 AND state = 'active' ORDER BY id FOR UPDATE`,
+        [projectId],
+      );
       const item = (
         await tx.query<{ state: string; archived_at: Date | null }>(
           'SELECT state, archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
@@ -92,6 +102,21 @@ export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
         previous: { state: 'ready_for_review' },
         next: { state: 'done', note: parsed.data.note },
       });
+      for (const board of await clearAcceptedItemFromBoards(tx, projectId, itemId)) {
+        await recordActivity(tx, {
+          projectId,
+          actorId,
+          action: 'scope.removed',
+          entityType: 'backlog_item',
+          entityId: itemId,
+          next: {
+            boardId: board.boardId,
+            reason: 'item accepted',
+            wasInScope: board.wasInScope,
+            removedTasks: board.removedTasks,
+          },
+        });
+      }
       return false;
     });
     if (stale) {
