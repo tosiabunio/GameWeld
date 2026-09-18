@@ -127,6 +127,7 @@ export function BacklogPage() {
       )}
       <CardLanes
         lanes={lanes}
+        collapseKey={`backlog:${project.id}`}
         canDrag={canManage}
         isDraggable={(item) => item.state === 'open'}
         onFilesDrop={canSetCover ? (item, files) => void attachImages(item, files) : undefined}

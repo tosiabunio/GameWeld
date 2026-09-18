@@ -187,6 +187,52 @@ test('cards move within and across lanes with the keyboard', async ({ page }) =>
   await expect(page.getByTestId('lane-should').getByTestId('item-card')).toHaveText([/Gamma/]);
 });
 
+test('a lane collapses to a stub that still takes cards and stays collapsed', async ({ page }) => {
+  await signIn(page, 'director');
+  await page.getByRole('link', { name: 'New project' }).click();
+  await page.getByLabel('Name').fill('Collapse project');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: 'Backlog' }).click();
+  const must = page.getByTestId('lane-must');
+  const should = page.getByTestId('lane-should');
+  const card = (title: string) => page.getByTestId('item-card').filter({ hasText: title });
+  for (const title of ['Alpha', 'Beta']) {
+    await must.getByLabel('New item in Must Have').fill(title);
+    await must.getByRole('button', { name: 'Add' }).click();
+    await expect(card(title)).toBeVisible();
+  }
+
+  // Collapsed, the lane is a narrow, tall stub with its name and count, and no cards or form.
+  await should.getByRole('button', { name: 'Collapse Should Have' }).click();
+  await expect(should.getByRole('button', { name: 'Expand Should Have, 0 cards' })).toBeVisible();
+  await expect(should.getByLabel('New item in Should Have')).toHaveCount(0);
+  const stub = (await should.boundingBox())!;
+  expect(stub.width).toBeLessThan(60);
+  expect(stub.height).toBeGreaterThan(stub.width * 3);
+
+  // A card dragged onto the stub joins the lane.
+  const from = (await card('Alpha').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + 12);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2 + 10, from.y + 20, { steps: 4 });
+  await page.mouse.move(stub.x + stub.width / 2, stub.y + stub.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect(should.getByRole('button', { name: 'Expand Should Have, 1 card' })).toBeVisible();
+  await expect(must.getByTestId('item-card')).toHaveText([/Beta/]);
+
+  // So does one carried there by keyboard.
+  await card('Beta').focus();
+  for (const key of ['Space', 'ArrowRight', 'Space']) await pressAndSettle(page, key);
+  await expect(should.getByRole('button', { name: 'Expand Should Have, 2 cards' })).toBeVisible();
+
+  // The lane stays collapsed across a reload; expanded, it shows the cards in drop order.
+  await page.reload();
+  await should.getByRole('button', { name: 'Expand Should Have, 2 cards' }).click();
+  await expect(should.getByTestId('item-card')).toHaveText([/Alpha/, /Beta/]);
+  await page.reload();
+  await expect(should.getByRole('button', { name: 'Collapse Should Have' })).toBeVisible();
+});
+
 test('buttons inside a draggable card answer Enter and Space', async ({ page }) => {
   await signIn(page, 'director');
   await page.getByRole('link', { name: 'New project' }).click();

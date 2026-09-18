@@ -328,11 +328,15 @@ test('a card moves across the board by keyboard, skipping columns it cannot ente
   const done = page.getByRole('region', { name: 'Done' });
   await expect(code.getByTestId('item-card')).toHaveText([/Targeting/]);
 
-  // One Right passes the Assets and Content To Do columns, which only take their own tasks.
+  // One Right passes the Assets and Content To Do columns, which only take their own tasks,
+  // and reaches Done even while it is collapsed.
+  await done.getByRole('button', { name: 'Collapse Done' }).click();
   await code.getByTestId('item-card').filter({ hasText: 'Targeting' }).focus();
   for (const key of ['Space', 'ArrowRight', 'Space']) await pressAndSettle(page, key);
-  await expect(done.getByTestId('item-card')).toHaveText([/Targeting/]);
+  await expect(done.getByRole('button', { name: 'Expand Done, 1 card' })).toBeVisible();
   await expect(code.getByTestId('item-card')).toHaveCount(0);
+  await done.getByRole('button', { name: 'Expand Done, 1 card' }).click();
+  await expect(done.getByTestId('item-card')).toHaveText([/Targeting/]);
 
   // And one Left brings it back to its own To Do column.
   await done.getByTestId('item-card').filter({ hasText: 'Targeting' }).focus();

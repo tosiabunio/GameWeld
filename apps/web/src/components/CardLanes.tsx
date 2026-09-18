@@ -10,6 +10,7 @@ import {
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
+  type CollisionDetection,
   type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -67,6 +68,40 @@ export interface CardLanesProps<T extends { id: string }> {
     beforeId: string | null,
   ) => Promise<void>;
   testIdPrefix?: string;
+  /** Remembers which lanes this viewer collapsed, in this browser, under this key. */
+  collapseKey?: string;
+}
+
+const COLLAPSED_PREFIX = 'gameweld:collapsed:';
+
+/** Collapsed lanes are a per-viewer convenience; storage may be missing or refuse. */
+function useCollapsedLanes(key: string | undefined) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    if (!key) return new Set();
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem(COLLAPSED_PREFIX + key) ?? '[]');
+      return new Set(Array.isArray(saved) ? saved.map(String) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggle = useCallback(
+    (laneId: string) =>
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(laneId)) next.add(laneId);
+        if (key) {
+          try {
+            localStorage.setItem(COLLAPSED_PREFIX + key, JSON.stringify([...next]));
+          } catch {
+            // Collapsing still works for this visit.
+          }
+        }
+        return next;
+      }),
+    [key],
+  );
+  return [collapsed, toggle] as const;
 }
 
 export function CardLanes<T extends { id: string }>({
@@ -78,7 +113,9 @@ export function CardLanes<T extends { id: string }>({
   onFilesDrop,
   onMove,
   testIdPrefix = 'lane',
+  collapseKey,
 }: CardLanesProps<T>) {
+  const [collapsed, toggleLane] = useCollapsedLanes(collapseKey);
   const [local, setLocal] = useState<Record<string, T[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -89,10 +126,12 @@ export function CardLanes<T extends { id: string }>({
 
   // The keyboard sensor keeps the options it had when the drag began, so the coordinate getter
   // reads the lanes through a ref rather than from a stale closure.
-  const layout = useRef({ lanes, local, canDrop });
+  const layout = useRef({ lanes, local, canDrop, collapsed });
   useLayoutEffect(() => {
-    layout.current = { lanes, local, canDrop };
+    layout.current = { lanes, local, canDrop, collapsed };
   });
+  /** Where the last keyboard step aimed; the collision detection honours it exactly. */
+  const keyboardTarget = useRef<string | null>(null);
 
   /**
    * Keyboard moves that follow the lanes. dnd-kit's sortable getter picks the nearest target
@@ -121,6 +160,7 @@ export function CardLanes<T extends { id: string }>({
       const target = items[next];
       const rect = target && droppableRects.get(target.id);
       if (!rect) return undefined;
+      keyboardTarget.current = target.id;
       // Moving down aligns bottoms, as dnd-kit does, so cards of different heights still land.
       return { x: rect.left, y: next > start ? rect.bottom - collisionRect.height : rect.top };
     }
@@ -131,10 +171,44 @@ export function CardLanes<T extends { id: string }>({
       const lane = lanes[i]!;
       if (!lane.droppable || (canDrop && !canDrop(dragged, lane.id))) continue;
       const first = local[lane.id]?.[0];
-      const rect = droppableRects.get(first ? first.id : lane.id);
-      if (rect) return { x: rect.left, y: rect.top };
+      // A collapsed lane renders no cards, so aim at the lane and the card joins its end.
+      const aim = first && droppableRects.has(first.id) ? first.id : lane.id;
+      const rect = droppableRects.get(aim);
+      if (rect) {
+        keyboardTarget.current = aim;
+        return { x: rect.left, y: rect.top };
+      }
     }
     return undefined;
+  }, []);
+
+  /**
+   * dnd-kit's closest corners, with two exceptions. A keyboard step lands exactly where the
+   * getter aimed. A pointer over a collapsed lane lands in it: a card-wide rectangle over a
+   * narrow stub mostly covers the next lane, which would otherwise win.
+   */
+  const collide: CollisionDetection = useCallback((args) => {
+    const pick = (id: string) => {
+      const container = args.droppableContainers.find((c) => c.id === id);
+      return container ? [{ id, data: { droppableContainer: container, value: 0 } }] : null;
+    };
+    const aimed = keyboardTarget.current && pick(keyboardTarget.current);
+    if (aimed) return aimed;
+    const pointer = args.pointerCoordinates;
+    if (pointer) {
+      for (const id of layout.current.collapsed) {
+        const r = args.droppableRects.get(id);
+        const inside =
+          r &&
+          pointer.x >= r.left &&
+          pointer.x <= r.right &&
+          pointer.y >= r.top &&
+          pointer.y <= r.bottom;
+        const hit = inside && pick(id);
+        if (hit) return hit;
+      }
+    }
+    return closestCorners(args);
   }, []);
 
   const sensors = useSensors(
@@ -154,6 +228,7 @@ export function CardLanes<T extends { id: string }>({
   };
 
   function onDragStart(e: DragStartEvent) {
+    keyboardTarget.current = null;
     setActiveId(String(e.active.id));
   }
 
@@ -167,6 +242,8 @@ export function CardLanes<T extends { id: string }>({
     const dragged = byId.get(String(active.id));
     if (dragged && canDrop && !canDrop(dragged, toLane)) return;
 
+    if (keyboardTarget.current && !collapsed.has(toLane))
+      keyboardTarget.current = String(active.id);
     setLocal((prev) => {
       const source = prev[fromLane]!;
       const target = prev[toLane]!;
@@ -192,6 +269,7 @@ export function CardLanes<T extends { id: string }>({
   async function onDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     const id = String(active.id);
+    keyboardTarget.current = null;
     setActiveId(null);
     const lane = laneOfId(id);
     const item = byId.get(id);
@@ -242,11 +320,14 @@ export function CardLanes<T extends { id: string }>({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collide}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={(e) => void onDragEnd(e)}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={() => {
+        keyboardTarget.current = null;
+        setActiveId(null);
+      }}
     >
       <div className="lanes">
         {lanes.map((lane) => (
@@ -258,6 +339,8 @@ export function CardLanes<T extends { id: string }>({
             rejects={
               activeItem !== undefined && canDrop !== undefined && !canDrop(activeItem, lane.id)
             }
+            collapsed={collapsed.has(lane.id)}
+            onToggle={() => toggleLane(lane.id)}
           >
             {(local[lane.id] ?? lane.items).map((item, index, all) => (
               <Card
@@ -283,37 +366,84 @@ export function CardLanes<T extends { id: string }>({
   );
 }
 
+/**
+ * One lane. Collapsed, it is a narrow stub with its name running down it; it stays a drop target,
+ * and a card dropped there joins the end of the lane. Its cards are not rendered, which the drag
+ * overlay allows even for the card being dragged.
+ */
 function LaneView<T extends { id: string }>({
   lane,
   items,
   testId,
   rejects,
+  collapsed,
+  onToggle,
   children,
 }: {
   lane: Lane<T>;
   items: T[];
   testId: string;
   rejects: boolean;
+  collapsed: boolean;
+  onToggle: () => void;
   children: ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: lane.id,
     disabled: !lane.droppable || rejects,
   });
+  const cards = `${items.length} card${items.length === 1 ? '' : 's'}`;
   return (
     <section
       ref={setNodeRef}
-      className={`lane${lane.className ? ` ${lane.className}` : ''}${isOver && lane.droppable && !rejects ? ' over' : ''}${rejects ? ' rejects' : ''}`}
+      className={`lane${lane.className ? ` ${lane.className}` : ''}${isOver && lane.droppable && !rejects ? ' over' : ''}${rejects ? ' rejects' : ''}${collapsed ? ' collapsed' : ''}`}
       aria-label={lane.title}
       data-testid={testId}
     >
-      <h3>
-        {lane.title} <span className="count">{items.length}</span>
-      </h3>
-      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        <ul className="cards">{children}</ul>
-      </SortableContext>
-      {lane.footer}
+      {collapsed ? (
+        <button
+          type="button"
+          className="lane-stub"
+          aria-expanded={false}
+          aria-label={`Expand ${lane.title}, ${cards}`}
+          title={`Expand ${lane.title}`}
+          onClick={onToggle}
+        >
+          <span className="count">{items.length}</span>
+          <span className="lane-stub-title">{lane.title}</span>
+        </button>
+      ) : (
+        <>
+          <div className="lane-head">
+            <h3>
+              {lane.title} <span className="count">{items.length}</span>
+            </h3>
+            <button
+              type="button"
+              className="lane-toggle"
+              aria-expanded={true}
+              aria-label={`Collapse ${lane.title}`}
+              title={`Collapse ${lane.title}`}
+              onClick={onToggle}
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M10 3.5 5.5 8l4.5 4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+            <ul className="cards">{children}</ul>
+          </SortableContext>
+          {lane.footer}
+        </>
+      )}
     </section>
   );
 }

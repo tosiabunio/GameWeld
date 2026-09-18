@@ -526,6 +526,7 @@ function Columns({
   return (
     <CardLanes
       lanes={lanes}
+      collapseKey={`board:${board.id}`}
       canDrag={canWork}
       canDrop={canDrop}
       onFilesDrop={canWork ? (card, files) => void attachImages(card, files) : undefined}

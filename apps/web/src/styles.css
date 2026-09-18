@@ -864,14 +864,23 @@ ul.project-grid {
 /* ---------------------------------------------------------------------------------------------
    Lanes and cards (Backlog and Workboard)
    --------------------------------------------------------------------------------------------- */
+/* A row of lanes sharing the width equally; a collapsed lane shrinks to a stub. */
 .lanes {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
+  display: flex;
   gap: 12px;
   overflow-x: auto;
   padding: 2px 2px 14px;
-  align-items: start;
+  align-items: flex-start;
+}
+.lanes > .lane {
+  flex: 1 1 0;
+  min-width: 220px;
+}
+.lanes > .lane.collapsed {
+  flex: 0 0 44px;
+  min-width: 44px;
+  min-height: 240px;
+  padding: 0;
 }
 .lane {
   --lane-accent: var(--border-strong);
@@ -887,6 +896,79 @@ ul.project-grid {
     border-color 0.12s,
     background-color 0.12s,
     opacity 0.12s;
+}
+.lane-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.lane-head h3 {
+  flex: 1;
+  min-width: 0;
+}
+.lane-toggle {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  opacity: 0.6;
+}
+.lane:hover .lane-toggle,
+.lane-toggle:focus-visible {
+  opacity: 1;
+}
+.lane-toggle:hover:not(:disabled) {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+/* The collapsed lane: its colour dot, its count, and its name running down the stub. */
+.lane-stub {
+  width: 100%;
+  min-height: inherit;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border: none;
+  border-radius: inherit;
+  background: none;
+  box-shadow: none;
+  color: var(--fg);
+  font-size: 0.87rem;
+  font-weight: 650;
+}
+.lane-stub::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lane-accent);
+  flex: none;
+}
+.lane-stub:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+.lane-stub .count {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.lane-stub-title {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 .lane h3 {
   margin: 2px 4px 2px;
