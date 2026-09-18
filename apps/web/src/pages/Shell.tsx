@@ -3,17 +3,20 @@ import { Link } from 'react-router';
 import { Avatar, Logo } from '../components/Brand.tsx';
 import { useCurrentUser, useSession } from '../session.tsx';
 
-/** Common page chrome: brand link, section navigation, current user, and sign-out. */
+/**
+ * Common page chrome: brand link, section navigation, current user, and sign-out. `titleAction`
+ * sits beside the title it belongs to, such as a project's settings beside the project's name.
+ */
 export function Shell({
   children,
   title,
   nav,
-  actions,
+  titleAction,
 }: {
   children: ReactNode;
   title?: ReactNode;
   nav?: ReactNode;
-  actions?: ReactNode;
+  titleAction?: ReactNode;
 }) {
   const user = useCurrentUser();
   const { signOut } = useSession();
@@ -26,10 +29,10 @@ export function Shell({
             GameWeld
           </Link>
           {title && <span className="crumb">{title}</span>}
+          {titleAction}
         </div>
         {nav}
         <div className="user">
-          {actions}
           <Link to="/profile" className="me" title="Your profile and picture">
             <Avatar name={user.displayName} url={user.avatarUrl} />
             <span data-testid="current-user">{user.displayName}</span>

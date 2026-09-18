@@ -519,12 +519,33 @@ input[type='file']::file-selector-button:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.settings-link {
+/* The project's settings: a cog right after the project's name. `.brand a` lays links out as a
+   row, so these rules name the brand too. */
+.brand .settings-link {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -4px;
   color: var(--muted);
-  text-decoration: none;
 }
-.settings-link.active {
+.brand .settings-link:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+.brand .settings-link.active {
   color: var(--accent);
+  background: var(--accent-soft);
+}
+/* A finger gets a bigger target than the highlight shows. */
+@media (pointer: coarse) {
+  .brand .settings-link::after {
+    content: '';
+    position: absolute;
+    inset: -8px -4px;
+  }
 }
 .avatar {
   flex: none;
@@ -569,12 +590,9 @@ input[type='file']::file-selector-button:hover {
   .user .me > span:last-child {
     max-width: 85px;
   }
-  .user > button,
-  .settings-link {
-    font-size: 11px;
-  }
   .user > button {
     padding: 6px;
+    font-size: 11px;
   }
   .tabs {
     order: 3;
