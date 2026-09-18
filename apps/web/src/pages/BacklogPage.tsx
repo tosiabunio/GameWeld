@@ -137,10 +137,12 @@ export function BacklogPage() {
             {item.coverAttachmentId && (
               <img
                 className="cover"
-                src={api.attachmentUrl(project.id, item.coverAttachmentId, true)}
+                src={api.coverUrl(project.id, item.coverAttachmentId)}
                 alt=""
                 loading="lazy"
                 decoding="async"
+                // An image the server cannot read leaves the card without a cover, not a broken icon.
+                onError={(e) => (e.currentTarget.style.display = 'none')}
               />
             )}
             <Link to={`/projects/${project.id}/breakdown/${item.id}`} className="card-title">

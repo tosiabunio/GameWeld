@@ -56,10 +56,15 @@ export async function dropFile(
   await target.dispatchEvent('drop', { dataTransfer });
 }
 
-/** A cover fills its card's width in one 16:9 frame, whatever the image's own shape. */
+/**
+ * A cover is the server's 800×450 rendition, filling its card's width in one 16:9 frame whatever
+ * the original image's shape.
+ */
 export async function expectCoverFrame(card: Locator) {
   const cover = card.locator('img.cover');
   await expect(cover).toBeVisible();
+  await expect(cover).toHaveAttribute('src', /\/attachments\/[0-9a-f-]+\/cover$/);
+  await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(800);
   const [coverBox, cardBox] = [await cover.boundingBox(), await card.boundingBox()];
   expect(Math.abs(coverBox!.width - cardBox!.width)).toBeLessThanOrEqual(2);
   expect(coverBox!.width / coverBox!.height).toBeCloseTo(16 / 9, 1);

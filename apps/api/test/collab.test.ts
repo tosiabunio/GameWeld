@@ -1,18 +1,6 @@
 import type { BacklogItemDetail, TaskDetail } from '@gameweld/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signInAs, startApp, type TestContext } from './helpers.ts';
-
-function multipart(fileName: string, contentType: string, content: Buffer | string) {
-  const boundary = '----gameweld-test-boundary';
-  const body = Buffer.concat([
-    Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`,
-    ),
-    Buffer.isBuffer(content) ? content : Buffer.from(content),
-    Buffer.from(`\r\n--${boundary}--\r\n`),
-  ]);
-  return { headers: { 'content-type': `multipart/form-data; boundary=${boundary}` }, body };
-}
+import { multipart, signInAs, startApp, type TestContext } from './helpers.ts';
 
 describe('collaboration and history (Phase 7)', () => {
   let t: TestContext;

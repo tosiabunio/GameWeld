@@ -539,10 +539,12 @@ function Columns({
           {card.coverAttachmentId && (
             <img
               className="cover"
-              src={api.attachmentUrl(project.id, card.coverAttachmentId, true)}
+              src={api.coverUrl(project.id, card.coverAttachmentId)}
               alt=""
               loading="lazy"
               decoding="async"
+              // An image the server cannot read leaves the card without a cover, not a broken icon.
+              onError={(e) => (e.currentTarget.style.display = 'none')}
             />
           )}
           <Link

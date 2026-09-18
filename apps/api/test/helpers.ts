@@ -50,3 +50,16 @@ export async function signInAs(app: FastifyInstance, persona: string): Promise<s
   if (!cookie) throw new Error('no session cookie set');
   return `${cookie.name}=${cookie.value}`;
 }
+
+/** A one-file multipart body, as the attachment upload routes expect. */
+export function multipart(fileName: string, contentType: string, content: Buffer | string) {
+  const boundary = '----gameweld-test-boundary';
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`,
+    ),
+    Buffer.isBuffer(content) ? content : Buffer.from(content),
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ]);
+  return { headers: { 'content-type': `multipart/form-data; boundary=${boundary}` }, body };
+}

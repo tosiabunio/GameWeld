@@ -201,6 +201,9 @@ export const api = {
   // Collaboration and history (Phase 7)
   attachmentUrl: (projectId: string, attachmentId: string, inline = false) =>
     `/api/projects/${projectId}/attachments/${attachmentId}${inline ? '?inline=1' : ''}`,
+  /** The card-sized 16:9 rendition of an image attachment. */
+  coverUrl: (projectId: string, attachmentId: string) =>
+    `/api/projects/${projectId}/attachments/${attachmentId}/cover`,
   uploadAttachment: async (
     projectId: string,
     owner: { itemId: string } | { taskId: string },

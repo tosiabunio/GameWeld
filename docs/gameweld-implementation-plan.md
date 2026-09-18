@@ -40,7 +40,7 @@ The plan adopts the following defaults so that design and implementation can sta
 | R6 | Activation asymmetry | Withdrawn with the D8 revision. |
 | R7 | Source of truth for permissions | The permission table in Section 4 is authoritative once D2 is confirmed; Section 16 will reference it rather than restate it. |
 | T1 | Authentication | Mock sign-in for Phases 0–7: a persona picker with seeded Director, Developer, and Tester accounts, available only in local and test configurations. Real sign-in arrives in Phase 8 as OpenID Connect with Google as the only configured provider, no local accounts, an optional Workspace domain restriction, and a per-project invitation list. Identities are stored as provider and subject from the start, so the mock provider and Google are two entries in the same model. |
-| T2 | Attachment storage | Local filesystem volume in the MVP, behind an interface that also supports S3-compatible storage. |
+| T2 | Attachment storage | Local filesystem volume in the MVP, behind an interface that also supports S3-compatible storage. Card covers are served as 800×450 WebP renditions made with sharp on first request and kept beside the original; they can be deleted at any time and are made again, so backups may skip them. |
 | T3 | Running work-in-progress builds | On the development Mac under OrbStack, through single-command scripts in the repository (Section 3.1). No image registry, watcher, or remote host until Phase 8. |
 
 ## 3. Technical baseline — Proposed

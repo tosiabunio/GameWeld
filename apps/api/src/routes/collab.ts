@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
 import { can } from '@gameweld/domain';
 import { projectRoute } from '../authz.ts';
+import { coverKey, coverRendition, UnreadableImage } from '../covers.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { PayloadTooLarge, PREVIEW_IMAGE_TYPES } from '../storage.ts';
@@ -400,6 +401,40 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  /** A card-sized rendition of an image attachment: a 16:9 WebP, rendered once and kept. */
+  app.get(
+    '/projects/:projectId/attachments/:attachmentId/cover',
+    projectRoute('project.view'),
+    async (req, reply) => {
+      const { attachmentId } = req.params as { attachmentId: string };
+      if (!isUuid(attachmentId)) throw notFound('Attachment not found');
+      const row = (
+        await db.query<{ content_type: string; storage_key: string }>(
+          'SELECT content_type, storage_key FROM attachments WHERE project_id = $1 AND id = $2',
+          [req.access!.project.id, attachmentId],
+        )
+      ).rows[0];
+      if (!row) throw notFound('Attachment not found');
+      if (!PREVIEW_IMAGE_TYPES.has(row.content_type))
+        throw notFound('Only PNG, JPEG, GIF, and WebP images have a cover.');
+      const stream = await coverRendition(storage, row.storage_key).catch((err: unknown) => {
+        if (err instanceof UnreadableImage) throw new HttpError(422, err.message);
+        throw err;
+      });
+      if (!stream) throw notFound('The file is missing from storage.');
+      return (
+        reply
+          .header('content-type', 'image/webp')
+          .header('content-disposition', 'inline')
+          // An attachment never changes under its id, so its rendition can be kept for good.
+          .header('cache-control', 'private, max-age=31536000, immutable')
+          .header('x-content-type-options', 'nosniff')
+          .header('content-security-policy', "sandbox; default-src 'none'")
+          .send(stream)
+      );
+    },
+  );
+
   app.delete(
     '/projects/:projectId/attachments/:attachmentId',
     projectRoute('task.work', { ownerScoped: true }),
@@ -459,6 +494,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
           previous: { attachmentId, fileName: row.file_name },
         });
         await storage.delete(row.storage_key);
+        await storage.delete(coverKey(row.storage_key));
       });
       return reply.status(204).send();
     },

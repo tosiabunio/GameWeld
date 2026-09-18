@@ -1,5 +1,6 @@
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, stat, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type { Readable } from 'node:stream';
@@ -25,8 +26,10 @@ export class PayloadTooLarge extends Error {
 export class FilesystemStorage implements Storage {
   constructor(private readonly root: string) {}
 
+  /** Keys are `project/attachment`, optionally with one suffix for a derived file such as a cover. */
   private resolve(key: string): string {
-    if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}$/i.test(key)) throw new Error(`invalid storage key ${key}`);
+    if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}(\.[a-z0-9-]+)?$/i.test(key))
+      throw new Error(`invalid storage key ${key}`);
     return path.join(this.root, key);
   }
 
@@ -41,10 +44,14 @@ export class FilesystemStorage implements Storage {
         yield chunk;
       }
     };
+    // Write beside the target and rename, so a reader never sees a partial file and two writers
+    // of the same key cannot interleave.
+    const partial = `${file}.${randomUUID()}.partial`;
     try {
-      await pipeline(data, counter, createWriteStream(file));
+      await pipeline(data, counter, createWriteStream(partial));
+      await rename(partial, file);
     } catch (err) {
-      await unlink(file).catch(() => undefined);
+      await unlink(partial).catch(() => undefined);
       throw err;
     }
     return { sizeBytes };
