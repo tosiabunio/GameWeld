@@ -116,7 +116,24 @@ or use **Deploy** on the application in the Dokploy panel.
 
 - **CI key:** generate a new ed25519 key, replace the line in `~deploy/.ssh/authorized_keys`
   (keeping the `command=...,restrict` prefix), and update the `DEPLOY_SSH_KEY` secret.
-- **Dokploy API key for the script:** create one in the panel (Settings → Profile → API), write
-  it to `/etc/gameweld/dokploy-api-key`, and delete `ci-deploy`.
+- **Dokploy API key for the script:** create one in the panel (Settings → Profile → API) with
+  rate limiting off, write it to `/etc/gameweld/dokploy-api-key`, and delete `ci-deploy`.
+
+### When the deploy job fails with 401
+
+The script's `curl` got `401 Unauthorized` from Dokploy, which says nothing more, whatever the
+reason. A key made without turning rate limiting off gets Dokploy's default of 10 requests per
+24 hours, and a busy day of pushes uses that up; the limit resets only after 24 hours without an
+accepted request. The panel cannot show or edit a key's settings, but Dokploy's database can show
+them (the stored key hash is left out):
+
+```sh
+ssh ubuntu@146.59.103.109 'sudo docker exec $(sudo docker ps -qf name=dokploy-postgres) \
+  psql -U dokploy -d dokploy -Atc "select jsonb_pretty(to_jsonb(a) - '"'"'key'"'"') from apikey a"'
+```
+
+Look at `rate_limit_enabled` with `request_count` against `rate_limit_max`, at `expires_at`,
+`remaining`, and `enabled`. Then rotate the key as above. The tested image is already `latest`,
+so **Deploy** in the panel, or re-running the failed job, rolls it out.
 - **GHCR token:** create a classic token with only `read:packages` and update the application's
   registry password in Dokploy (Application → General → Provider).
