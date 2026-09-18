@@ -38,16 +38,68 @@ ssh -N -L 3000:127.0.0.1:3000 ubuntu@146.59.103.109
 
 then open <http://localhost:3000>. The first visit registers the administrator.
 
+## Dokploy project
+
+Project **GameWeld**, environment **production**:
+
+| Service | Details |
+| --- | --- |
+| Database | Postgres `postgres:17-alpine`, service `gameweld-db-tiqbym`, database and user `gameweld`; the password lives only in Dokploy |
+| Application | `ghcr.io/tosiabunio/gameweld:latest`, service `gameweld-app-re6cku`, pulled from GHCR with a GitHub token that has only `read:packages` |
+| Attachments | Docker volume `gameweld-attachments` mounted at `/data/attachments` |
+| Domains | `gameweld.eu` and `www.gameweld.eu`, HTTPS with Let's Encrypt; `www` and plain HTTP redirect permanently to `https://gameweld.eu` |
+
+Application environment:
+
+```sh
+APP_ENV=local        # mock sign-in until Google sign-in lands; production mode refuses it
+AUTH_MOCK=true
+SEED_DEMO=true       # seeds the demo project when the database is empty
+DATABASE_URL=postgres://gameweld:<password>@gameweld-db-tiqbym:5432/gameweld
+PORT=3000
+WEB_DIST=/app/apps/web/dist
+ATTACHMENTS_DIR=/data/attachments
+```
+
+**The instance is open:** anyone who reaches gameweld.eu can sign in as any persona, including a
+Game Director. That is deliberate until Google sign-in (implementation plan, Phase 8).
+
+Let's Encrypt registers without a contact address: Dokploy's placeholder
+`test@localhost.com` was removed from `/etc/dokploy/traefik/traefik.yml` (original kept as
+`traefik.yml.orig`). Setting a panel domain in Dokploy rewrites that file.
+
 ## Continuous deployment
 
 `.github/workflows/ci.yml`:
 
 1. `image` builds the Docker image for every change. On `main` it pushes
    `ghcr.io/tosiabunio/gameweld:sha-<commit>`.
-2. `deploy` runs on `main` after `checks` and `image` pass. It tags that image as `latest` and,
-   when the repository secret `DOKPLOY_DEPLOY_WEBHOOK` is set, calls Dokploy's deploy webhook,
-   which pulls `latest` and restarts the application. Migrations run when the application
-   starts.
+2. `deploy` runs on `main` after `checks` and `image` pass. It tags that image as `latest` and
+   connects over SSH as `deploy@146.59.103.109`, with the key in the repository secret
+   `DEPLOY_SSH_KEY` and the server's host key pinned in the workflow. Migrations run when the
+   application starts.
 
-The repository is private, so Dokploy pulls from the registry with a GitHub token that has only
-the `read:packages` scope.
+On the server, that key can do exactly one thing. `~deploy/.ssh/authorized_keys` forces
+`command="/usr/local/bin/gameweld-deploy",restrict`: no shell, no tunnels, no forwarding.
+Whatever the client asks for, the script runs; it takes a bare commit hash as the deployment's
+title and asks Dokploy's local API to deploy the application. The Dokploy panel therefore stays
+off the internet. The script authenticates with the Dokploy API key `ci-deploy`, kept in
+`/etc/gameweld/dokploy-api-key` (`root:deploy`, mode 640). The `deploy` user has no password and
+no sudo.
+
+Deploy by hand, from a machine whose key is allowed for `ubuntu`:
+
+```sh
+ssh ubuntu@146.59.103.109 'sudo -u deploy /usr/local/bin/gameweld-deploy'
+```
+
+or use **Deploy** on the application in the Dokploy panel.
+
+## Rotating credentials
+
+- **CI key:** generate a new ed25519 key, replace the line in `~deploy/.ssh/authorized_keys`
+  (keeping the `command=...,restrict` prefix), and update the `DEPLOY_SSH_KEY` secret.
+- **Dokploy API key for the script:** create one in the panel (Settings → Profile → API), write
+  it to `/etc/gameweld/dokploy-api-key`, and delete `ci-deploy`.
+- **GHCR token:** create a classic token with only `read:packages` and update the application's
+  registry password in Dokploy (Application → General → Provider).
