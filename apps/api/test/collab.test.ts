@@ -325,6 +325,111 @@ describe('collaboration and history (Phase 7)', () => {
     expect((await itemDetail()).coverAttachmentId).toBeNull();
   });
 
+  it('gives tasks their own covers by the same rule and shows them on Workboard cards', async () => {
+    // A project of its own, so a Workboard does not change the placements other tests expect.
+    const api = (
+      method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+      url: string,
+      cookie: string,
+      payload?: object,
+    ) =>
+      t.app.inject({
+        method,
+        url: `/api/projects/${pid}${url}`,
+        headers: { cookie },
+        ...(payload ? { payload } : {}),
+      });
+    const pid = (
+      await t.app.inject({
+        method: 'POST',
+        url: '/api/projects',
+        headers: { cookie: director },
+        payload: { name: 'Task covers' },
+      })
+    ).json().id as string;
+    await api('POST', '/members', director, {
+      email: 'developer@gameweld.local',
+      roles: ['developer'],
+    });
+    const item = (
+      await api('POST', '/backlog', director, { title: 'Covered item', category: 'must' })
+    ).json().id;
+    const task = (
+      await api('POST', `/backlog/${item}/tasks`, developer, {
+        category: 'assets',
+        title: 'Hero sprite',
+      })
+    ).json().id;
+    const other = (
+      await api('POST', `/backlog/${item}/tasks`, developer, { category: 'code', title: 'Other' })
+    ).json().id;
+    const board = (await api('POST', '/boards', director, { name: 'Sprint' })).json().id;
+    expect(
+      (await api('POST', `/boards/${board}/scope`, director, { itemId: item })).statusCode,
+    ).toBe(201);
+
+    const upload = async (path: string, name: string, type: string) => {
+      const up = multipart(name, type, Buffer.from('89504e470d0a1a0a', 'hex'));
+      const res = await t.app.inject({
+        method: 'POST',
+        url: `/api/projects/${pid}${path}/attachments`,
+        headers: { cookie: developer, ...up.headers },
+        payload: up.body,
+      });
+      expect(res.statusCode).toBe(201);
+      return res.json().id as string;
+    };
+    const taskView = async () => (await api('GET', `/tasks/${task}`, developer)).json();
+    const card = async () => {
+      const view = (await api('GET', '/board', developer)).json();
+      return Object.values(
+        view.cards as Record<string, { id: string; coverAttachmentId: string | null }[]>,
+      )
+        .flat()
+        .find((c) => c.id === task)!;
+    };
+    expect((await card()).coverAttachmentId).toBeNull();
+
+    const first = await upload(`/tasks/${task}`, 'first.png', 'image/png');
+    const itemImage = await upload(`/backlog/${item}`, 'item.png', 'image/png');
+    const otherImage = await upload(`/tasks/${other}`, 'other.png', 'image/png');
+    await upload(`/tasks/${task}`, 'notes.txt', 'text/plain');
+    const svg = await upload(`/tasks/${task}`, 'vector.svg', 'image/svg+xml');
+    expect((await taskView()).coverAttachmentId).toBe(first);
+    expect((await card()).coverAttachmentId).toBe(first);
+    // Item and task covers are independent.
+    expect((await api('GET', `/backlog/${item}`, developer)).json().coverAttachmentId).toBe(
+      itemImage,
+    );
+    expect((await api('GET', `/tasks/${other}`, developer)).json().coverAttachmentId).toBe(
+      otherImage,
+    );
+
+    const second = await upload(`/tasks/${task}`, 'second.gif', 'image/gif');
+    expect((await card()).coverAttachmentId).toBe(second);
+
+    // Anyone who edits the task picks the cover, but only among its own previewable images.
+    const pick = async (coverAttachmentId: string | null) =>
+      api('PATCH', `/tasks/${task}`, developer, {
+        version: (await taskView()).version,
+        coverAttachmentId,
+      });
+    for (const wrong of [itemImage, otherImage, svg])
+      expect((await pick(wrong)).statusCode).toBe(400);
+    expect((await pick(first)).json().coverAttachmentId).toBe(first);
+    expect((await pick(null)).json().coverAttachmentId).toBeNull();
+    const third = await upload(`/tasks/${task}`, 'third.webp', 'image/webp');
+    expect((await taskView()).coverAttachmentId).toBe(third);
+
+    // Deleting the cover hands it to the newest image left; the last one leaves none.
+    await api('DELETE', `/attachments/${third}`, director);
+    expect((await card()).coverAttachmentId).toBe(second);
+    await api('DELETE', `/attachments/${first}`, director);
+    expect((await card()).coverAttachmentId).toBe(second);
+    await api('DELETE', `/attachments/${second}`, developer);
+    expect((await taskView()).coverAttachmentId).toBeNull();
+  });
+
   it('serves script-bearing SVG attachments only as downloads and rejects SVG covers', async () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
     const up = multipart('untrusted.svg', 'image/svg+xml', svg);

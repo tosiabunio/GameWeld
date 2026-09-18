@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { activateFromBacklog, signIn, switchPersona } from './helpers.ts';
+import {
+  activateFromBacklog,
+  dropFile,
+  expectCoverFrame,
+  signIn,
+  switchPersona,
+  TINY_PNG,
+} from './helpers.ts';
 
 async function createProjectWithItems(page: Page, name: string) {
   await page.getByRole('link', { name: 'New project' }).click();
@@ -199,4 +206,33 @@ test('dragging a card into Done completes its task and the item becomes Ready fo
   await expect(page.getByTestId('lane-ready_for_review').getByTestId('item-card')).toContainText(
     'Ranged enemy',
   );
+});
+
+test('an image dropped on a Workboard card becomes the task cover', async ({ page }) => {
+  await signIn(page, 'director');
+  await createProjectWithItems(page, 'Task cover project');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
+  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
+
+  const card = page.getByTestId('item-card').filter({ hasText: 'Targeting' });
+  await expect(card).toBeVisible();
+  await expect(card.locator('img.cover')).toHaveCount(0);
+  await dropFile(page, card, { name: 'reticle.png', type: 'image/png', base64: TINY_PNG });
+  await expectCoverFrame(card);
+  // The other task on the board keeps no cover.
+  await expect(
+    page.getByTestId('item-card').filter({ hasText: 'Attack animation' }).locator('img.cover'),
+  ).toHaveCount(0);
+
+  // On the task the image is an attachment marked as the cover, and its editor can clear it.
+  await card.getByRole('link', { name: 'Targeting' }).click();
+  await expect(page.getByTestId('attachment')).toContainText('reticle.png');
+  await expect(page.getByTestId('attachment')).toContainText('cover');
+  await page.getByRole('button', { name: 'Remove cover' }).click();
+  await expect(page.getByRole('button', { name: 'Use as cover' })).toBeVisible();
+  await page.getByRole('link', { name: '← Workboard' }).click();
+  await expect(card).toBeVisible();
+  await expect(card.locator('img.cover')).toHaveCount(0);
 });

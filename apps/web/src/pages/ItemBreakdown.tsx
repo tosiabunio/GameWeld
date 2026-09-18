@@ -129,6 +129,7 @@ export function ItemBreakdown({
           attachments={item.attachments}
           canWork={project.permissions['task.work'] && !item.archived}
           coverId={item.coverAttachmentId}
+          canPickCover={project.permissions['backlog.manage'] && !item.archived}
           onSetCover={(coverAttachmentId) =>
             run(() =>
               api.updateItem(project.id, item.id, { version: item.version, coverAttachmentId }),

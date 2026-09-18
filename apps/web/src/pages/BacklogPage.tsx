@@ -5,12 +5,12 @@ import {
   LANE_LABELS,
   laneOf,
   MOSCOW_CATEGORIES,
-  PREVIEW_IMAGE_TYPES,
 } from '@gameweld/domain';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
+import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { useProject } from './ProjectPage.tsx';
 
 const isCategory = (lane: string): lane is MoscowCategory =>
@@ -41,22 +41,6 @@ export function BacklogPage() {
     void reload();
   }, [reload]);
 
-  // A file released beside a card must not make the browser leave the app to show it.
-  useEffect(() => {
-    if (!canAttach) return;
-    const guard = (e: DragEvent) => {
-      if (e.defaultPrevented || !e.dataTransfer?.types.includes('Files')) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'none';
-    };
-    window.addEventListener('dragover', guard);
-    window.addEventListener('drop', guard);
-    return () => {
-      window.removeEventListener('dragover', guard);
-      window.removeEventListener('drop', guard);
-    };
-  }, [canAttach]);
-
   const grouped = useMemo(() => {
     const map = new Map<BacklogLane, BacklogItem[]>(BACKLOG_LANES.map((l) => [l, []]));
     for (const item of items ?? []) map.get(laneOf(item))!.push(item);
@@ -78,9 +62,9 @@ export function BacklogPage() {
 
   /** Dropped images become attachments; the server makes the last one the cover. */
   async function attachImages(item: BacklogItem, files: File[]) {
-    const images = files.filter((f) => PREVIEW_IMAGE_TYPES.has(f.type));
+    const images = coverImages(files);
     if (images.length === 0) {
-      setError('Drop a PNG, JPEG, GIF, or WebP image on a card to make it the cover.');
+      setError(NOT_A_COVER_IMAGE);
       return;
     }
     setUploading(item.id);

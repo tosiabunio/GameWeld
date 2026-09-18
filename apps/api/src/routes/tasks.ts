@@ -14,6 +14,7 @@ import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import { placeTask, returnTask } from '../services/placement.ts';
+import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
 
 const uuid = z.string().uuid();
@@ -33,6 +34,7 @@ const updateSchema = z.object({
   assigneeId: uuid.nullable().optional(),
   itemId: uuid.optional(),
   archived: z.boolean().optional(),
+  coverAttachmentId: uuid.nullable().optional(),
 });
 
 interface TaskRow {
@@ -47,6 +49,7 @@ interface TaskRow {
   completed: boolean;
   completed_at: Date | null;
   archived_at: Date | null;
+  cover_attachment_id: string | null;
   version: number;
   created_at: Date;
   updated_at: Date;
@@ -65,7 +68,7 @@ interface TaskRow {
 const taskSelect = `
   SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
          u.display_name AS assignee_name, t.completed, t.completed_at, t.archived_at, t.version,
-         t.created_at, t.updated_at,
+         t.created_at, t.updated_at, t.cover_attachment_id,
          w.id AS board_id, w.name AS board_name, c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
          p.entered_as_exception,
          r.id AS request_id, r.board_id AS request_board_id, rw.name AS request_board_name, r.requester_id AS request_requester_id
@@ -90,6 +93,7 @@ function toTask(r: TaskRow): Task {
     completed: r.completed,
     completedAt: r.completed_at?.toISOString() ?? null,
     archived: r.archived_at !== null,
+    coverAttachmentId: r.cover_attachment_id,
     placement:
       r.board_id && r.board_name && r.column_id && r.column_name
         ? {
@@ -352,7 +356,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.patch('/projects/:projectId/tasks/:taskId', projectRoute('task.work'), async (req) => {
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) throw badRequest('Invalid task update', parsed.error.flatten());
-    const { version, itemId: newItemId, archived, assigneeId, ...fields } = parsed.data;
+    const {
+      version,
+      itemId: newItemId,
+      archived,
+      assigneeId,
+      coverAttachmentId,
+      ...fields
+    } = parsed.data;
     const { taskId } = req.params as { taskId: string };
     const projectId = req.access!.project.id;
     const actorId = req.user!.id;
@@ -387,6 +398,15 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         throw conflict('Category cannot be changed while the task is on a Workboard.');
       }
       if (assigneeId) await assertMember(tx, projectId, assigneeId);
+      if (coverAttachmentId) {
+        const cover = await tx.query<{ content_type: string }>(
+          'SELECT content_type FROM attachments WHERE task_id = $1 AND id = $2',
+          [taskId, coverAttachmentId],
+        );
+        if (!cover.rows[0]) throw badRequest('The cover must be an attachment of this task.');
+        if (!PREVIEW_IMAGE_TYPES.has(cover.rows[0].content_type))
+          throw badRequest('The cover must be a PNG, JPEG, GIF, or WebP image.');
+      }
       if (newItemId !== undefined && newItemId !== current.itemId) {
         const target = await tx.query<{ archived_at: Date | null }>(
           'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
@@ -403,6 +423,8 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         assignee_id: assigneeId === undefined ? (current.assignee?.id ?? null) : assigneeId,
         item_id: newItemId ?? current.itemId,
         archived_at: archived === undefined ? current.archived : archived,
+        cover_attachment_id:
+          coverAttachmentId === undefined ? current.coverAttachmentId : coverAttachmentId,
       };
       if (archived === true && !current.archived) {
         await returnTask(tx, taskId, 'task deleted');
@@ -451,7 +473,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       await tx.query(
         `UPDATE tasks SET title = $2, description = $3, category = $4, assignee_id = $5, item_id = $6,
                           archived_at = CASE WHEN $7::boolean THEN coalesce(archived_at, now()) ELSE NULL END,
-                          version = version + 1, updated_at = now()
+                          cover_attachment_id = $8, version = version + 1, updated_at = now()
           WHERE id = $1`,
         [
           taskId,
@@ -461,6 +483,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           next.assignee_id,
           next.item_id,
           next.archived_at,
+          next.cover_attachment_id,
         ],
       );
       const action =
@@ -484,6 +507,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           itemId: current.itemId,
           archived: current.archived,
           placement: current.placement,
+          coverAttachmentId: current.coverAttachmentId,
         },
         next: {
           title: next.title,
@@ -491,6 +515,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           assigneeId: next.assignee_id,
           itemId: next.item_id,
           archived: next.archived_at,
+          coverAttachmentId: next.cover_attachment_id,
         },
       });
       // Section 12: reparenting and archival recalculate readiness for every affected item.

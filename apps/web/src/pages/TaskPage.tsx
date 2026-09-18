@@ -120,6 +120,13 @@ export function TaskPage() {
           owner={{ taskId: task.id }}
           attachments={task.attachments}
           canWork={editable}
+          coverId={task.coverAttachmentId}
+          canPickCover={editable}
+          onSetCover={(coverAttachmentId) =>
+            run(() =>
+              api.updateTask(project.id, task.id, { version: task.version, coverAttachmentId }),
+            )
+          }
           onChanged={reload}
         />
       </section>

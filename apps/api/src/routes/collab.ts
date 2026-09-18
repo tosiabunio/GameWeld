@@ -135,19 +135,27 @@ async function resolveOwner(
   return { taskId: params.taskId!, entityType: 'task', entityId: params.taskId! };
 }
 
+/** An attachment's owner and the table that holds its cover. */
+type CoverOwner = { itemId: string } | { taskId: string };
+const coverTable = (owner: CoverOwner) =>
+  'itemId' in owner
+    ? { table: 'backlog_items', column: 'item_id', id: owner.itemId }
+    : { table: 'tasks', column: 'task_id', id: owner.taskId };
+
 /**
- * The item's most recently attached previewable image becomes its cover, or none is left. Runs
- * when an image is attached and when the cover is deleted; a Director may still pick another
- * image or clear the cover until the next image arrives.
+ * The owner's most recently attached previewable image becomes its cover, or none is left. Runs
+ * when an image is attached and when the cover is deleted; a manual pick or clear holds until
+ * the next image arrives.
  */
-async function coverWithLatestImage(tx: Queryable, itemId: string): Promise<void> {
+async function coverWithLatestImage(tx: Queryable, owner: CoverOwner): Promise<void> {
+  const { table, column, id } = coverTable(owner);
   await tx.query(
-    `UPDATE backlog_items SET cover_attachment_id = (
-        SELECT id FROM attachments WHERE item_id = $1 AND content_type = ANY($2::text[])
+    `UPDATE ${table} SET cover_attachment_id = (
+        SELECT id FROM attachments WHERE ${column} = $1 AND content_type = ANY($2::text[])
          ORDER BY created_at DESC, id DESC LIMIT 1
       ), version = version + 1, updated_at = now()
       WHERE id = $1`,
-    [itemId, [...PREVIEW_IMAGE_TYPES]],
+    [id, [...PREVIEW_IMAGE_TYPES]],
   );
 }
 
@@ -312,7 +320,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
             );
           throw err;
         }
-        const becomesCover = target.itemId !== undefined && PREVIEW_IMAGE_TYPES.has(contentType);
+        const becomesCover = PREVIEW_IMAGE_TYPES.has(contentType);
         await withTransaction(db, async (tx) => {
           await tx.query(
             `INSERT INTO attachments (id, project_id, item_id, task_id, uploaded_by, file_name, content_type, size_bytes, storage_key)
@@ -329,7 +337,11 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
               key,
             ],
           );
-          if (becomesCover) await coverWithLatestImage(tx, target.itemId!);
+          if (becomesCover)
+            await coverWithLatestImage(
+              tx,
+              target.itemId ? { itemId: target.itemId } : { taskId: target.taskId! },
+            );
           await recordActivity(tx, {
             projectId,
             actorId: req.user!.id,
@@ -396,22 +408,28 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
       const projectId = req.access!.project.id;
       if (!isUuid(attachmentId)) throw notFound('Attachment not found');
       await withTransaction(db, async (tx) => {
-        const owner = (
-          await tx.query<{ item_id: string | null }>(
-            'SELECT item_id FROM attachments WHERE project_id = $1 AND id = $2',
+        const found = (
+          await tx.query<{ item_id: string | null; task_id: string | null }>(
+            'SELECT item_id, task_id FROM attachments WHERE project_id = $1 AND id = $2',
             [projectId, attachmentId],
           )
         ).rows[0];
-        // Lock the item before the attachment: the order a cover change takes through the
+        const owner: CoverOwner | null = found?.item_id
+          ? { itemId: found.item_id }
+          : found?.task_id
+            ? { taskId: found.task_id }
+            : null;
+        // Lock the owner before the attachment: the order a cover change takes through the
         // foreign key, so the two cannot deadlock.
-        const wasCover =
-          owner?.item_id != null &&
-          (
-            await tx.query<{ cover_attachment_id: string | null }>(
-              'SELECT cover_attachment_id FROM backlog_items WHERE id = $1 FOR UPDATE',
-              [owner.item_id],
-            )
-          ).rows[0]?.cover_attachment_id === attachmentId;
+        let wasCover = false;
+        if (owner) {
+          const { table, id } = coverTable(owner);
+          const locked = await tx.query<{ cover_attachment_id: string | null }>(
+            `SELECT cover_attachment_id FROM ${table} WHERE id = $1 FOR UPDATE`,
+            [id],
+          );
+          wasCover = locked.rows[0]?.cover_attachment_id === attachmentId;
+        }
         const row = (
           await tx.query<{
             uploaded_by: string;
@@ -431,7 +449,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
             'Only the uploader or a Game Director can delete an attachment.',
           );
         await tx.query('DELETE FROM attachments WHERE id = $1', [attachmentId]);
-        if (wasCover && row.item_id) await coverWithLatestImage(tx, row.item_id);
+        if (wasCover && owner) await coverWithLatestImage(tx, owner);
         await recordActivity(tx, {
           projectId,
           actorId: req.user!.id,

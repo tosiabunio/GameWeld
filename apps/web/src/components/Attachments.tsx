@@ -17,14 +17,16 @@ export function Attachments({
   canWork,
   coverId,
   onSetCover,
+  canPickCover = false,
   onChanged,
 }: {
   owner: { itemId: string } | { taskId: string };
   attachments: Attachment[];
   canWork: boolean;
-  /** Item pages: the current cover attachment, and a setter for Directors. */
+  /** The current cover attachment, and a setter for those allowed to pick another. */
   coverId?: string | null;
   onSetCover?: (attachmentId: string | null) => Promise<unknown>;
+  canPickCover?: boolean;
   onChanged: () => Promise<void>;
 }) {
   const { project } = useProject();
@@ -92,7 +94,7 @@ export function Attachments({
                 </span>
               </div>
               <div className="row">
-                {onSetCover && canDirect && a.isImage && (
+                {onSetCover && canPickCover && a.isImage && (
                   <button
                     type="button"
                     className="link"

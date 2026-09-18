@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.ts';
+import { dropFile, expectCoverFrame, signIn, TINY_PNG } from './helpers.ts';
 
 test('Section 15: a Director creates a vague item, reorders it, and edits its description', async ({
   page,
@@ -163,37 +163,17 @@ test('an image dropped on a Backlog card becomes its cover', async ({ page }) =>
   await expect(card).toBeVisible();
   await expect(card.locator('img.cover')).toHaveCount(0);
 
-  // Files dragged in from the desktop arrive as a native drop carrying a DataTransfer.
-  async function drop(name: string, type: string, base64: string) {
-    const dataTransfer = await page.evaluateHandle(
-      ({ name, type, base64 }) => {
-        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-        const dt = new DataTransfer();
-        dt.items.add(new File([bytes], name, { type }));
-        return dt;
-      },
-      { name, type, base64 },
-    );
-    await card.dispatchEvent('dragenter', { dataTransfer });
-    await card.dispatchEvent('dragover', { dataTransfer });
-    await card.dispatchEvent('drop', { dataTransfer });
-  }
-
-  await drop('notes.txt', 'text/plain', Buffer.from('hello').toString('base64'));
+  await dropFile(page, card, {
+    name: 'notes.txt',
+    type: 'text/plain',
+    base64: Buffer.from('hello').toString('base64'),
+  });
   await expect(page.getByRole('alert')).toContainText('Drop a PNG, JPEG, GIF, or WebP image');
   await expect(card.locator('img.cover')).toHaveCount(0);
 
   // A 1×1 image still fills the card's cover frame: full width, 16:9, cropped rather than stretched.
-  await drop(
-    'title.png',
-    'image/png',
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-  );
-  const cover = card.locator('img.cover');
-  await expect(cover).toBeVisible();
-  const [coverBox, cardBox] = [await cover.boundingBox(), await card.boundingBox()];
-  expect(Math.abs(coverBox!.width - cardBox!.width)).toBeLessThanOrEqual(2);
-  expect(coverBox!.width / coverBox!.height).toBeCloseTo(16 / 9, 1);
+  await dropFile(page, card, { name: 'title.png', type: 'image/png', base64: TINY_PNG });
+  await expectCoverFrame(card);
 
   // The dropped image is an ordinary attachment of the item, marked as its cover.
   await card.getByRole('link', { name: 'Title screen' }).click();

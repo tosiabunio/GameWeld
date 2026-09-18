@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
+import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { History } from '../components/History.tsx';
 import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { useProject } from './ProjectPage.tsx';
@@ -477,6 +478,7 @@ function Columns({
 }) {
   const { project } = useProject();
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
   const canWork = project.permissions['task.work'] && board.state === 'active';
   const canComplete = project.permissions['task.complete'];
   const canDelete = project.permissions['backlog.manage'] && board.state === 'active';
@@ -491,6 +493,17 @@ function Columns({
     if ((target.kind === 'done') !== (from?.kind === 'done') && !canComplete) return false;
     return true;
   };
+
+  /** Dropped images become the task's attachments; the server makes the last one the cover. */
+  async function attachImages(card: BoardCard, files: File[]) {
+    const images = coverImages(files);
+    setUploading(card.id);
+    await onChange(async () => {
+      if (images.length === 0) throw new ApiError(400, NOT_A_COVER_IMAGE);
+      for (const file of images) await api.uploadAttachment(project.id, { taskId: card.id }, file);
+    });
+    setUploading(null);
+  }
 
   const lanes: Lane<BoardCard>[] = board.columns.map((col) => ({
     id: col.id,
@@ -514,6 +527,7 @@ function Columns({
       lanes={lanes}
       canDrag={canWork}
       canDrop={canDrop}
+      onFilesDrop={canWork ? (card, files) => void attachImages(card, files) : undefined}
       testIdPrefix="column"
       onMove={(card, columnId, afterId, beforeId) =>
         onChange(() =>
@@ -522,6 +536,15 @@ function Columns({
       }
       renderCard={(card) => (
         <>
+          {card.coverAttachmentId && (
+            <img
+              className="cover"
+              src={api.attachmentUrl(project.id, card.coverAttachmentId, true)}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+          )}
           <Link
             to={`/projects/${project.id}/tasks/${card.id}`}
             state={{ from: 'board' }}
@@ -536,6 +559,7 @@ function Columns({
             <span className="muted">{card.itemTitle}</span>
             {card.outOfScope && <span className="badge warn">Out of scope</span>}
             {card.assignee && <span>{card.assignee.displayName}</span>}
+            {uploading === card.id && <span role="status">Uploading…</span>}
           </div>
           {canDelete && deleting !== card.id && (
             <div className="card-actions">

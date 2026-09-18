@@ -163,6 +163,7 @@ export async function fetchView(
     completed: boolean;
     completed_at: Date | null;
     archived_at: Date | null;
+    cover_attachment_id: string | null;
     version: number;
     created_at: Date;
     updated_at: Date;
@@ -176,7 +177,8 @@ export async function fetchView(
   }>(
     `SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
             u.display_name AS assignee_name, t.completed, t.completed_at, t.archived_at, t.version,
-            t.created_at, t.updated_at, c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
+            t.created_at, t.updated_at, t.cover_attachment_id,
+            c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
             p.entered_as_exception, p.rank, b.title AS item_title, b.category AS item_category
        FROM task_placements p
        JOIN tasks t ON t.id = p.task_id
@@ -208,6 +210,7 @@ export async function fetchView(
       completed: r.completed,
       completedAt: r.completed_at?.toISOString() ?? null,
       archived: r.archived_at !== null,
+      coverAttachmentId: r.cover_attachment_id,
       placement: {
         boardId: board.id,
         boardName: board.name,

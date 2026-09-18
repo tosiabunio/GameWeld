@@ -34,6 +34,8 @@ export interface Task {
   completed: boolean;
   completedAt: string | null;
   archived: boolean;
+  /** Attachment id of the cover image shown on the task's Workboard card, if any. */
+  coverAttachmentId: string | null;
   placement: TaskPlacement | null;
   /** A pending out-of-scope placement request for this task, if any (Section 9). */
   pendingRequest: { id: string; boardId: string; boardName: string; requesterId: string } | null;
@@ -68,4 +70,6 @@ export interface UpdateTaskInput {
   assigneeId?: string | null;
   itemId?: string;
   archived?: boolean;
+  /** An image attachment of this task, or null to clear the cover. */
+  coverAttachmentId?: string | null;
 }
