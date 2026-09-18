@@ -1,25 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-
-async function activateFromBacklog(page: Page, title: string) {
-  await page
-    .getByRole('navigation', { name: 'Project sections' })
-    .getByRole('link', { name: 'Backlog' })
-    .click();
-  const card = page.getByTestId('item-card').filter({ hasText: title });
-  await card.getByRole('button', { name: `Add ${title} to Workboard` }).click();
-  await card
-    .getByRole('group', { name: `Activate ${title}` })
-    .getByRole('button', { name: 'Activate' })
-    .click();
-  await expect(card).toContainText('On ');
-  await page.getByRole('link', { name: 'Workboard' }).click();
-}
-
-async function signIn(page: Page, persona: string) {
-  await page.goto('/');
-  await page.getByTestId(`persona-${persona}`).click();
-  await expect(page.getByTestId('current-user')).toBeVisible();
-}
+import { activateFromBacklog, signIn, switchPersona } from './helpers.ts';
 
 async function createProjectWithItems(page: Page, name: string) {
   await page.getByRole('link', { name: 'New project' }).click();
@@ -146,8 +126,7 @@ test('Developer creates cards: default parent with one item in scope, choice wit
   await expect(page.getByTestId('scope-item')).toHaveCount(1);
   const url = page.url();
 
-  await page.getByRole('button', { name: 'Switch persona' }).click();
-  await page.getByTestId('persona-developer').click();
+  await switchPersona(page, 'developer');
   await page.goto(url);
 
   await expect(
@@ -174,13 +153,11 @@ test('Developer creates cards: default parent with one item in scope, choice wit
   await page.getByRole('link', { name: 'Workboard' }).click();
 
   // Several items in scope: Director activates a second item, then the Developer must choose.
-  await page.getByRole('button', { name: 'Switch persona' }).click();
-  await page.getByTestId('persona-director').click();
+  await switchPersona(page, 'director');
   await page.goto(url);
   await activateFromBacklog(page, 'Flying enemy');
   await expect(page.getByTestId('scope-item')).toHaveCount(2);
-  await page.getByRole('button', { name: 'Switch persona' }).click();
-  await page.getByTestId('persona-developer').click();
+  await switchPersona(page, 'developer');
   await page.goto(url);
   await codeColumn.getByRole('button', { name: 'New Code task' }).click();
   const form2 = page.getByRole('form', { name: 'New Code task' });

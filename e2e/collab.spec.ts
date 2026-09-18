@@ -1,10 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-async function signIn(page: Page, persona: string) {
-  await page.goto('/');
-  await page.getByTestId(`persona-${persona}`).click();
-  await expect(page.getByTestId('current-user')).toBeVisible();
-}
+import { expect, test } from '@playwright/test';
+import { signIn } from './helpers.ts';
 
 test('attachments, comments, dependencies, and history on items and tasks', async ({ page }) => {
   await signIn(page, 'director');

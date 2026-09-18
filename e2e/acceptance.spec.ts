@@ -1,25 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-async function activateFromBacklog(page: Page, title: string) {
-  await page
-    .getByRole('navigation', { name: 'Project sections' })
-    .getByRole('link', { name: 'Backlog' })
-    .click();
-  const card = page.getByTestId('item-card').filter({ hasText: title });
-  await card.getByRole('button', { name: `Add ${title} to Workboard` }).click();
-  await card
-    .getByRole('group', { name: `Activate ${title}` })
-    .getByRole('button', { name: 'Activate' })
-    .click();
-  await expect(card).toContainText('On ');
-  await page.getByRole('link', { name: 'Workboard' }).click();
-}
-
-async function signIn(page: Page, persona: string) {
-  await page.goto('/');
-  await page.getByTestId(`persona-${persona}`).click();
-  await expect(page.getByTestId('current-user')).toBeVisible();
-}
+import { expect, test } from '@playwright/test';
+import { activateFromBacklog, signIn } from './helpers.ts';
 
 test('finish all tasks, accept the item, then reopen it by adding a task', async ({ page }) => {
   await signIn(page, 'director');

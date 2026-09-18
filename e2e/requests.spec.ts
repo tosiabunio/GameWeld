@@ -1,25 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-async function activateFromBacklog(page: Page, title: string) {
-  await page
-    .getByRole('navigation', { name: 'Project sections' })
-    .getByRole('link', { name: 'Backlog' })
-    .click();
-  const card = page.getByTestId('item-card').filter({ hasText: title });
-  await card.getByRole('button', { name: `Add ${title} to Workboard` }).click();
-  await card
-    .getByRole('group', { name: `Activate ${title}` })
-    .getByRole('button', { name: 'Activate' })
-    .click();
-  await expect(card).toContainText('On ');
-  await page.getByRole('link', { name: 'Workboard' }).click();
-}
-
-async function signIn(page: Page, persona: string) {
-  await page.goto('/');
-  await page.getByTestId(`persona-${persona}`).click();
-  await expect(page.getByTestId('current-user')).toBeVisible();
-}
+import { expect, test } from '@playwright/test';
+import { activateFromBacklog, signIn, switchPersona } from './helpers.ts';
 
 test('a Developer requests out-of-scope work and a Director approves it', async ({ page }) => {
   // Director sets up: two Must Have items, one task each, a board with the first item in scope.
@@ -70,8 +50,7 @@ test('a Developer requests out-of-scope work and a Director approves it', async 
   const breakdownUrl = page.url();
 
   // Section 15 "Developer requests work on an inactive item".
-  await page.getByRole('button', { name: 'Switch persona' }).click();
-  await page.getByTestId('persona-developer').click();
+  await switchPersona(page, 'developer');
   await page.goto(breakdownUrl);
   await page.getByRole('button', { name: 'Request placement of Swoop animation' }).click();
   await page.getByLabel('Reason').fill('An artist is free this week.');
@@ -88,8 +67,7 @@ test('a Developer requests out-of-scope work and a Director approves it', async 
   ).toHaveCount(0);
 
   // Section 15 "Director approves that request": only the task enters, with the badge.
-  await page.getByRole('button', { name: 'Switch persona' }).click();
-  await page.getByTestId('persona-director').click();
+  await switchPersona(page, 'director');
   await page.goto(boardUrl);
   await page.getByRole('button', { name: 'Approve request for Swoop animation' }).click();
   await page.getByLabel('Decision note').fill('Go ahead.');

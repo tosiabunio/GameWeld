@@ -1,10 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-async function signIn(page: Page, persona: string) {
-  await page.goto('/');
-  await page.getByTestId(`persona-${persona}`).click();
-  await expect(page.getByTestId('current-user')).toBeVisible();
-}
+import { expect, test } from '@playwright/test';
+import { signIn, switchPersona } from './helpers.ts';
 
 test('a Director creates a project, changes settings, and manages members', async ({ page }) => {
   await signIn(page, 'director');
@@ -70,8 +65,7 @@ test('a project the user does not belong to is not visible', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   const url = page.url();
 
-  await page.getByRole('button', { name: 'Switch persona' }).click();
-  await page.getByTestId('persona-developer').click();
+  await switchPersona(page, 'developer');
   await page.goto(url);
   await expect(page.getByText('Project not found, or you are not a member.')).toBeVisible();
 });
