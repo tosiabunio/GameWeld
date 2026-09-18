@@ -56,21 +56,25 @@ export function ProjectPage() {
   }
 
   return (
-    <Shell title={project.name}>
-      <nav className="tabs" aria-label="Project sections">
-        <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-          Backlog
-        </NavLink>
-        <NavLink to="breakdown" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-          Breakdown
-        </NavLink>
-        <NavLink to="board" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-          Workboard
-        </NavLink>
-        <NavLink to="settings" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-          Settings
-        </NavLink>
-      </nav>
+    <Shell
+      title={project.name}
+      nav={
+        <nav className="tabs" aria-label="Project sections">
+          <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+            Backlog
+          </NavLink>
+          <NavLink to="breakdown" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+            Breakdown
+          </NavLink>
+          <NavLink to="board" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+            Workboard
+          </NavLink>
+          <NavLink to="settings" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+            Settings
+          </NavLink>
+        </nav>
+      }
+    >
       <ProjectContext.Provider value={{ project, reload }}>
         <Outlet />
       </ProjectContext.Provider>

@@ -2,6 +2,7 @@ import type { AuthProviders } from '@gameweld/domain';
 import { ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api.ts';
+import { Avatar, Logo } from '../components/Brand.tsx';
 import { useSession } from '../session.tsx';
 
 export function SignInPage() {
@@ -24,30 +25,42 @@ export function SignInPage() {
   }
 
   return (
-    <main className="page narrow">
-      <h1>GameWeld</h1>
-      <p className="muted">Production Management System</p>
-      {error && <p className="error">{error}</p>}
-      {providers?.mock.enabled ? (
-        <section aria-labelledby="persona-heading">
-          <h2 id="persona-heading">Sign in as</h2>
-          <p className="muted">Mock sign-in is enabled for local development. Pick a persona.</p>
-          <ul className="persona-list">
-            {providers.mock.personas.map((p) => (
-              <li key={p.key}>
-                <button type="button" onClick={() => pick(p.key)} data-testid={`persona-${p.key}`}>
-                  <strong>{p.displayName}</strong>
-                  <span className="muted">{p.roles.map((r) => ROLE_LABELS[r]).join(', ')}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : providers ? (
-        <p>No sign-in provider is configured for this instance.</p>
-      ) : (
-        <p>Loading…</p>
-      )}
+    <main className="auth">
+      <div className="auth-card">
+        <div className="auth-brand">
+          <Logo size={44} />
+          <h1>GameWeld</h1>
+          <p className="muted">Production Management System</p>
+        </div>
+        {error && <p className="error">{error}</p>}
+        {providers?.mock.enabled ? (
+          <section aria-labelledby="persona-heading">
+            <h2 id="persona-heading">Sign in as</h2>
+            <p className="muted">Mock sign-in is enabled for local development. Pick a persona.</p>
+            <ul className="persona-list">
+              {providers.mock.personas.map((p) => (
+                <li key={p.key}>
+                  <button
+                    type="button"
+                    onClick={() => pick(p.key)}
+                    data-testid={`persona-${p.key}`}
+                  >
+                    <Avatar name={p.displayName} size={36} />
+                    <span className="persona-text">
+                      <strong>{p.displayName}</strong>
+                      <span className="muted">{p.roles.map((r) => ROLE_LABELS[r]).join(', ')}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : providers ? (
+          <p>No sign-in provider is configured for this instance.</p>
+        ) : (
+          <p>Loading…</p>
+        )}
+      </div>
     </main>
   );
 }

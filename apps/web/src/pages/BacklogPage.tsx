@@ -81,7 +81,7 @@ export function BacklogPage() {
         title: LANE_LABELS[lane],
         items: grouped.get(lane)!,
         droppable: isCategory(lane),
-        ...(isCategory(lane) ? {} : { className: 'lifecycle' }),
+        className: isCategory(lane) ? `prio-${lane}` : `lifecycle state-${lane}`,
         ...(isCategory(lane) && canManage
           ? {
               footer: (
@@ -129,7 +129,8 @@ export function BacklogPage() {
             </Link>
             <div className="card-meta">
               {item.taskCounts.total > 0 ? (
-                <span title="Completed tasks / all tasks">
+                <span className="task-progress" title="Completed tasks / all tasks">
+                  <progress value={item.taskCounts.completed} max={item.taskCounts.total} />
                   {item.taskCounts.completed}/{item.taskCounts.total} tasks
                 </span>
               ) : (

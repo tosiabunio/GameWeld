@@ -16,7 +16,7 @@ export function ProjectsPage() {
 
   return (
     <Shell>
-      <div className="row between">
+      <div className="row between page-head">
         <h2>{showArchived ? 'Archived projects' : 'Projects'}</h2>
         <div className="row">
           <button type="button" className="link" onClick={() => setShowArchived((v) => !v)}>
@@ -36,17 +36,20 @@ export function ProjectsPage() {
             : 'You are not a member of any project yet. Create one to become its Game Director.'}
         </p>
       ) : (
-        <ul className="card-list">
+        <ul className="card-list project-grid">
           {projects.map((p) => (
-            <li key={p.id} data-testid="project-card">
+            <li key={p.id} className="project-card" data-testid="project-card">
               <h3>
                 <Link to={`/projects/${p.id}`}>{p.name}</Link>
               </h3>
-              {p.description && <p>{p.description}</p>}
-              <p className="muted">
-                Your roles: {p.roles.map((r) => ROLE_LABELS[r]).join(', ')} · {p.itemCount} backlog
-                items · scope limit {p.scopeLimit}
-                {p.doneRestricted ? ' · Done restricted to Testers' : ''}
+              {p.description && <p className="project-desc">{p.description}</p>}
+              <p className="muted small">
+                Your roles: {p.roles.map((r) => ROLE_LABELS[r]).join(', ')}
+              </p>
+              <p className="stats">
+                <span>{p.itemCount} backlog items</span>
+                <span>scope limit {p.scopeLimit}</span>
+                {p.doneRestricted && <span>Done restricted to Testers</span>}
               </p>
             </li>
           ))}
