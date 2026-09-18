@@ -1231,9 +1231,8 @@ ul.project-grid {
   list-style: none;
   rotate: 1.5deg;
 }
-.card-actions button,
-.card-actions select,
-.card-title {
+.card-title,
+.to-board {
   touch-action: auto;
 }
 .card-title,
@@ -1291,28 +1290,21 @@ ul.project-grid {
 .card-head .task-title {
   min-width: 0;
 }
-/* An explicit way into an item's Breakdown, beside the title that also leads there. Only the
-   arrow shows; the word "Open" stays in the markup for the accessible name. */
+/* An explicit way into an item's Breakdown, beside the title that also leads there. Its icon is
+   a node splitting into three; arrows on a Backlog card mean the Workboard. */
 .card-open {
   flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 20px;
-  height: 20px;
-  margin: 0 -4px 0 0;
-  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: -2px -4px -2px auto;
+  border-radius: var(--r-sm);
   color: var(--muted);
-  font-size: 0;
-  font-weight: 600;
-  text-decoration: none;
   touch-action: auto;
   transition:
     color 0.12s,
     background-color 0.12s;
-}
-.card-open span {
-  font-size: 14px;
 }
 .card-open:hover,
 .card-open:focus-visible {
@@ -1443,26 +1435,46 @@ progress::-moz-progress-bar {
   background: var(--ok);
   border-radius: 999px;
 }
-.card-actions {
+/* A Backlog card's last row: where the item stands on the left, its way onto the Workboard in
+   the lower right corner. */
+.card-foot {
   display: flex;
-  gap: 4px;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
 }
-.card-actions button {
-  padding: 2px 8px;
-  font-size: 0.85rem;
-  box-shadow: none;
-}
-.card-actions button.link {
-  margin-left: -7px;
-  font-size: 0.83rem;
-}
-.card-actions select {
-  font-size: 0.83rem;
-  padding: 2px 4px;
-  border-radius: var(--r-sm);
+/* A short line of metadata centres on the button; a tall one leaves the button in the corner. */
+.card-foot .card-meta {
   flex: 1;
   min-width: 0;
+  align-self: center;
+}
+.to-board {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  box-shadow: none;
+  color: var(--muted);
+}
+.to-board:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+/* The item the priority order says comes next. */
+.to-board.next {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+@media (pointer: coarse) {
+  .to-board {
+    width: 40px;
+    height: 40px;
+  }
 }
 .cover {
   /* One shape for every cover: the image fills the frame and is cropped, never stretched. */

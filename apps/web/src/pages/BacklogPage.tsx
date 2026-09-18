@@ -165,8 +165,23 @@ export function BacklogPage() {
                 aria-label={`Open ${item.title} in the Breakdown`}
                 title="Open in the Breakdown"
               >
-                Open
-                <span aria-hidden="true">→</span>
+                {/* One node splitting into three: what the Breakdown does to an item. */}
+                <svg
+                  viewBox="0 0 16 16"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="5.5" y="1.5" width="5" height="3.5" rx="1" />
+                  <path d="M8 5v3M2.75 10.5V8h10.5v2.5M8 8v2.5" />
+                  <rect x="1" y="10.5" width="3.5" height="3.5" rx="1" />
+                  <rect x="6.25" y="10.5" width="3.5" height="3.5" rx="1" />
+                  <rect x="11.5" y="10.5" width="3.5" height="3.5" rx="1" />
+                </svg>
               </Link>
               {canManage && item.state === 'open' && (
                 <ActionMenu label={`${item.title} actions`}>
@@ -207,51 +222,64 @@ export function BacklogPage() {
                 </ActionMenu>
               )}
             </div>
-            <div className="card-meta">
-              {item.taskCounts.total > 0 ? (
-                <span className="task-progress" title="Completed tasks / all tasks">
-                  <progress value={item.taskCounts.completed} max={item.taskCounts.total} />
-                  {item.taskCounts.completed}/{item.taskCounts.total} tasks
-                </span>
-              ) : (
-                <span className="muted">No tasks yet</span>
-              )}
-              {item.activeBoard && <span className="badge">On {item.activeBoard.name}</span>}
-              {item.state === 'ready_for_review' && (
-                <span className="badge">Awaiting acceptance</span>
-              )}
-              {item.state === 'done' && <span className="badge done">Accepted</span>}
-              {uploading === item.id && <span role="status">Uploading…</span>}
-              {item.state !== 'open' && (
-                <span className="muted">{CATEGORY_LABELS[item.category]}</span>
-              )}
-            </div>
-            {canSelectScope &&
-              board &&
-              item.state === 'open' &&
-              !item.activeBoard &&
-              activating !== item.id && (
-                <div className="card-actions">
+            <div className="card-foot">
+              <div className="card-meta">
+                {item.taskCounts.total > 0 ? (
+                  <span className="task-progress" title="Completed tasks / all tasks">
+                    <progress value={item.taskCounts.completed} max={item.taskCounts.total} />
+                    {item.taskCounts.completed}/{item.taskCounts.total} tasks
+                  </span>
+                ) : (
+                  <span className="muted">No tasks yet</span>
+                )}
+                {item.activeBoard && <span className="badge">On {item.activeBoard.name}</span>}
+                {item.state === 'ready_for_review' && (
+                  <span className="badge">Awaiting acceptance</span>
+                )}
+                {item.state === 'done' && <span className="badge done">Accepted</span>}
+                {uploading === item.id && <span role="status">Uploading…</span>}
+                {item.state !== 'open' && (
+                  <span className="muted">{CATEGORY_LABELS[item.category]}</span>
+                )}
+              </div>
+              {/* The way onto the Workboard. With several boards this button opens a choice of board. */}
+              {canSelectScope &&
+                board &&
+                item.state === 'open' &&
+                !item.activeBoard &&
+                activating !== item.id && (
                   <button
                     type="button"
-                    className={board.nextEligible?.id === item.id ? 'link primary-text' : 'link'}
+                    className={`to-board${board.nextEligible?.id === item.id ? ' next' : ''}`}
                     disabled={board.counts.scopeItems >= board.scopeLimit}
                     title={
                       board.counts.scopeItems >= board.scopeLimit
                         ? `Scope limit reached (${board.counts.scopeItems}/${board.scopeLimit})`
                         : board.nextEligible?.id === item.id
-                          ? 'Next in priority'
+                          ? `Add to ${board.name} · next in priority`
                           : board.nextEligible
-                            ? `“${board.nextEligible.title}” is next in priority`
-                            : undefined
+                            ? `Add to ${board.name} · “${board.nextEligible.title}” is next in priority`
+                            : `Add to ${board.name}`
                     }
                     onClick={() => setActivating(item.id)}
                     aria-label={`Add ${item.title} to Workboard`}
                   >
-                    Add to Workboard
+                    <svg
+                      viewBox="0 0 16 16"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
                   </button>
-                </div>
-              )}
+                )}
+            </div>
             {activating === item.id && board && (
               <div className="confirm small" role="group" aria-label={`Activate ${item.title}`}>
                 <p>
