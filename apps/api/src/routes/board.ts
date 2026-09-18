@@ -93,7 +93,7 @@ const KIND_ORDER: Record<ColumnKind, number> = {
 
 async function fetchColumns(db: Queryable, boardId: string): Promise<BoardColumn[]> {
   const res = await db.query<BoardColumn & { kind: ColumnKind }>(
-    'SELECT id, name, kind, rank, version FROM board_columns WHERE board_id = $1',
+    'SELECT id, name, kind, rank, version FROM board_columns WHERE board_id = $1 AND deleted_at IS NULL',
     [boardId],
   );
   return res.rows.sort(
@@ -442,6 +442,22 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
         );
       }
       for (const t of unfinished.rows) await returnTask(tx, t.id, 'board archived');
+      const rejected = await tx.query<{ id: string; task_id: string }>(
+        `UPDATE work_requests SET status = 'rejected', decided_by = $2, decided_at = now(),
+           decision_note = 'Workboard archived', version = version + 1
+         WHERE board_id = $1 AND status = 'pending' RETURNING id, task_id`,
+        [boardId, req.user!.id],
+      );
+      for (const request of rejected.rows) {
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'request.rejected',
+          entityType: 'work_request',
+          entityId: request.id,
+          next: { taskId: request.task_id, boardId, note: 'Workboard archived' },
+        });
+      }
       await tx.query(
         `UPDATE workboards SET state = 'archived', archived_at = now(), version = version + 1 WHERE id = $1`,
         [boardId],
@@ -499,7 +515,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       await activeBoardFor(tx, projectId, boardId);
       const col = (
         await tx.query<BoardColumn>(
-          'SELECT id, name, kind, rank, version FROM board_columns WHERE board_id = $1 AND id = $2 FOR UPDATE',
+          'SELECT id, name, kind, rank, version FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE',
           [boardId, columnId],
         )
       ).rows[0];
@@ -546,7 +562,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       if (!isUuid(columnId)) throw notFound('Column not found');
       const col = (
         await tx.query<BoardColumn>(
-          'SELECT id, name, kind FROM board_columns WHERE board_id = $1 AND id = $2 FOR UPDATE',
+          'SELECT id, name, kind FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE',
           [boardId, columnId],
         )
       ).rows[0];
@@ -558,7 +574,8 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       );
       if (occupied.rowCount)
         throw conflict('Move the tasks out of this column before deleting it.');
-      await tx.query('DELETE FROM board_columns WHERE id = $1', [columnId]);
+      // Historical placements keep their column references and names.
+      await tx.query('UPDATE board_columns SET deleted_at = now() WHERE id = $1', [columnId]);
       await recordActivity(tx, {
         projectId,
         actorId: req.user!.id,
@@ -815,7 +832,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
         throw notFound('The task is not on this Workboard.');
       const target = (
         await tx.query<{ id: string; kind: ColumnKind }>(
-          'SELECT id, kind FROM board_columns WHERE board_id = $1 AND id = $2',
+          'SELECT id, kind FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL',
           [boardId, columnId],
         )
       ).rows[0];
@@ -895,7 +912,7 @@ async function intermediateRank(
 ): Promise<string> {
   const cols = (
     await tx.query<{ id: string; rank: string }>(
-      `SELECT id, rank FROM board_columns WHERE board_id = $1 AND kind = 'intermediate' AND id <> coalesce($2, '00000000-0000-0000-0000-000000000000'::uuid) ORDER BY rank`,
+      `SELECT id, rank FROM board_columns WHERE board_id = $1 AND kind = 'intermediate' AND deleted_at IS NULL AND id <> coalesce($2, '00000000-0000-0000-0000-000000000000'::uuid) ORDER BY rank`,
       [boardId, selfId],
     )
   ).rows;

@@ -233,6 +233,8 @@ The badge is relative to the receiving Workboard. If the parent later enters its
 
 The requester can withdraw a pending request. The Director can add an out-of-scope task directly; that action is recorded as an approved exception.
 
+Archiving a Workboard rejects its pending placement requests with the note “Workboard archived”, preserving the requester and decision history. The task can then be requested on a later Workboard.
+
 Before approval, the system rechecks that the task is unfinished, the target board is active, and no conflicting placement exists. A request must never overwrite a newer task placement silently.
 
 **Confirmed defaults:** require approval for out-of-scope placement; do not count the parent against the board's item limit; display a separate count of out-of-scope tasks. No separate exception limit is needed initially. These tasks still represent real workload and remain visible alongside scoped work.
@@ -271,6 +273,7 @@ Acceptance may rely on free-form descriptions, comments, attachments, external b
 - Archiving a task excludes it from completion checks but does not count it as completed work.
 - Adding or reopening an unfinished task returns a Ready for Review item to Open. Task editors may reopen completed tasks, subject to the Done permission rule in Section 4, and the UI shows the effect on the parent item's acceptance before the change.
 - Adding or reopening an unfinished task under an accepted item also returns it to Open and invalidates the current acceptance. The earlier acceptance remains in history, and the UI states the consequence before the change.
+- Reopening a task whose placement is on an archived Workboard returns it to Breakdown. Its former placement and Done column remain in history, and the task can be placed on the active Workboard.
 - The accept action rechecks the current task states to avoid accepting an item that changed during review.
 - An acceptance rejection may reopen an existing task or add a follow-up task. If no task change is made, the item stays Ready for Review with the rejection comment visible; no extra rejection state is introduced.
 

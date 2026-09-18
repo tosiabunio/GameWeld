@@ -218,6 +218,40 @@ describe('collaboration and history (Phase 7)', () => {
     expect(item.coverAttachmentId).toBeNull();
   });
 
+  it('serves script-bearing SVG attachments only as downloads and rejects SVG covers', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+    const up = multipart('untrusted.svg', 'image/svg+xml', svg);
+    const uploaded = await t.app.inject({
+      method: 'POST',
+      url: p(`/backlog/${itemId}/attachments`),
+      headers: { cookie: developer, ...up.headers },
+      payload: up.body,
+    });
+    expect(uploaded.statusCode).toBe(201);
+    expect(uploaded.json().isImage).toBe(false);
+    for (const suffix of ['', '?inline=1']) {
+      const download = await t.app.inject({
+        method: 'GET',
+        url: p(`/attachments/${uploaded.json().id}${suffix}`),
+        headers: { cookie: director },
+      });
+      expect(download.statusCode).toBe(200);
+      expect(download.body).toBe(svg);
+      expect(download.headers['content-type']).toBe('application/octet-stream');
+      expect(download.headers['content-disposition']).toMatch(/^attachment;/);
+      expect(download.headers['x-content-type-options']).toBe('nosniff');
+      expect(download.headers['content-security-policy']).toBe("sandbox; default-src 'none'");
+    }
+    const cover = await t.app.inject({
+      method: 'PATCH',
+      url: p(`/backlog/${itemId}`),
+      headers: { cookie: director },
+      payload: { version: (await itemDetail()).version, coverAttachmentId: uploaded.json().id },
+    });
+    expect(cover.statusCode).toBe(400);
+    expect((await itemDetail()).coverAttachmentId).toBeNull();
+  });
+
   it('comments on tasks; authors edit, authors or Directors delete, rejections are immutable', async () => {
     const c = await t.app.inject({
       method: 'POST',

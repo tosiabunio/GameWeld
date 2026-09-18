@@ -268,6 +268,11 @@ function BoardHeader({
                   ? `${c.unfinishedTasks} unfinished task${c.unfinishedTasks === 1 ? '' : 's'} will return to Breakdown. Nothing is marked complete.`
                   : 'The board becomes read-only history.'}
               </p>
+              {c.pendingRequests > 0 && (
+                <p>
+                  Pending placement requests will be rejected with the note “Workboard archived”.
+                </p>
+              )}
               <button
                 type="button"
                 className="primary"

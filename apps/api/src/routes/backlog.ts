@@ -13,6 +13,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import { fetchAcceptances, fetchItemComments } from './acceptance.ts';
 import { fetchAttachments, fetchDependencies } from './collab.ts';
 
@@ -208,8 +209,8 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
           [itemId, coverAttachmentId],
         );
         if (!cover.rows[0]) throw badRequest('The cover must be an attachment of this item.');
-        if (!cover.rows[0].content_type.startsWith('image/'))
-          throw badRequest('The cover must be an image.');
+        if (!PREVIEW_IMAGE_TYPES.has(cover.rows[0].content_type))
+          throw badRequest('The cover must be a PNG, JPEG, GIF, or WebP image.');
       }
       const locked = await tx.query<ItemRow>(
         `SELECT * FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE`,

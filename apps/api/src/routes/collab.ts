@@ -6,7 +6,7 @@ import { can } from '@gameweld/domain';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
-import { PayloadTooLarge } from '../storage.ts';
+import { PayloadTooLarge, PREVIEW_IMAGE_TYPES } from '../storage.ts';
 
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 const commentSchema = z.object({ body: z.string().trim().min(1).max(20_000) });
@@ -15,14 +15,6 @@ const linkSchema = z.object({
   label: z.string().trim().max(200).default(''),
 });
 const dependencySchema = z.object({ dependsOnItemId: z.string().uuid() });
-
-const IMAGE_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-  'image/svg+xml',
-]);
 
 // ---------------------------------------------------------------------------------------------
 // Readers shared with the item and task detail routes
@@ -53,7 +45,7 @@ export async function fetchAttachments(
     sizeBytes: Number(r.size_bytes),
     uploadedBy: { id: r.uploaded_by, displayName: r.display_name },
     createdAt: r.created_at.toISOString(),
-    isImage: IMAGE_TYPES.has(r.content_type),
+    isImage: PREVIEW_IMAGE_TYPES.has(r.content_type),
   }));
 }
 
@@ -355,7 +347,8 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
       ).rows[0];
       if (!row) throw notFound('Attachment not found');
       const inline =
-        IMAGE_TYPES.has(row.content_type) && (req.query as { inline?: string }).inline === '1';
+        PREVIEW_IMAGE_TYPES.has(row.content_type) &&
+        (req.query as { inline?: string }).inline === '1';
       const stream = await storage.get(row.storage_key).catch(() => null);
       if (!stream) throw notFound('The file is missing from storage.');
       const safeName = encodeURIComponent(row.file_name);
@@ -367,6 +360,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
           `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${safeName}`,
         )
         .header('x-content-type-options', 'nosniff')
+        .header('content-security-policy', "sandbox; default-src 'none'")
         .send(stream);
     },
   );

@@ -186,22 +186,40 @@ export async function setTaskCompleted(
     [task.id, completed, completed ? new Date() : null, completed ? actorId : null],
   );
   if (syncPlacement && task.placement) {
-    const targetKind = completed ? 'done' : `todo_${task.category}`;
-    const column = (
-      await tx.query<{ id: string }>(
-        'SELECT id FROM board_columns WHERE board_id = $1 AND kind = $2',
-        [task.placement.boardId, targetKind],
-      )
-    ).rows[0];
-    if (column && column.id !== task.placement.columnId) {
-      const last = await tx.query<{ rank: string }>(
-        'SELECT rank FROM task_placements WHERE column_id = $1 AND is_current ORDER BY rank DESC LIMIT 1',
-        [column.id],
-      );
-      await tx.query(
-        'UPDATE task_placements SET column_id = $2, rank = $3 WHERE task_id = $1 AND is_current',
-        [task.id, column.id, generateKeyBetween(last.rows[0]?.rank ?? null, null)],
-      );
+    const board = (
+      await tx.query<{ state: string }>('SELECT state FROM workboards WHERE id = $1', [
+        task.placement.boardId,
+      ])
+    ).rows[0]!;
+    if (!completed && board.state === 'archived') {
+      await returnTask(tx, task.id, 'reopened after board archival');
+      await recordActivity(tx, {
+        projectId: task.projectId,
+        actorId,
+        action: 'task.returned',
+        entityType: 'task',
+        entityId: task.id,
+        previous: { columnId: task.placement.columnId },
+        next: { boardId: task.placement.boardId, reason: 'reopened after board archival' },
+      });
+    } else {
+      const targetKind = completed ? 'done' : `todo_${task.category}`;
+      const column = (
+        await tx.query<{ id: string }>(
+          'SELECT id FROM board_columns WHERE board_id = $1 AND kind = $2',
+          [task.placement.boardId, targetKind],
+        )
+      ).rows[0];
+      if (column && column.id !== task.placement.columnId) {
+        const last = await tx.query<{ rank: string }>(
+          'SELECT rank FROM task_placements WHERE column_id = $1 AND is_current ORDER BY rank DESC LIMIT 1',
+          [column.id],
+        );
+        await tx.query(
+          'UPDATE task_placements SET column_id = $2, rank = $3 WHERE task_id = $1 AND is_current',
+          [task.id, column.id, generateKeyBetween(last.rows[0]?.rank ?? null, null)],
+        );
+      }
     }
   }
   await recordActivity(tx, {
@@ -253,6 +271,12 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const actorId = req.user!.id;
 
       const taskId = await withTransaction(db, async (tx) => {
+        // Lock the board before the parent so archival/scope removal cannot pass
+        // the auto-placement check.
+        const lockedBoard = await tx.query<{ id: string }>(
+          "SELECT id FROM workboards WHERE project_id = $1 AND state = 'active' FOR UPDATE",
+          [projectId],
+        );
         const item = await tx.query<{ archived_at: Date | null }>(
           'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
           [projectId, itemId],
@@ -288,6 +312,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           [itemId],
         );
         if (scoped.rows[0]) {
+          if (scoped.rows[0].board_id !== lockedBoard.rows[0]?.id) {
+            throw conflict('The active Workboard changed. Try creating the task again.');
+          }
           await placeTask(
             tx,
             scoped.rows[0].board_id,
@@ -486,9 +513,24 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         const { taskId } = req.params as { taskId: string };
         const projectId = req.access!.project.id;
         await withTransaction(db, async (tx) => {
+          // Serialize completion with board moves and archival, before locking the task.
+          // Include its archived board so reopening can safely close that placement.
+          const lockedBoards = await tx.query<{ id: string }>(
+            `SELECT w.id FROM workboards w WHERE w.project_id = $1
+               AND (w.state = 'active' OR EXISTS (
+                 SELECT 1 FROM task_placements p WHERE p.board_id = w.id AND p.task_id = $2 AND p.is_current
+               )) ORDER BY w.id FOR UPDATE OF w`,
+            [projectId, taskId],
+          );
           await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
           const task = await fetchTask(tx, projectId, taskId);
           if (!task) throw notFound('Task not found');
+          if (
+            task.placement &&
+            !lockedBoards.rows.some((board) => board.id === task.placement!.boardId)
+          ) {
+            throw conflict('The task’s Workboard changed. Reload and try again.');
+          }
           if (task.archived) throw conflict('Restore the task before changing its completion.');
           await setTaskCompleted(tx, task, completed, req.user!.id, `task ${verb}`);
         });
