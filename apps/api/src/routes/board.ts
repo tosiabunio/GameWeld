@@ -16,6 +16,7 @@ import { generateKeyBetween } from 'fractional-indexing';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
+import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Db, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
@@ -160,6 +161,7 @@ export async function fetchView(
     description: string;
     assignee_id: string | null;
     assignee_name: string | null;
+    assignee_avatar_id: string | null;
     completed: boolean;
     completed_at: Date | null;
     archived_at: Date | null;
@@ -176,7 +178,7 @@ export async function fetchView(
     item_category: MoscowCategory;
   }>(
     `SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
-            u.display_name AS assignee_name, t.completed, t.completed_at, t.archived_at, t.version,
+            u.display_name AS assignee_name, u.avatar_id AS assignee_avatar_id, t.completed, t.completed_at, t.archived_at, t.version,
             t.created_at, t.updated_at, t.cover_attachment_id,
             c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
             p.entered_as_exception, p.rank, b.title AS item_title, b.category AS item_category
@@ -205,7 +207,11 @@ export async function fetchView(
       description: r.description,
       assignee:
         r.assignee_id && r.assignee_name
-          ? { id: r.assignee_id, displayName: r.assignee_name }
+          ? {
+              id: r.assignee_id,
+              displayName: r.assignee_name,
+              avatarUrl: avatarUrl(r.assignee_id, r.assignee_avatar_id),
+            }
           : null,
       completed: r.completed,
       completedAt: r.completed_at?.toISOString() ?? null,

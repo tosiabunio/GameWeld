@@ -1,5 +1,7 @@
 import type {
   AcceptItemInput,
+  AvatarCrop,
+  MyAvatar,
   ActivityEntry,
   ActivityQuery,
   Attachment,
@@ -89,6 +91,20 @@ const json = (method: string, body: unknown): RequestInit => ({
 export const api = {
   providers: () => request<AuthProviders>('/api/auth/providers'),
   me: () => request<CurrentUser | null>('/api/me'),
+  myAvatar: () => request<MyAvatar | null>('/api/me/avatar'),
+  /** A new picture and the circle to keep from it. */
+  uploadAvatar: (file: File, crop: AvatarCrop) => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    const circle = new URLSearchParams({
+      left: String(crop.left),
+      top: String(crop.top),
+      size: String(crop.size),
+    });
+    return request<MyAvatar>(`/api/me/avatar?${circle}`, { method: 'POST', body: form });
+  },
+  cropAvatar: (crop: AvatarCrop) => request<MyAvatar>('/api/me/avatar', json('PATCH', crop)),
+  deleteAvatar: () => request<void>('/api/me/avatar', { method: 'DELETE' }),
   mockSignIn: (persona: string) =>
     request<void>('/api/auth/mock/sign-in', json('POST', { persona })),
   signOut: () => request<void>('/api/auth/sign-out', { method: 'POST' }),

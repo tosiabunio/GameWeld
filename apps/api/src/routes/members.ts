@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
+import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
 
@@ -33,8 +34,9 @@ async function memberById(
     email: string | null;
     roles: ProjectRole[];
     can_accept: boolean;
+    avatar_id: string | null;
   }>(
-    `SELECT m.user_id, u.display_name, u.email, m.roles::text[] AS roles, m.can_accept
+    `SELECT m.user_id, u.display_name, u.email, m.roles::text[] AS roles, m.can_accept, u.avatar_id
        FROM project_memberships m JOIN users u ON u.id = m.user_id
       WHERE m.project_id = $1 AND m.user_id = $2`,
     [projectId, userId],
@@ -47,6 +49,7 @@ async function memberById(
         email: m.email,
         roles: m.roles,
         canAccept: m.can_accept,
+        avatarUrl: avatarUrl(m.user_id, m.avatar_id),
       }
     : null;
 }

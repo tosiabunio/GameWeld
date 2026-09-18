@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 /** Decorative marks: the accessible names live on the surrounding link, heading, or label. */
 export function Logo({ size = 24 }: { size?: number }) {
   return (
@@ -43,8 +45,21 @@ const AVATAR_COLOURS = [
   '#475569',
 ];
 
-/** Initials on a colour derived from the name, so a person looks the same everywhere. */
-export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+/**
+ * The person's picture when they have one, otherwise initials on a colour derived from the name,
+ * so a person looks the same everywhere. A picture that fails to load falls back to initials.
+ */
+export function Avatar({
+  name,
+  size = 28,
+  url = null,
+}: {
+  name: string;
+  size?: number;
+  url?: string | null;
+}) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const picture = url && failed !== url ? url : null;
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -56,8 +71,8 @@ export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   for (const ch of name) hash = Math.imul(hash ^ ch.charCodeAt(0), 0x01000193) >>> 0;
   return (
     <span
-      className="avatar"
       aria-hidden="true"
+      className={picture ? 'avatar picture' : 'avatar'}
       style={{
         width: size,
         height: size,
@@ -65,7 +80,7 @@ export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
         ['--avatar' as string]: AVATAR_COLOURS[hash % AVATAR_COLOURS.length],
       }}
     >
-      {initials}
+      {picture ? <img src={picture} alt="" onError={() => setFailed(picture)} /> : initials}
     </span>
   );
 }

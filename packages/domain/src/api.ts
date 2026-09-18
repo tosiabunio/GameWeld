@@ -8,6 +8,26 @@ export interface CurrentUser {
   email: string | null;
   isAdmin: boolean;
   provider: string;
+  /** The user's own picture, or null to show initials. */
+  avatarUrl: string | null;
+}
+
+/**
+ * The circle a user keeps from a larger picture, as fractions of that picture: its left and top
+ * edges, and its diameter as a fraction of the picture's width.
+ */
+export interface AvatarCrop {
+  left: number;
+  top: number;
+  size: number;
+}
+
+/** The signed-in user's picture, for choosing its circle again. */
+export interface MyAvatar {
+  avatarUrl: string;
+  /** The uploaded picture, upright and bounded, that the crop refers to. */
+  sourceUrl: string;
+  crop: AvatarCrop;
 }
 
 export interface UserSummary {
@@ -35,6 +55,7 @@ export interface ProjectMember {
   email: string | null;
   roles: ProjectRole[];
   canAccept: boolean;
+  avatarUrl: string | null;
 }
 
 export interface ProjectDetail extends ProjectSummary {

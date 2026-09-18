@@ -26,9 +26,12 @@ export class PayloadTooLarge extends Error {
 export class FilesystemStorage implements Storage {
   constructor(private readonly root: string) {}
 
-  /** Keys are `project/attachment`, optionally with one suffix for a derived file such as a cover. */
+  /**
+   * Keys are `project/attachment` or `avatars/user/picture`, optionally with one suffix for a
+   * derived file such as a cover.
+   */
   private resolve(key: string): string {
-    if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}(\.[a-z0-9-]+)?$/i.test(key))
+    if (!/^(avatars\/)?[0-9a-f-]{36}\/[0-9a-f-]{36}(\.[a-z0-9-]+)?$/i.test(key))
       throw new Error(`invalid storage key ${key}`);
     return path.join(this.root, key);
   }

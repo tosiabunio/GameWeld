@@ -3,6 +3,7 @@ import { BacklogPage } from './pages/BacklogPage.tsx';
 import { BreakdownPage } from './pages/BreakdownPage.tsx';
 import { NewProjectPage } from './pages/NewProjectPage.tsx';
 import { ProjectPage } from './pages/ProjectPage.tsx';
+import { ProfilePage } from './pages/ProfilePage.tsx';
 import { ProjectsPage } from './pages/ProjectsPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { SignInPage } from './pages/SignInPage.tsx';
@@ -18,6 +19,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<ProjectsPage />} />
       <Route path="/projects/new" element={<NewProjectPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route path="/projects/:projectId" element={<ProjectPage />}>
         <Route index element={<Navigate to="backlog" replace />} />
         <Route path="backlog" element={<BacklogPage />} />

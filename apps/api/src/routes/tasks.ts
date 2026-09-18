@@ -14,6 +14,7 @@ import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import { placeTask, returnTask } from '../services/placement.ts';
+import { avatarUrl } from '../avatars.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
 
@@ -46,6 +47,7 @@ interface TaskRow {
   description: string;
   assignee_id: string | null;
   assignee_name: string | null;
+  assignee_avatar_id: string | null;
   completed: boolean;
   completed_at: Date | null;
   archived_at: Date | null;
@@ -67,7 +69,7 @@ interface TaskRow {
 
 const taskSelect = `
   SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
-         u.display_name AS assignee_name, t.completed, t.completed_at, t.archived_at, t.version,
+         u.display_name AS assignee_name, u.avatar_id AS assignee_avatar_id, t.completed, t.completed_at, t.archived_at, t.version,
          t.created_at, t.updated_at, t.cover_attachment_id,
          w.id AS board_id, w.name AS board_name, c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
          p.entered_as_exception,
@@ -89,7 +91,13 @@ function toTask(r: TaskRow): Task {
     title: r.title,
     description: r.description,
     assignee:
-      r.assignee_id && r.assignee_name ? { id: r.assignee_id, displayName: r.assignee_name } : null,
+      r.assignee_id && r.assignee_name
+        ? {
+            id: r.assignee_id,
+            displayName: r.assignee_name,
+            avatarUrl: avatarUrl(r.assignee_id, r.assignee_avatar_id),
+          }
+        : null,
     completed: r.completed,
     completedAt: r.completed_at?.toISOString() ?? null,
     archived: r.archived_at !== null,

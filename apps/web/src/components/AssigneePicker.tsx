@@ -27,8 +27,8 @@ export function AssigneePicker({
   taskTitle,
   onAssign,
 }: {
-  assignee: { id: string; displayName: string } | null;
-  people: { userId: string; displayName: string }[];
+  assignee: { id: string; displayName: string; avatarUrl: string | null } | null;
+  people: { userId: string; displayName: string; avatarUrl: string | null }[];
   taskTitle: string;
   /** Omit when the viewer may not assign; the avatar is then only shown. */
   onAssign?: ((userId: string | null) => Promise<unknown>) | undefined;
@@ -40,7 +40,7 @@ export function AssigneePicker({
   const open = position !== null;
   const label = assignee ? `Assigned to ${assignee.displayName}` : 'Unassigned';
   const face = assignee ? (
-    <Avatar name={assignee.displayName} size={24} />
+    <Avatar name={assignee.displayName} url={assignee.avatarUrl} size={24} />
   ) : (
     <NobodyAvatar size={24} />
   );
@@ -181,7 +181,11 @@ export function AssigneePicker({
           >
             {choice(null, 'Unassigned', <NobodyAvatar size={22} />)}
             {people.map((p) =>
-              choice(p.userId, p.displayName, <Avatar name={p.displayName} size={22} />),
+              choice(
+                p.userId,
+                p.displayName,
+                <Avatar name={p.displayName} url={p.avatarUrl} size={22} />,
+              ),
             )}
           </div>,
           document.body,

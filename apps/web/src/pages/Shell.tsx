@@ -27,8 +27,10 @@ export function Shell({
         </div>
         {nav}
         <div className="user">
-          <Avatar name={user.displayName} />
-          <span data-testid="current-user">{user.displayName}</span>
+          <Link to="/profile" className="me" title="Your profile and picture">
+            <Avatar name={user.displayName} url={user.avatarUrl} />
+            <span data-testid="current-user">{user.displayName}</span>
+          </Link>
           <button type="button" className="quiet" onClick={() => void signOut()}>
             {user.provider === 'mock' ? 'Switch persona' : 'Sign out'}
           </button>

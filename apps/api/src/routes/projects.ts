@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
 import { requireUser } from '../auth.ts';
 import { loadAccess, projectRoute, type ProjectRow } from '../authz.ts';
+import { avatarUrl } from '../avatars.ts';
 import { withTransaction } from '../db.ts';
 import { badRequest, conflict } from '../errors.ts';
 
@@ -110,8 +111,9 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
           email: string | null;
           roles: ProjectRole[];
           can_accept: boolean;
+          avatar_id: string | null;
         }>(
-          `SELECT m.user_id, u.display_name, u.email, m.roles::text[] AS roles, m.can_accept
+          `SELECT m.user_id, u.display_name, u.email, m.roles::text[] AS roles, m.can_accept, u.avatar_id
            FROM project_memberships m JOIN users u ON u.id = m.user_id
           WHERE m.project_id = $1 ORDER BY m.created_at`,
           [project.id],
@@ -125,6 +127,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
           email: m.email,
           roles: m.roles,
           canAccept: m.can_accept,
+          avatarUrl: avatarUrl(m.user_id, m.avatar_id),
         })),
         permissions,
       };

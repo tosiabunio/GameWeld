@@ -30,7 +30,7 @@ export interface Task {
   category: TaskCategory;
   title: string;
   description: string;
-  assignee: { id: string; displayName: string } | null;
+  assignee: { id: string; displayName: string; avatarUrl: string | null } | null;
   completed: boolean;
   completedAt: string | null;
   archived: boolean;

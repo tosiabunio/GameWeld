@@ -2,6 +2,7 @@ import { findPersona, PERSONAS, type AuthProviders, type CurrentUser } from '@ga
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
+import { avatarUrl } from './avatars.ts';
 import type { Queryable } from './db.ts';
 
 export const SESSION_COOKIE = 'gw_session';
@@ -38,8 +39,9 @@ export async function userForToken(db: Queryable, token: string): Promise<Curren
     email: string | null;
     is_admin: boolean;
     provider: string;
+    avatar_id: string | null;
   }>(
-    `SELECT u.id, u.display_name, u.email, u.is_admin,
+    `SELECT u.id, u.display_name, u.email, u.is_admin, u.avatar_id,
             (SELECT provider FROM identities i WHERE i.user_id = u.id ORDER BY created_at LIMIT 1) AS provider
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.expires_at > now()`,
@@ -53,6 +55,7 @@ export async function userForToken(db: Queryable, token: string): Promise<Curren
     email: row.email,
     isAdmin: row.is_admin,
     provider: row.provider ?? 'unknown',
+    avatarUrl: avatarUrl(row.id, row.avatar_id),
   };
 }
 

@@ -187,7 +187,8 @@ p.error {
    Controls
    --------------------------------------------------------------------------------------------- */
 button,
-a.button {
+a.button,
+label.button {
   font: inherit;
   font-weight: 550;
   font-size: 0.93rem;
@@ -205,25 +206,33 @@ a.button {
     box-shadow 0.12s,
     color 0.12s;
 }
-a.button {
+a.button,
+label.button {
   display: inline-block;
   text-decoration: none;
 }
+label.button:focus-within {
+  outline: 2px solid var(--accent-solid);
+  outline-offset: 2px;
+}
 button:hover:not(:disabled),
-a.button:hover {
+a.button:hover,
+label.button:hover {
   background: color-mix(in srgb, var(--fg) 5%, var(--surface));
 }
 button:active:not(:disabled) {
   box-shadow: none;
 }
 button.primary,
-a.button.primary {
+a.button.primary,
+label.button.primary {
   background: var(--accent-solid);
   border-color: var(--accent-solid);
   color: var(--on-accent);
 }
 button.primary:hover:not(:disabled),
-a.button.primary:hover {
+a.button.primary:hover,
+label.button.primary:hover {
   background: var(--accent-solid-hover);
   border-color: var(--accent-solid-hover);
 }
@@ -1062,6 +1071,28 @@ button.assignee[aria-expanded='true'] .avatar {
 button.assignee.busy {
   opacity: 0.5;
 }
+.avatar.picture {
+  background: var(--sunken);
+  overflow: hidden;
+}
+.avatar.picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.user .me {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px 2px 2px;
+  border-radius: 999px;
+  color: inherit;
+  text-decoration: none;
+}
+.user .me:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
 .avatar.nobody {
   background: transparent;
   color: var(--muted);
@@ -1586,4 +1617,77 @@ progress::-moz-progress-bar {
   * {
     transition: none !important;
   }
+}
+
+/* Profile and the picture cropper */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+.profile-card p {
+  margin: 2px 0 0;
+}
+.cropper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+.crop-stage {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: repeating-conic-gradient(var(--sunken) 0% 25%, var(--surface) 0% 50%) 50% / 16px 16px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.crop-stage:active {
+  cursor: grabbing;
+}
+.crop-stage img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+/* The circle is clear; everything around it is dimmed. */
+.crop-circle {
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgb(10 12 20 / 0.55);
+  outline: 2px solid rgb(255 255 255 / 0.9);
+  pointer-events: none;
+}
+.crop-side {
+  display: grid;
+  gap: 16px;
+  min-width: 200px;
+}
+.crop-zoom {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.crop-zoom input {
+  accent-color: var(--accent-solid);
+}
+.crop-preview {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.crop-preview-circle {
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--sunken);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.crop-preview-circle img {
+  position: absolute;
+  max-width: none;
 }

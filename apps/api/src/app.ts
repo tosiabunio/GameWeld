@@ -9,6 +9,7 @@ import type { Db } from './db.ts';
 import { FilesystemStorage, type Storage } from './storage.ts';
 import { currentVersion } from './migrate.ts';
 import { acceptanceRoutes } from './routes/acceptance.ts';
+import { avatarRoutes } from './routes/avatars.ts';
 import { backlogRoutes } from './routes/backlog.ts';
 import { collabRoutes } from './routes/collab.ts';
 import { boardRoutes } from './routes/board.ts';
@@ -71,6 +72,7 @@ export async function buildApp(
   await app.register(projectRoutes, { prefix: '/api' });
   await app.register(memberRoutes, { prefix: '/api' });
   await app.register(userRoutes, { prefix: '/api' });
+  await app.register(avatarRoutes, { prefix: '/api' });
   await app.register(backlogRoutes, { prefix: '/api' });
   await app.register(taskRoutes, { prefix: '/api' });
   await app.register(boardRoutes, { prefix: '/api' });
