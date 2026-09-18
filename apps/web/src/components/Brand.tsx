@@ -24,6 +24,25 @@ export function Logo({ size = 24 }: { size?: number }) {
   );
 }
 
+/**
+ * Distinct colours that all keep white initials at 4.5:1 or better. A continuous hue let similar
+ * names land on near-identical colours, which hid people who share initials.
+ */
+const AVATAR_COLOURS = [
+  '#4f46e5',
+  '#7c3aed',
+  '#c026d3',
+  '#db2777',
+  '#dc2626',
+  '#c2410c',
+  '#b45309',
+  '#15803d',
+  '#0f766e',
+  '#0e7490',
+  '#1d4ed8',
+  '#475569',
+];
+
 /** Initials on a colour derived from the name, so a person looks the same everywhere. */
 export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   const initials = name
@@ -32,13 +51,19 @@ export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
     .slice(0, 2)
     .map((part) => part[0]!.toUpperCase())
     .join('');
-  let hash = 0;
-  for (const ch of name) hash = (hash * 137 + ch.charCodeAt(0)) % 360;
+  // FNV-1a spreads similar names apart.
+  let hash = 0x811c9dc5;
+  for (const ch of name) hash = Math.imul(hash ^ ch.charCodeAt(0), 0x01000193) >>> 0;
   return (
     <span
       className="avatar"
       aria-hidden="true"
-      style={{ width: size, height: size, fontSize: size * 0.4, ['--hue' as string]: hash }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.4,
+        ['--avatar' as string]: AVATAR_COLOURS[hash % AVATAR_COLOURS.length],
+      }}
     >
       {initials}
     </span>

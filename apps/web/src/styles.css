@@ -482,7 +482,7 @@ input[type='file']::file-selector-button:hover {
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #fff;
-  background: linear-gradient(135deg, hsl(var(--hue) 62% 52%), hsl(calc(var(--hue) + 40) 62% 42%));
+  background: linear-gradient(135deg, var(--avatar), color-mix(in srgb, var(--avatar) 78%, #000));
 }
 @media (max-width: 760px) {
   .topbar {
@@ -1006,6 +1006,23 @@ ul.project-grid {
   align-items: center;
   font-size: 0.83rem;
   color: var(--muted);
+}
+/* The title shares its first line with the assignee, so an avatar never adds a row. */
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-head .card-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.assignee {
+  flex: none;
+  display: inline-flex;
+  margin-top: -2px;
+  border-radius: 50%;
 }
 .task-progress {
   display: inline-flex;

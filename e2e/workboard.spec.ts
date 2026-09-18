@@ -236,3 +236,40 @@ test('an image dropped on a Workboard card becomes the task cover', async ({ pag
   await expect(card).toBeVisible();
   await expect(card.locator('img.cover')).toHaveCount(0);
 });
+
+test('an assigned task shows its assignee as an avatar on the Workboard card', async ({ page }) => {
+  await signIn(page, 'director');
+  await createProjectWithItems(page, 'Assignee project');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
+  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
+
+  const card = page.getByTestId('item-card').filter({ hasText: 'Targeting' });
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId('card-assignee')).toHaveCount(0);
+
+  await card.getByRole('link', { name: 'Targeting' }).click();
+  await page.getByLabel('Assignee').selectOption({ label: 'Dana Director' });
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+  await page.getByRole('link', { name: '← Workboard' }).click();
+
+  const assignee = card.getByTestId('card-assignee');
+  await expect(assignee).toHaveAttribute('title', 'Assigned to Dana Director');
+  await expect(assignee.locator('.avatar')).toHaveText('DD');
+  await expect(assignee).toContainText('Assigned to Dana Director');
+  // It shares the title's first line instead of adding a row to the card.
+  const [avatarBox, titleBox] = [
+    await assignee.boundingBox(),
+    await card.getByRole('link', { name: 'Targeting' }).boundingBox(),
+  ];
+  expect(Math.abs(avatarBox!.y - titleBox!.y)).toBeLessThan(8);
+  // Unassigned cards show no avatar.
+  await expect(
+    page
+      .getByTestId('item-card')
+      .filter({ hasText: 'Attack animation' })
+      .getByTestId('card-assignee'),
+  ).toHaveCount(0);
+});

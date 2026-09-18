@@ -3,6 +3,7 @@ import { CATEGORY_LABELS, STATE_LABELS, TASK_CATEGORY_LABELS, todoKindFor } from
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { Avatar } from '../components/Brand.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { History } from '../components/History.tsx';
@@ -547,20 +548,31 @@ function Columns({
               onError={(e) => (e.currentTarget.style.display = 'none')}
             />
           )}
-          <Link
-            to={`/projects/${project.id}/tasks/${card.id}`}
-            state={{ from: 'board' }}
-            className="card-title"
-          >
-            {card.title}
-          </Link>
+          <div className="card-head">
+            <Link
+              to={`/projects/${project.id}/tasks/${card.id}`}
+              state={{ from: 'board' }}
+              className="card-title"
+            >
+              {card.title}
+            </Link>
+            {card.assignee && (
+              <span
+                className="assignee"
+                title={`Assigned to ${card.assignee.displayName}`}
+                data-testid="card-assignee"
+              >
+                <Avatar name={card.assignee.displayName} size={24} />
+                <span className="sr-only">Assigned to {card.assignee.displayName}</span>
+              </span>
+            )}
+          </div>
           <div className="card-meta">
             <span className={`chip cat-${card.category}`}>
               {TASK_CATEGORY_LABELS[card.category]}
             </span>
             <span className="muted">{card.itemTitle}</span>
             {card.outOfScope && <span className="badge warn">Out of scope</span>}
-            {card.assignee && <span>{card.assignee.displayName}</span>}
             {uploading === card.id && <span role="status">Uploading…</span>}
           </div>
           {canDelete && deleting !== card.id && (
