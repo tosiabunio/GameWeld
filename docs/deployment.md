@@ -78,8 +78,9 @@ Let's Encrypt registers without a contact address: Dokploy's placeholder
 The demo seed creates the Demo project only when the database is empty. It was then filled out
 with `scripts/populate-demo.mjs`, which adds backlog items across every lane, tasks with
 assignees, board progress (a fuller scope, tasks in each column, one item accepted), comments,
-and covers, through the API as the demo personas. Existing items are skipped, so it is safe to
-run again:
+and pictures drawn in the script (covers for eleven items, reference images for seventeen tasks),
+through the API as the demo personas. Existing items are skipped, so it is safe to run again; a
+second run only gives a picture to a listed item or task that still has none:
 
 ```sh
 node scripts/populate-demo.mjs https://gameweld.eu
