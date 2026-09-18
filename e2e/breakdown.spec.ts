@@ -4,7 +4,10 @@ import { signIn } from './helpers.ts';
 test('a Developer breaks an item down into tasks and edits one', async ({ page }) => {
   await signIn(page, 'developer');
   await page.getByRole('link', { name: 'Demo project' }).click();
-  await page.getByTestId('lane-should').getByRole('link', { name: 'Boss arena' }).click();
+  await page
+    .getByTestId('lane-should')
+    .getByRole('link', { name: 'Boss arena', exact: true })
+    .click();
 
   const code = page.getByTestId('tasks-code');
   const content = page.getByTestId('tasks-content');
@@ -44,7 +47,10 @@ test('a placed task shows its board and column; a Director sees delete and repar
 }) => {
   await signIn(page, 'director');
   await page.getByRole('link', { name: 'Demo project' }).click();
-  await page.getByTestId('lane-must').getByRole('link', { name: 'Ranged enemy' }).click();
+  await page
+    .getByTestId('lane-must')
+    .getByRole('link', { name: 'Ranged enemy', exact: true })
+    .click();
   const row = page.getByTestId('tasks-code').getByTestId('task-row').first();
   await expect(row).toContainText('On September production · To Do · Code');
   await row.getByRole('link', { name: 'Targeting' }).click();

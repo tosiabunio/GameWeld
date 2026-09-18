@@ -10,7 +10,7 @@ test('finish all tasks, accept the item, then reopen it by adding a task', async
   const must = page.getByTestId('lane-must');
   await must.getByLabel('New item in Must Have').fill('Ranged enemy');
   await must.getByRole('button', { name: 'Add' }).click();
-  await must.getByRole('link', { name: 'Ranged enemy' }).click();
+  await must.getByRole('link', { name: 'Ranged enemy', exact: true }).click();
   await page.getByTestId('tasks-code').getByLabel('New Code task').fill('Targeting');
   await page.getByTestId('tasks-code').getByRole('button', { name: 'Add' }).click();
   await expect(page.getByTestId('tasks-code').getByTestId('task-row')).toHaveCount(1);
@@ -53,7 +53,10 @@ test('finish all tasks, accept the item, then reopen it by adding a task', async
   await expect(page.getByTestId('lane-done').getByTestId('item-card')).toContainText('Accepted');
 
   // Section 15 "An unfinished task is added to a Done item".
-  await page.getByTestId('lane-done').getByRole('link', { name: 'Ranged enemy' }).click();
+  await page
+    .getByTestId('lane-done')
+    .getByRole('link', { name: 'Ranged enemy', exact: true })
+    .click();
   await page.getByTestId('tasks-content').getByLabel('New Content task').fill('Timing adjustment');
   await page.getByTestId('tasks-content').getByRole('button', { name: 'Add' }).click();
   await expect(page.getByTestId('tasks-content').getByTestId('task-row')).toHaveCount(1);

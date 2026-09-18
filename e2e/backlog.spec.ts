@@ -30,7 +30,7 @@ test('Section 15: a Director creates a vague item, reorders it, and edits its de
   await expect(must.getByTestId('item-card')).toHaveCount(1);
 
   // Open the item and add a free-form description and a link.
-  await should.getByRole('link', { name: 'Make the game fun' }).click();
+  await should.getByRole('link', { name: 'Make the game fun', exact: true }).click();
   await expect(page.getByLabel('Title')).toHaveValue('Make the game fun');
   await page
     .getByLabel('Description')
@@ -72,7 +72,15 @@ test('a Developer browses the Backlog without editing controls', async ({ page }
   expect(uploads).toEqual([]);
   await expect(card.locator('img.cover')).toHaveCount(0);
 
-  await must.getByRole('link', { name: 'Ranged enemy' }).click();
+  // Besides its title, every card has an explicit way into the item's Breakdown.
+  await must.getByRole('link', { name: 'Open Ranged enemy in the Breakdown', exact: true }).click();
+  await expect(page).toHaveURL(/\/breakdown\/[0-9a-f-]+$/);
+  await expect(page.getByLabel('Title')).toHaveValue('Ranged enemy');
+  await page
+    .getByRole('navigation', { name: 'Project sections' })
+    .getByRole('link', { name: 'Backlog' })
+    .click();
+  await must.getByRole('link', { name: 'Ranged enemy', exact: true }).click();
   await expect(page.getByLabel('Description')).toHaveAttribute('readonly', '');
   await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
 });
@@ -259,7 +267,7 @@ test('an image dropped on a Backlog card becomes its cover', async ({ page }) =>
   await expectCoverFrame(card);
 
   // The dropped image is an ordinary attachment of the item, marked as its cover.
-  await card.getByRole('link', { name: 'Title screen' }).click();
+  await card.getByRole('link', { name: 'Title screen', exact: true }).click();
   await expect(page.getByTestId('attachment')).toContainText('title.png');
   await expect(page.getByTestId('attachment')).toContainText('cover');
 });

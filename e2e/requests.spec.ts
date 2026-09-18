@@ -19,7 +19,7 @@ test('a Developer requests out-of-scope work and a Director approves it', async 
     await must.getByRole('button', { name: 'Add' }).click();
     await expect(must.getByTestId('item-card').filter({ hasText: title })).toBeVisible();
   }
-  await must.getByRole('link', { name: 'Ranged enemy' }).click();
+  await must.getByRole('link', { name: 'Ranged enemy', exact: true }).click();
   await page.getByTestId('tasks-code').getByLabel('New Code task').fill('Targeting');
   await page.getByTestId('tasks-code').getByRole('button', { name: 'Add' }).click();
   await expect(page.getByTestId('tasks-code').getByTestId('task-row')).toHaveCount(1);

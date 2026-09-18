@@ -1034,6 +1034,33 @@ ul.project-grid {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* An explicit way into an item's Breakdown, beside the title that also leads there. */
+.card-open {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: -2px -4px 0 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  touch-action: auto;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background-color 0.12s;
+}
+.card-open:hover,
+.card-open:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
 .assignee {
   flex: none;
   display: inline-flex;

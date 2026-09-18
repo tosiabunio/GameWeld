@@ -23,7 +23,7 @@ async function createProjectWithItems(page: Page, name: string) {
     await expect(must.getByTestId('item-card').filter({ hasText: title })).toBeVisible();
   }
   // Two tasks under Ranged enemy.
-  await must.getByRole('link', { name: 'Ranged enemy' }).click();
+  await must.getByRole('link', { name: 'Ranged enemy', exact: true }).click();
   await page.getByTestId('tasks-code').getByLabel('New Code task').fill('Targeting');
   await page.getByTestId('tasks-code').getByRole('button', { name: 'Add' }).click();
   await page.getByTestId('tasks-assets').getByLabel('New Assets task').fill('Attack animation');
@@ -224,7 +224,7 @@ test('an image dropped on a Workboard card becomes the task cover', async ({ pag
   ).toHaveCount(0);
 
   // On the task the image is an attachment marked as the cover, and its editor can clear it.
-  await card.getByRole('link', { name: 'Targeting' }).click();
+  await card.getByRole('link', { name: 'Targeting', exact: true }).click();
   await expect(page.getByTestId('attachment')).toContainText('reticle.png');
   await expect(page.getByTestId('attachment')).toContainText('cover');
   await page.getByRole('button', { name: 'Remove cover' }).click();
@@ -256,7 +256,7 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
   // It shares the title's first line instead of adding a row to the card.
   const [avatarBox, titleBox] = [
     await avatar.boundingBox(),
-    await card.getByRole('link', { name: 'Targeting' }).boundingBox(),
+    await card.getByRole('link', { name: 'Targeting', exact: true }).boundingBox(),
   ];
   expect(Math.abs(avatarBox!.y - titleBox!.y)).toBeLessThan(8);
 
@@ -303,7 +303,7 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
   await expect(avatar).toHaveAccessibleName('Assignee of Targeting: nobody');
 
   // The task page assigns the moment a person is picked, and keeps unsaved text.
-  await card.getByRole('link', { name: 'Targeting' }).click();
+  await card.getByRole('link', { name: 'Targeting', exact: true }).click();
   await page.getByLabel('Description').fill('Lead the target by its speed.');
   await page.getByLabel('Assignee').selectOption({ label: 'Dana Director' });
   await expect(page.getByRole('status')).toHaveText('Assigned to Dana Director.');

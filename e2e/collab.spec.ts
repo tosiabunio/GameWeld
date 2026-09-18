@@ -4,7 +4,10 @@ import { signIn } from './helpers.ts';
 test('attachments, comments, dependencies, and history on items and tasks', async ({ page }) => {
   await signIn(page, 'director');
   await page.getByRole('link', { name: 'Demo project' }).click();
-  await page.getByTestId('lane-should').getByRole('link', { name: 'Boss arena' }).click();
+  await page
+    .getByTestId('lane-should')
+    .getByRole('link', { name: 'Boss arena', exact: true })
+    .click();
   await expect(page.getByLabel('Title')).toHaveValue('Boss arena');
 
   // Upload a small PNG to the item; the newest image becomes the cover.
@@ -55,7 +58,10 @@ test('attachments, comments, dependencies, and history on items and tasks', asyn
   ).toBeVisible();
 
   // Task comments: add, edit, delete.
-  await page.getByTestId('lane-must').getByRole('link', { name: 'Ranged enemy' }).click();
+  await page
+    .getByTestId('lane-must')
+    .getByRole('link', { name: 'Ranged enemy', exact: true })
+    .click();
   await expect(page.getByLabel('Title')).toHaveValue('Ranged enemy');
   await page.getByTestId('tasks-code').getByRole('link', { name: 'Targeting' }).click();
   await expect(page.getByLabel('Title')).toHaveValue('Targeting');

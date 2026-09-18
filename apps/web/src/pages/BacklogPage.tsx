@@ -146,9 +146,20 @@ export function BacklogPage() {
                 onError={(e) => (e.currentTarget.style.display = 'none')}
               />
             )}
-            <Link to={`/projects/${project.id}/breakdown/${item.id}`} className="card-title">
-              {item.title}
-            </Link>
+            <div className="card-head">
+              <Link to={`/projects/${project.id}/breakdown/${item.id}`} className="card-title">
+                {item.title}
+              </Link>
+              <Link
+                to={`/projects/${project.id}/breakdown/${item.id}`}
+                className="card-open"
+                aria-label={`Open ${item.title} in the Breakdown`}
+                title="Open in the Breakdown"
+              >
+                Open
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
             <div className="card-meta">
               {item.taskCounts.total > 0 ? (
                 <span className="task-progress" title="Completed tasks / all tasks">
