@@ -271,12 +271,14 @@ function TaskForm({
 
   return (
     <form className="task-editor" onSubmit={submit}>
+      {editing && (
+        <WritingPrompt id="task-description">
+          What is the desired result, and how could someone check it?
+        </WritingPrompt>
+      )}
       <div className="task-copy">
         {editing ? (
           <div className="form">
-            <WritingPrompt id="task-description">
-              What is the desired result, and how could someone check it?
-            </WritingPrompt>
             <label>
               Title
               <input

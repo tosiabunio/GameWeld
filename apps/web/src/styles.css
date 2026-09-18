@@ -356,6 +356,11 @@ input[type='file']::file-selector-button:hover {
   font-size: 1rem;
   font-weight: 400;
 }
+/* A select is a pixel shorter than a text input by default; side by side, fields must agree. */
+.form label > input,
+.form label > select {
+  min-height: calc(1.45em + 16px);
+}
 .form > button {
   justify-self: start;
 }
@@ -1910,12 +1915,22 @@ progress::-moz-progress-bar {
 }
 
 /* Item and task pages: the text on the left, properties and resources in a side column. */
-.task-editor {
+/* The editor and the area under it share one grid, so the text column, the side column, and the
+   divider between them line up down the page. */
+.task-editor,
+.detail-bottom {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 16px 32px;
   align-items: start;
+}
+.task-editor {
   margin: 24px 0;
+}
+/* The writing prompt spans both columns, so Title and Category start on the same line. */
+.task-editor > .prompt {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
 }
 .task-copy {
   min-width: 0;
@@ -1931,10 +1946,6 @@ progress::-moz-progress-bar {
   margin-top: 16px;
 }
 .detail-bottom {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 32px;
-  align-items: start;
   margin-top: 24px;
 }
 .detail-bottom > div {
