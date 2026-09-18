@@ -223,10 +223,9 @@ export function CardLanes<T extends { id: string }>({
 
   const activeItem = activeId ? byId.get(activeId) : undefined;
 
-  // A file released beside a card must not make the browser leave the app to show it.
-  const acceptsFiles = onFilesDrop !== undefined;
+  // A released file must not make the browser leave the app to show it, whether it lands beside
+  // a card or on lanes whose cards take no files.
   useEffect(() => {
-    if (!acceptsFiles) return;
     const guard = (e: globalThis.DragEvent) => {
       if (e.defaultPrevented || !e.dataTransfer?.types.includes('Files')) return;
       e.preventDefault();
@@ -238,7 +237,7 @@ export function CardLanes<T extends { id: string }>({
       window.removeEventListener('dragover', guard);
       window.removeEventListener('drop', guard);
     };
-  }, [acceptsFiles]);
+  }, []);
 
   return (
     <DndContext

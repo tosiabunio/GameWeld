@@ -240,9 +240,13 @@ describe('collaboration and history (Phase 7)', () => {
       return res.json().id as string;
     };
     const first = await upload('first.png', 'image/png', director);
-    const second = await upload('second.jpg', 'image/jpeg', developer);
+    const second = await upload('second.jpg', 'image/jpeg', director);
     const before = await itemDetail();
     expect(before.coverAttachmentId).toBe(second);
+    // A Developer may attach images to an item, but only backlog editors' images become its cover.
+    const developerImage = await upload('developer.png', 'image/png', developer);
+    expect((await itemDetail()).attachments.map((a) => a.id)).toContain(developerImage);
+    expect((await itemDetail()).coverAttachmentId).toBe(second);
 
     // A Director's pick of an older image holds until the next image arrives.
     const picked = await t.app.inject({
@@ -256,10 +260,11 @@ describe('collaboration and history (Phase 7)', () => {
     await upload('shot.svg', 'image/svg+xml', developer);
     await upload('task.png', 'image/png', developer, `/tasks/${taskId}`);
     expect((await itemDetail()).coverAttachmentId).toBe(first);
-    const third = await upload('third.webp', 'image/webp', developer);
+    const third = await upload('third.webp', 'image/webp', director);
     expect((await itemDetail()).coverAttachmentId).toBe(third);
 
-    // Removing a non-cover image leaves the cover; removing the cover promotes the newest left.
+    // Removing a non-cover image leaves the cover; removing the cover promotes the newest image
+    // a backlog editor attached, passing over the Developer's newer one.
     await t.app.inject({
       method: 'DELETE',
       url: p(`/attachments/${first}`),
@@ -270,7 +275,7 @@ describe('collaboration and history (Phase 7)', () => {
     await t.app.inject({
       method: 'DELETE',
       url: p(`/attachments/${third}`),
-      headers: { cookie: developer },
+      headers: { cookie: director },
     });
     const after = await itemDetail();
     expect(after.coverAttachmentId).toBe(second);
@@ -291,6 +296,7 @@ describe('collaboration and history (Phase 7)', () => {
     expect(added).toEqual(
       expect.arrayContaining([
         ['third.webp', true],
+        ['developer.png', false],
         ['notes.txt', false],
         ['shot.svg', false],
       ]),
@@ -356,12 +362,12 @@ describe('collaboration and history (Phase 7)', () => {
       (await api('POST', `/boards/${board}/scope`, director, { itemId: item })).statusCode,
     ).toBe(201);
 
-    const upload = async (path: string, name: string, type: string) => {
+    const upload = async (path: string, name: string, type: string, cookie = developer) => {
       const up = multipart(name, type, Buffer.from('89504e470d0a1a0a', 'hex'));
       const res = await t.app.inject({
         method: 'POST',
         url: `/api/projects/${pid}${path}/attachments`,
-        headers: { cookie: developer, ...up.headers },
+        headers: { cookie, ...up.headers },
         payload: up.body,
       });
       expect(res.statusCode).toBe(201);
@@ -379,7 +385,8 @@ describe('collaboration and history (Phase 7)', () => {
     expect((await card()).coverAttachmentId).toBeNull();
 
     const first = await upload(`/tasks/${task}`, 'first.png', 'image/png');
-    const itemImage = await upload(`/backlog/${item}`, 'item.png', 'image/png');
+    // The item's image comes from a backlog editor, so it is the item's cover.
+    const itemImage = await upload(`/backlog/${item}`, 'item.png', 'image/png', director);
     const otherImage = await upload(`/tasks/${other}`, 'other.png', 'image/png');
     await upload(`/tasks/${task}`, 'notes.txt', 'text/plain');
     const svg = await upload(`/tasks/${task}`, 'vector.svg', 'image/svg+xml');

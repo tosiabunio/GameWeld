@@ -1,4 +1,4 @@
-import type { ActivityEntry, Attachment, Comment, Dependency } from '@gameweld/domain';
+import type { ActivityEntry, Attachment, Comment, Dependency, ProjectRole } from '@gameweld/domain';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
@@ -146,18 +146,38 @@ const coverTable = (owner: CoverOwner) =>
 /**
  * The owner's most recently attached previewable image becomes its cover, or none is left. Runs
  * when an image is attached and when the cover is deleted; a manual pick or clear holds until
- * the next image arrives.
+ * the next image arrives. An item's cover belongs to the backlog, so only images from members
+ * who may edit it qualify; any image qualifies for a task.
  */
-async function coverWithLatestImage(tx: Queryable, owner: CoverOwner): Promise<void> {
+async function coverWithLatestImage(
+  tx: Queryable,
+  owner: CoverOwner,
+  projectId: string,
+): Promise<void> {
   const { table, column, id } = coverTable(owner);
+  const uploaders = 'itemId' in owner ? await backlogEditors(tx, projectId) : null;
   await tx.query(
     `UPDATE ${table} SET cover_attachment_id = (
         SELECT id FROM attachments WHERE ${column} = $1 AND content_type = ANY($2::text[])
+           AND ($3::uuid[] IS NULL OR uploaded_by = ANY($3::uuid[]))
          ORDER BY created_at DESC, id DESC LIMIT 1
       ), version = version + 1, updated_at = now()
       WHERE id = $1`,
-    [id, [...PREVIEW_IMAGE_TYPES]],
+    [id, [...PREVIEW_IMAGE_TYPES], uploaders],
   );
+}
+
+/** Members who may edit the backlog, by the same rule the routes enforce. */
+async function backlogEditors(tx: Queryable, projectId: string): Promise<string[]> {
+  const members = await tx.query<{ user_id: string; roles: ProjectRole[]; can_accept: boolean }>(
+    'SELECT user_id, roles::text[] AS roles, can_accept FROM project_memberships WHERE project_id = $1',
+    [projectId],
+  );
+  return members.rows
+    .filter((m) =>
+      can({ roles: m.roles, canAccept: m.can_accept }, 'backlog.manage', { doneRestricted: false }),
+    )
+    .map((m) => m.user_id);
 }
 
 function isDirector(req: FastifyRequest): boolean {
@@ -321,7 +341,10 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
             );
           throw err;
         }
-        const becomesCover = PREVIEW_IMAGE_TYPES.has(contentType);
+        // An item's cover belongs to the backlog, so only those who may edit it change it by
+        // uploading; anyone who works a task may change the task's own cover.
+        const becomesCover =
+          PREVIEW_IMAGE_TYPES.has(contentType) && (target.taskId !== undefined || isDirector(req));
         await withTransaction(db, async (tx) => {
           await tx.query(
             `INSERT INTO attachments (id, project_id, item_id, task_id, uploaded_by, file_name, content_type, size_bytes, storage_key)
@@ -342,6 +365,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
             await coverWithLatestImage(
               tx,
               target.itemId ? { itemId: target.itemId } : { taskId: target.taskId! },
+              projectId,
             );
           await recordActivity(tx, {
             projectId,
@@ -484,7 +508,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
             'Only the uploader or a Game Director can delete an attachment.',
           );
         await tx.query('DELETE FROM attachments WHERE id = $1', [attachmentId]);
-        if (wasCover && owner) await coverWithLatestImage(tx, owner);
+        if (wasCover && owner) await coverWithLatestImage(tx, owner, projectId);
         await recordActivity(tx, {
           projectId,
           actorId: req.user!.id,

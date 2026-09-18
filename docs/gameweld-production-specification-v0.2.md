@@ -159,7 +159,7 @@ The system does not enforce what Must Have or Won't Have means for a particular 
 
 Display the title, optional cover, task completion counts, category totals, and active board membership. Counts describe task completion only; they must not be presented as effort-based or overall game-completion percentages.
 
-The cover is the item's most recently attached PNG, JPEG, GIF, or WebP image; other files, SVG included, never become covers. Dropping an image on a Backlog card attaches it to the item. A Game Director may pick an older image or clear the cover, and that choice holds until the next image is attached. Deleting the cover passes it to the newest image that remains. Covers keep one frame on every card and are cropped to fit, never stretched.
+The cover is the most recent PNG, JPEG, GIF, or WebP image attached to the item by someone who may edit the Backlog; other files, SVG included, never become covers. Developers and Testers may still attach images to an item, but theirs do not change its cover. Dropping an image on a Backlog card attaches it to the item, and is offered only to those who may edit the Backlog. A Game Director may pick an older image or clear the cover, and that choice holds until the next such image is attached. Deleting the cover passes it to the newest image that remains. Covers keep one frame on every card and are cropped to fit, never stretched.
 
 Task cards on the Workboard follow the same rule with the task's own attachments: dropping an image on a card attaches it to the task, and anyone who may edit the task may pick or clear its cover. Item and task covers are independent; a task's image never becomes its item's cover.
 

@@ -25,7 +25,8 @@ export function BacklogPage() {
   const canSelectScope = project.permissions['board.select_scope'];
   const [board, setBoard] = useState<BoardView | null>(null);
   const [activating, setActivating] = useState<string | null>(null);
-  const canAttach = project.permissions['task.work'];
+  // A dropped picture becomes the item's cover, which only backlog editors may change.
+  const canSetCover = project.permissions['backlog.manage'];
   const [uploading, setUploading] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -128,7 +129,7 @@ export function BacklogPage() {
         lanes={lanes}
         canDrag={canManage}
         isDraggable={(item) => item.state === 'open'}
-        onFilesDrop={canAttach ? (item, files) => void attachImages(item, files) : undefined}
+        onFilesDrop={canSetCover ? (item, files) => void attachImages(item, files) : undefined}
         onMove={(item, laneId, afterId, beforeId) =>
           move(item, laneId as MoscowCategory, afterId, beforeId)
         }

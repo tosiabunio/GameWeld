@@ -59,6 +59,19 @@ test('a Developer browses the Backlog without editing controls', async ({ page }
   await expect(page.getByLabel(/^New item in/)).toHaveCount(0);
   await expect(page.getByLabel(/^Move .* up$/)).toHaveCount(0);
 
+  // Covers belong to the backlog: a picture dropped on a card is neither taken nor uploaded.
+  const uploads: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().includes('/attachments')) uploads.push(r.url());
+  });
+  const card = must.getByTestId('item-card').filter({ hasText: 'Ranged enemy' });
+  await dropFile(page, card, { name: 'cover.png', type: 'image/png', base64: TINY_PNG });
+  await expect(card).not.toHaveClass(/file-over/);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(uploads).toEqual([]);
+  await expect(card.locator('img.cover')).toHaveCount(0);
+
   await must.getByRole('link', { name: 'Ranged enemy' }).click();
   await expect(page.getByLabel('Description')).toHaveAttribute('readonly', '');
   await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
