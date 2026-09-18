@@ -963,6 +963,11 @@ ul.project-grid {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-md);
 }
+.card.file-over {
+  border-color: var(--accent-solid);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--ring);
+}
 .card.dragging {
   opacity: 0.35;
 }
@@ -1058,10 +1063,15 @@ progress::-moz-progress-bar {
   min-width: 0;
 }
 .cover {
+  /* One shape for every cover: the image fills the frame and is cropped, never stretched. */
+  display: block;
   width: calc(100% + 24px);
-  max-height: 120px;
+  aspect-ratio: 16 / 9;
+  height: auto;
   margin: -10px -12px 2px;
   object-fit: cover;
+  object-position: center;
+  background: var(--sunken);
   border-radius: calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
 }
 .add-item {

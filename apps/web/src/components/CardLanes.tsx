@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 
 /**
  * Generic lanes of draggable cards, shared by the Backlog (items) and later the Workboard (tasks).
@@ -53,6 +53,8 @@ export interface CardLanesProps<T extends { id: string }> {
   /** Per-card, per-lane rule on top of `lane.droppable`, for example category-specific columns. */
   canDrop?: (item: T, laneId: string) => boolean;
   renderCard: (item: T, ctx: CardRenderContext) => ReactNode;
+  /** Files dragged in from outside the page and dropped on a card. Omit to ignore them. */
+  onFilesDrop?: ((item: T, files: File[]) => void) | undefined;
   onMove: (
     item: T,
     laneId: string,
@@ -68,6 +70,7 @@ export function CardLanes<T extends { id: string }>({
   isDraggable,
   canDrop,
   renderCard,
+  onFilesDrop,
   onMove,
   testIdPrefix = 'lane',
 }: CardLanesProps<T>) {
@@ -190,6 +193,7 @@ export function CardLanes<T extends { id: string }>({
                 key={item.id}
                 id={item.id}
                 disabled={!canDrag || !lane.droppable || (isDraggable ? !isDraggable(item) : false)}
+                onFiles={onFilesDrop && ((files) => onFilesDrop(item, files))}
               >
                 {renderCard(item, { index, count: all.length, isDragging: item.id === activeId })}
               </Card>
@@ -243,18 +247,60 @@ function LaneView<T extends { id: string }>({
   );
 }
 
-function Card({ id, disabled, children }: { id: string; disabled: boolean; children: ReactNode }) {
+const carriesFiles = (e: DragEvent) => e.dataTransfer.types.includes('Files');
+
+function Card({
+  id,
+  disabled,
+  onFiles,
+  children,
+}: {
+  id: string;
+  disabled: boolean;
+  onFiles?: ((files: File[]) => void) | undefined;
+  children: ReactNode;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled,
   });
+  // Native file drags are separate from dnd-kit's pointer drags. Entering a child fires
+  // dragenter before the parent's dragleave, so a depth count keeps the highlight steady.
+  const depth = useRef(0);
+  const [fileOver, setFileOver] = useState(false);
+  const fileDrop = onFiles && {
+    onDragEnter: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      depth.current += 1;
+      setFileOver(true);
+    },
+    onDragOver: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    },
+    onDragLeave: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      depth.current = Math.max(0, depth.current - 1);
+      if (depth.current === 0) setFileOver(false);
+    },
+    onDrop: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      depth.current = 0;
+      setFileOver(false);
+      onFiles(Array.from(e.dataTransfer.files));
+    },
+  };
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`card${isDragging ? ' dragging' : ''}${disabled ? '' : ' draggable'}`}
+      className={`card${isDragging ? ' dragging' : ''}${disabled ? '' : ' draggable'}${fileOver ? ' file-over' : ''}`}
       data-testid="item-card"
       {...(disabled ? {} : { ...attributes, ...listeners })}
+      {...fileDrop}
     >
       {children}
     </li>

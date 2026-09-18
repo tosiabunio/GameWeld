@@ -159,6 +159,8 @@ The system does not enforce what Must Have or Won't Have means for a particular 
 
 Display the title, optional cover, task completion counts, category totals, and active board membership. Counts describe task completion only; they must not be presented as effort-based or overall game-completion percentages.
 
+The cover is the item's most recently attached PNG, JPEG, GIF, or WebP image; other files, SVG included, never become covers. Dropping an image on a Backlog card attaches it to the item. A Game Director may pick an older image or clear the cover, and that choice holds until the next image is attached. Deleting the cover passes it to the newest image that remains. Covers keep one frame on every card and are cropped to fit, never stretched.
+
 ## 7. Breakdown
 
 **Confirmed:** Breakdown is a view, not a mandatory lifecycle stage.

@@ -7,7 +7,7 @@ test('attachments, comments, dependencies, and history on items and tasks', asyn
   await page.getByTestId('lane-should').getByRole('link', { name: 'Boss arena' }).click();
   await expect(page.getByLabel('Title')).toHaveValue('Boss arena');
 
-  // Upload a small PNG to the item and use it as the cover.
+  // Upload a small PNG to the item; the newest image becomes the cover.
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
     'base64',
@@ -16,8 +16,8 @@ test('attachments, comments, dependencies, and history on items and tasks', asyn
     .getByLabel('Add attachment')
     .setInputFiles({ name: 'arena.png', mimeType: 'image/png', buffer: png });
   await expect(page.getByTestId('attachment')).toContainText('arena.png');
-  await page.getByRole('button', { name: 'Use as cover' }).click();
   await expect(page.getByTestId('attachment')).toContainText('cover');
+  await expect(page.getByRole('button', { name: 'Remove cover' })).toBeVisible();
   // The download is served by the API with membership checks.
   const href = await page
     .getByTestId('attachment')

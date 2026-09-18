@@ -162,7 +162,7 @@ describe('collaboration and history (Phase 7)', () => {
     expect((await itemDetail()).attachments).toEqual([]);
   });
 
-  it('sets an image attachment as the item cover and serves it inline', async () => {
+  it('makes an uploaded image the item cover, keeps manual picks, and serves it inline', async () => {
     const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
     const up = multipart('cover.png', 'image/png', png);
     const uploaded = await t.app.inject({
@@ -173,6 +173,7 @@ describe('collaboration and history (Phase 7)', () => {
     });
     expect(uploaded.statusCode).toBe(201);
     expect(uploaded.json().isImage).toBe(true);
+    expect((await itemDetail()).coverAttachmentId).toBe(uploaded.json().id);
     const txt = multipart('a.txt', 'text/plain', 'x');
     const textFile = (
       await t.app.inject({
@@ -183,6 +184,8 @@ describe('collaboration and history (Phase 7)', () => {
       })
     ).json();
     let item = await itemDetail();
+    // A file that is not an image leaves the cover alone and cannot be picked by hand.
+    expect(item.coverAttachmentId).toBe(uploaded.json().id);
     expect(
       (
         await t.app.inject({
@@ -193,6 +196,14 @@ describe('collaboration and history (Phase 7)', () => {
         })
       ).statusCode,
     ).toBe(400);
+    const cleared = await t.app.inject({
+      method: 'PATCH',
+      url: p(`/backlog/${itemId}`),
+      headers: { cookie: director },
+      payload: { version: item.version, coverAttachmentId: null },
+    });
+    expect(cleared.json().coverAttachmentId).toBeNull();
+    item = cleared.json();
     const set = await t.app.inject({
       method: 'PATCH',
       url: p(`/backlog/${itemId}`),
@@ -208,7 +219,7 @@ describe('collaboration and history (Phase 7)', () => {
     });
     expect(inline.headers['content-type']).toBe('image/png');
     expect(inline.headers['content-disposition']).toMatch(/^inline/);
-    // Deleting the cover clears the reference.
+    // Deleting the last image clears the cover.
     await t.app.inject({
       method: 'DELETE',
       url: p(`/attachments/${uploaded.json().id}`),
@@ -216,6 +227,102 @@ describe('collaboration and history (Phase 7)', () => {
     });
     item = await itemDetail();
     expect(item.coverAttachmentId).toBeNull();
+    await t.app.inject({
+      method: 'DELETE',
+      url: p(`/attachments/${textFile.id}`),
+      headers: { cookie: director },
+    });
+  });
+
+  it('the most recent image is the cover; deleting it hands the cover to the previous one', async () => {
+    const upload = async (
+      name: string,
+      type: string,
+      cookie: string,
+      path = `/backlog/${itemId}`,
+    ) => {
+      const up = multipart(name, type, Buffer.from('89504e470d0a1a0a', 'hex'));
+      const res = await t.app.inject({
+        method: 'POST',
+        url: p(`${path}/attachments`),
+        headers: { cookie, ...up.headers },
+        payload: up.body,
+      });
+      expect(res.statusCode).toBe(201);
+      return res.json().id as string;
+    };
+    const first = await upload('first.png', 'image/png', director);
+    const second = await upload('second.jpg', 'image/jpeg', developer);
+    const before = await itemDetail();
+    expect(before.coverAttachmentId).toBe(second);
+
+    // A Director's pick of an older image holds until the next image arrives.
+    const picked = await t.app.inject({
+      method: 'PATCH',
+      url: p(`/backlog/${itemId}`),
+      headers: { cookie: director },
+      payload: { version: before.version, coverAttachmentId: first },
+    });
+    expect(picked.json().coverAttachmentId).toBe(first);
+    await upload('notes.txt', 'text/plain', developer);
+    await upload('shot.svg', 'image/svg+xml', developer);
+    await upload('task.png', 'image/png', developer, `/tasks/${taskId}`);
+    expect((await itemDetail()).coverAttachmentId).toBe(first);
+    const third = await upload('third.webp', 'image/webp', developer);
+    expect((await itemDetail()).coverAttachmentId).toBe(third);
+
+    // Removing a non-cover image leaves the cover; removing the cover promotes the newest left.
+    await t.app.inject({
+      method: 'DELETE',
+      url: p(`/attachments/${first}`),
+      headers: { cookie: director },
+    });
+    expect((await itemDetail()).coverAttachmentId).toBe(third);
+    const versionBefore = (await itemDetail()).version;
+    await t.app.inject({
+      method: 'DELETE',
+      url: p(`/attachments/${third}`),
+      headers: { cookie: developer },
+    });
+    const after = await itemDetail();
+    expect(after.coverAttachmentId).toBe(second);
+    expect(after.version).toBe(versionBefore + 1);
+
+    const history = await t.app.inject({
+      method: 'GET',
+      url: p(`/activity?entityType=backlog_item&entityId=${itemId}`),
+      headers: { cookie: director },
+    });
+    const added = history
+      .json()
+      .filter((e: { action: string }) => e.action === 'attachment.added')
+      .map((e: { next: { fileName: string; cover?: boolean } }) => [
+        e.next.fileName,
+        !!e.next.cover,
+      ]);
+    expect(added).toEqual(
+      expect.arrayContaining([
+        ['third.webp', true],
+        ['notes.txt', false],
+        ['shot.svg', false],
+      ]),
+    );
+
+    for (const a of (await itemDetail()).attachments) {
+      await t.app.inject({
+        method: 'DELETE',
+        url: p(`/attachments/${a.id}`),
+        headers: { cookie: director },
+      });
+    }
+    for (const a of (await taskDetail()).attachments) {
+      await t.app.inject({
+        method: 'DELETE',
+        url: p(`/attachments/${a.id}`),
+        headers: { cookie: director },
+      });
+    }
+    expect((await itemDetail()).coverAttachmentId).toBeNull();
   });
 
   it('serves script-bearing SVG attachments only as downloads and rejects SVG covers', async () => {

@@ -5,6 +5,7 @@ import {
   LANE_LABELS,
   laneOf,
   MOSCOW_CATEGORIES,
+  PREVIEW_IMAGE_TYPES,
 } from '@gameweld/domain';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
@@ -24,6 +25,8 @@ export function BacklogPage() {
   const canSelectScope = project.permissions['board.select_scope'];
   const [board, setBoard] = useState<BoardView | null>(null);
   const [activating, setActivating] = useState<string | null>(null);
+  const canAttach = project.permissions['task.work'];
+  const [uploading, setUploading] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const [nextItems, nextBoard] = await Promise.all([
@@ -37,6 +40,22 @@ export function BacklogPage() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // A file released beside a card must not make the browser leave the app to show it.
+  useEffect(() => {
+    if (!canAttach) return;
+    const guard = (e: DragEvent) => {
+      if (e.defaultPrevented || !e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'none';
+    };
+    window.addEventListener('dragover', guard);
+    window.addEventListener('drop', guard);
+    return () => {
+      window.removeEventListener('dragover', guard);
+      window.removeEventListener('drop', guard);
+    };
+  }, [canAttach]);
 
   const grouped = useMemo(() => {
     const map = new Map<BacklogLane, BacklogItem[]>(BACKLOG_LANES.map((l) => [l, []]));
@@ -55,6 +74,20 @@ export function BacklogPage() {
       setError(e instanceof ApiError ? e.message : 'Something went wrong');
     }
     await reload();
+  }
+
+  /** Dropped images become attachments; the server makes the last one the cover. */
+  async function attachImages(item: BacklogItem, files: File[]) {
+    const images = files.filter((f) => PREVIEW_IMAGE_TYPES.has(f.type));
+    if (images.length === 0) {
+      setError('Drop a PNG, JPEG, GIF, or WebP image on a card to make it the cover.');
+      return;
+    }
+    setUploading(item.id);
+    await run(async () => {
+      for (const file of images) await api.uploadAttachment(project.id, { itemId: item.id }, file);
+    });
+    setUploading(null);
   }
 
   const move = (
@@ -111,6 +144,7 @@ export function BacklogPage() {
         lanes={lanes}
         canDrag={canManage}
         isDraggable={(item) => item.state === 'open'}
+        onFilesDrop={canAttach ? (item, files) => void attachImages(item, files) : undefined}
         onMove={(item, laneId, afterId, beforeId) =>
           move(item, laneId as MoscowCategory, afterId, beforeId)
         }
@@ -122,6 +156,7 @@ export function BacklogPage() {
                 src={api.attachmentUrl(project.id, item.coverAttachmentId, true)}
                 alt=""
                 loading="lazy"
+                decoding="async"
               />
             )}
             <Link to={`/projects/${project.id}/breakdown/${item.id}`} className="card-title">
@@ -141,6 +176,7 @@ export function BacklogPage() {
                 <span className="badge">Awaiting acceptance</span>
               )}
               {item.state === 'done' && <span className="badge done">Accepted</span>}
+              {uploading === item.id && <span role="status">Uploading…</span>}
               {item.state !== 'open' && (
                 <span className="muted">{CATEGORY_LABELS[item.category]}</span>
               )}

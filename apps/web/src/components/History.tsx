@@ -71,7 +71,7 @@ function detail(e: ActivityEntry): string | null {
     case 'request.created':
       return str(n.note) ?? str(n.reason);
     case 'attachment.added':
-      return str(n.fileName);
+      return n.cover ? `${str(n.fileName)}, now the cover` : str(n.fileName);
     case 'attachment.removed':
       return str(p.fileName);
     case 'column.updated':

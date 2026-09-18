@@ -4,8 +4,7 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type { Readable } from 'node:stream';
 
-// Only passive raster formats may be served inline or used as covers.
-export const PREVIEW_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+export { PREVIEW_IMAGE_TYPES } from '@gameweld/domain';
 
 /**
  * T2: attachment storage behind an interface. The MVP ships a filesystem implementation; an

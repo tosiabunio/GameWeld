@@ -135,6 +135,22 @@ async function resolveOwner(
   return { taskId: params.taskId!, entityType: 'task', entityId: params.taskId! };
 }
 
+/**
+ * The item's most recently attached previewable image becomes its cover, or none is left. Runs
+ * when an image is attached and when the cover is deleted; a Director may still pick another
+ * image or clear the cover until the next image arrives.
+ */
+async function coverWithLatestImage(tx: Queryable, itemId: string): Promise<void> {
+  await tx.query(
+    `UPDATE backlog_items SET cover_attachment_id = (
+        SELECT id FROM attachments WHERE item_id = $1 AND content_type = ANY($2::text[])
+         ORDER BY created_at DESC, id DESC LIMIT 1
+      ), version = version + 1, updated_at = now()
+      WHERE id = $1`,
+    [itemId, [...PREVIEW_IMAGE_TYPES]],
+  );
+}
+
 function isDirector(req: FastifyRequest): boolean {
   const { membership, project } = req.access!;
   return can(membership, 'backlog.manage', { doneRestricted: project.done_restricted });
@@ -296,6 +312,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
             );
           throw err;
         }
+        const becomesCover = target.itemId !== undefined && PREVIEW_IMAGE_TYPES.has(contentType);
         await withTransaction(db, async (tx) => {
           await tx.query(
             `INSERT INTO attachments (id, project_id, item_id, task_id, uploaded_by, file_name, content_type, size_bytes, storage_key)
@@ -312,13 +329,19 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
               key,
             ],
           );
+          if (becomesCover) await coverWithLatestImage(tx, target.itemId!);
           await recordActivity(tx, {
             projectId,
             actorId: req.user!.id,
             action: 'attachment.added',
             entityType: target.entityType,
             entityId: target.entityId,
-            next: { attachmentId: id, fileName, sizeBytes },
+            next: {
+              attachmentId: id,
+              fileName,
+              sizeBytes,
+              ...(becomesCover ? { cover: true } : {}),
+            },
           });
         });
         const list = await fetchAttachments(db, target);
@@ -373,6 +396,22 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
       const projectId = req.access!.project.id;
       if (!isUuid(attachmentId)) throw notFound('Attachment not found');
       await withTransaction(db, async (tx) => {
+        const owner = (
+          await tx.query<{ item_id: string | null }>(
+            'SELECT item_id FROM attachments WHERE project_id = $1 AND id = $2',
+            [projectId, attachmentId],
+          )
+        ).rows[0];
+        // Lock the item before the attachment: the order a cover change takes through the
+        // foreign key, so the two cannot deadlock.
+        const wasCover =
+          owner?.item_id != null &&
+          (
+            await tx.query<{ cover_attachment_id: string | null }>(
+              'SELECT cover_attachment_id FROM backlog_items WHERE id = $1 FOR UPDATE',
+              [owner.item_id],
+            )
+          ).rows[0]?.cover_attachment_id === attachmentId;
         const row = (
           await tx.query<{
             uploaded_by: string;
@@ -392,6 +431,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
             'Only the uploader or a Game Director can delete an attachment.',
           );
         await tx.query('DELETE FROM attachments WHERE id = $1', [attachmentId]);
+        if (wasCover && row.item_id) await coverWithLatestImage(tx, row.item_id);
         await recordActivity(tx, {
           projectId,
           actorId: req.user!.id,
