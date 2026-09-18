@@ -27,7 +27,7 @@ test('a Developer requests out-of-scope work and a Director approves it', async 
     .getByTestId('item-nav')
     .getByRole('link', { name: /Flying enemy/ })
     .click();
-  await expect(page.getByLabel('Title')).toHaveValue('Flying enemy');
+  await expect(page.getByRole('heading', { name: 'Flying enemy', exact: true })).toBeVisible();
   await page.getByTestId('tasks-assets').getByLabel('New Assets task').fill('Swoop animation');
   await page.getByTestId('tasks-assets').getByRole('button', { name: 'Add' }).click();
   await expect(page.getByTestId('tasks-assets').getByTestId('task-row')).toHaveCount(1);
@@ -42,7 +42,7 @@ test('a Developer requests out-of-scope work and a Director approves it', async 
     .getByTestId('item-nav')
     .getByRole('link', { name: /Flying enemy/ })
     .click();
-  await expect(page.getByLabel('Title')).toHaveValue('Flying enemy');
+  await expect(page.getByRole('heading', { name: 'Flying enemy', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add Swoop animation to Workboard' })).toHaveText(
     'Place as exception',
   );

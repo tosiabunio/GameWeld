@@ -23,6 +23,7 @@ test('a Developer breaks an item down into tasks and edits one', async ({ page }
 
   // Open the task, dismiss the prompt, assign and describe it.
   await code.getByRole('link', { name: 'Arena gate logic' }).click();
+  await page.getByRole('button', { name: 'Edit task' }).click();
   await expect(page.getByTestId('prompt-task-description')).toBeVisible();
   await page.getByRole('button', { name: 'Dismiss writing prompt' }).click();
   await expect(page.getByTestId('prompt-task-description')).toHaveCount(0);
@@ -37,8 +38,8 @@ test('a Developer breaks an item down into tasks and edits one', async ({ page }
   await expect(page.getByTestId('item-nav').getByRole('link', { name: /Boss arena/ })).toHaveClass(
     /active/,
   );
-  await expect(page.getByTestId('tasks-code').getByTestId('task-row').first()).toContainText(
-    'Devin Developer',
+  await expect(page.getByTestId('tasks-code').getByTestId('card-assignee')).toHaveAccessibleName(
+    'Assignee of Arena gate logic: Devin Developer',
   );
 });
 

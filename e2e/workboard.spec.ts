@@ -53,10 +53,12 @@ test('Director creates a board, activates the next item, hits the limit, renames
   await expect(page.getByTestId('scope')).toContainText('Scope limit reached');
 
   // Section 15 "Team renames an intermediate column".
+  await page.getByRole('button', { name: 'To Do · Content column actions', exact: true }).click();
   await page.getByRole('button', { name: 'Add column after To Do · Content' }).click();
   await page.getByLabel('New column name').fill('Making');
   await page.getByRole('form', { name: 'Add column' }).getByRole('button', { name: 'Add' }).click();
   await expect(page.getByRole('region', { name: 'Making' })).toBeVisible();
+  await page.getByRole('button', { name: 'Making column actions', exact: true }).click();
   await page.getByRole('button', { name: 'Rename column Making' }).click();
   await page.getByLabel('Column name').fill('In progress');
   await page
@@ -68,11 +70,12 @@ test('Director creates a board, activates the next item, hits the limit, renames
 
   // Opening a card from the board leads back to the board.
   await page.getByRole('link', { name: 'Targeting' }).click();
-  await expect(page.getByLabel('Title')).toHaveValue('Targeting');
+  await expect(page.getByRole('heading', { name: 'Targeting', exact: true })).toBeVisible();
   await page.getByRole('link', { name: '← Workboard' }).click();
   await expect(page.getByTestId('workboard')).toBeVisible();
 
   // The Director can rename the board; the name carries no rules.
+  await page.getByRole('button', { name: 'Workboard actions', exact: true }).click();
   await page.getByRole('button', { name: 'Rename', exact: true }).click();
   await page.getByLabel('Workboard name').fill('Milestone 1');
   await page
@@ -83,12 +86,14 @@ test('Director creates a board, activates the next item, hits the limit, renames
 
   // Deleting a task removes it from the board and the item's active breakdown.
   await expect(page.getByRole('button', { name: /Return .* to Breakdown/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Attack animation actions', exact: true }).click();
   await page.getByRole('button', { name: 'Delete Attack animation', exact: true }).click();
   const confirmation = page.getByRole('group', { name: 'Confirm deleting Attack animation' });
   await confirmation.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByTestId('item-card').filter({ hasText: 'Attack animation' })).toHaveCount(
     1,
   );
+  await page.getByRole('button', { name: 'Attack animation actions', exact: true }).click();
   await page.getByRole('button', { name: 'Delete Attack animation', exact: true }).click();
   await confirmation.getByRole('button', { name: 'Delete task' }).click();
   await expect(page.getByTestId('board-notice')).toContainText(
@@ -253,12 +258,16 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
   const avatar = card.getByTestId('card-assignee');
   await expect(avatar).toHaveAccessibleName('Assignee of Targeting: nobody');
   await expect(avatar).toHaveText('?');
-  // It shares the title's first line instead of adding a row to the card.
-  const [avatarBox, titleBox] = [
+  // It sits in the card footer, on the category's row, instead of adding a row of its own.
+  const [avatarBox, labelBox, titleBox] = [
     await avatar.boundingBox(),
+    await card.locator('.category-label').boundingBox(),
     await card.getByRole('link', { name: 'Targeting', exact: true }).boundingBox(),
   ];
-  expect(Math.abs(avatarBox!.y - titleBox!.y)).toBeLessThan(8);
+  expect(avatarBox!.y).toBeGreaterThan(titleBox!.y + titleBox!.height);
+  expect(
+    Math.abs(avatarBox!.y + avatarBox!.height / 2 - (labelBox!.y + labelBox!.height / 2)),
+  ).toBeLessThan(8);
 
   // One click lists the members; one more assigns.
   await avatar.click();
@@ -304,6 +313,7 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
 
   // The task page assigns the moment a person is picked, and keeps unsaved text.
   await card.getByRole('link', { name: 'Targeting', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit task' }).click();
   await page.getByLabel('Description').fill('Lead the target by its speed.');
   await page.getByLabel('Assignee').selectOption({ label: 'Dana Director' });
   await expect(page.getByRole('status')).toHaveText('Assigned to Dana Director.');
@@ -311,6 +321,7 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
   await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
   await page.reload();
   await expect(page.getByLabel('Assignee').locator('option:checked')).toHaveText('Dana Director');
+  await page.getByRole('button', { name: 'Edit task' }).click();
   await expect(page.getByLabel('Description')).toHaveValue('');
   await page.getByRole('link', { name: '← Workboard' }).click();
   await expect(avatar).toHaveAccessibleName('Assignee of Targeting: Dana Director');

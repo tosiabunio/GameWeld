@@ -3,6 +3,7 @@ import { CATEGORY_LABELS, STATE_LABELS, TASK_CATEGORY_LABELS, todoKindFor } from
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { ActionMenu } from '../components/ActionMenu.tsx';
 import { AssigneePicker } from '../components/AssigneePicker.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
@@ -176,6 +177,7 @@ function BoardHeader({
   return (
     <header className="board-header">
       <div>
+        <p className="eyebrow">Workboard</p>
         {renaming ? (
           <form
             className="add-item"
@@ -231,10 +233,12 @@ function BoardHeader({
             <strong>{c.scopeItems}</strong>/{board.scopeLimit} items in scope
           </span>
           {c.acceptedItems > 0 && <span>{c.acceptedItems} accepted</span>}
-          <span>
-            <strong>{c.outOfScopeTasks}</strong> out-of-scope task
-            {c.outOfScopeTasks === 1 ? '' : 's'}
-          </span>
+          {c.outOfScopeTasks > 0 && (
+            <span>
+              <strong>{c.outOfScopeTasks}</strong> out-of-scope task
+              {c.outOfScopeTasks === 1 ? '' : 's'}
+            </span>
+          )}
           <span>
             {c.placedTasks - c.unfinishedTasks}/{c.placedTasks} tasks done
           </span>
@@ -248,22 +252,26 @@ function BoardHeader({
       </div>
       {canManage && (
         <div className="row">
-          {!archiving && !renaming && board.state === 'active' && (
-            <button
-              type="button"
-              onClick={() => {
-                setName(board.name);
-                setRenaming(true);
-              }}
-            >
-              Rename
-            </button>
+          {!archiving && (
+            <ActionMenu label="Workboard actions">
+              {!renaming && board.state === 'active' && (
+                <button
+                  type="button"
+                  data-close-menu
+                  onClick={() => {
+                    setName(board.name);
+                    setRenaming(true);
+                  }}
+                >
+                  Rename
+                </button>
+              )}
+              <button type="button" data-close-menu onClick={() => setArchiving(true)}>
+                Archive Workboard
+              </button>
+            </ActionMenu>
           )}
-          {!archiving ? (
-            <button type="button" onClick={() => setArchiving(true)}>
-              Archive Workboard
-            </button>
-          ) : (
+          {archiving && (
             <div className="confirm" role="group" aria-label="Archive Workboard">
               <p>
                 {c.unfinishedTasks > 0
@@ -322,20 +330,20 @@ function ScopePanel({
             {board.counts.scopeItems}/{board.scopeLimit}
           </span>
         </h3>
-        <span className="muted small">
-          {board.state !== 'active' ? (
-            ''
-          ) : full ? (
-            'Scope limit reached. Remove an item to make room.'
-          ) : board.nextEligible ? (
-            <>
-              Next in priority: <strong>{board.nextEligible.title}</strong>. Add items from their{' '}
-              <Link to={`/projects/${project.id}/backlog`}>Backlog cards</Link>.
-            </>
-          ) : (
-            'No open item is eligible. Add items from the Backlog when there are some.'
-          )}
-        </span>
+        {board.state === 'active' && (
+          <span className="scope-guidance">
+            {full ? (
+              'Scope limit reached. Remove an item to make room.'
+            ) : board.nextEligible ? (
+              <>
+                Next in priority: <strong>{board.nextEligible.title}</strong>. Add items from their{' '}
+                <Link to={`/projects/${project.id}/backlog`}>Backlog cards</Link>.
+              </>
+            ) : (
+              'No open item is eligible. Add items from the Backlog when there are some.'
+            )}
+          </span>
+        )}
       </div>
       {board.scope.length === 0 ? (
         <p className="muted small">
@@ -512,15 +520,17 @@ function Columns({
     items: board.cards[col.id] ?? [],
     droppable: canWork,
     className: `column kind-${col.kind}`,
-    footer: (
-      <ColumnFooter
-        column={col}
-        board={board}
-        canWork={canWork}
-        canManage={canManage}
-        onChange={onChange}
-      />
-    ),
+    actions: canManage ? (
+      <ColumnFooter column={col} board={board} canManage={canManage} onChange={onChange} />
+    ) : undefined,
+    footer:
+      canWork && col.kind.startsWith('todo_') ? (
+        <NewCardForm
+          board={board}
+          category={col.kind.slice(5) as TaskCategory}
+          onCreate={(input) => onChange(() => api.createBoardTask(project.id, board.id, input))}
+        />
+      ) : undefined,
   }));
 
   return (
@@ -557,6 +567,28 @@ function Columns({
             >
               {card.title}
             </Link>
+            {canDelete && deleting !== card.id && (
+              <ActionMenu label={`${card.title} actions`}>
+                <button
+                  type="button"
+                  data-close-menu
+                  onClick={() => setDeleting(card.id)}
+                  aria-label={`Delete ${card.title}`}
+                >
+                  Delete task
+                </button>
+              </ActionMenu>
+            )}
+          </div>
+          <div className="card-meta">
+            <span className="muted">{card.itemTitle}</span>
+            {card.outOfScope && <span className="badge warn">Out of scope</span>}
+            {uploading === card.id && <span role="status">Uploading…</span>}
+          </div>
+          <div className="card-bottom">
+            <span className={`category-label cat-${card.category}`}>
+              {TASK_CATEGORY_LABELS[card.category]}
+            </span>
             <AssigneePicker
               assignee={card.assignee}
               people={project.members}
@@ -574,26 +606,6 @@ function Columns({
               }
             />
           </div>
-          <div className="card-meta">
-            <span className={`chip cat-${card.category}`}>
-              {TASK_CATEGORY_LABELS[card.category]}
-            </span>
-            <span className="muted">{card.itemTitle}</span>
-            {card.outOfScope && <span className="badge warn">Out of scope</span>}
-            {uploading === card.id && <span role="status">Uploading…</span>}
-          </div>
-          {canDelete && deleting !== card.id && (
-            <div className="card-actions">
-              <button
-                type="button"
-                className="link"
-                onClick={() => setDeleting(card.id)}
-                aria-label={`Delete ${card.title}`}
-              >
-                Delete task
-              </button>
-            </div>
-          )}
           {deleting === card.id && (
             <div
               className="confirm small"
@@ -643,13 +655,11 @@ function Columns({
 function ColumnFooter({
   column,
   board,
-  canWork,
   canManage,
   onChange,
 }: {
   column: BoardColumn;
   board: BoardView;
-  canWork: boolean;
   canManage: boolean;
   onChange: (action: () => Promise<BoardView | void>) => Promise<boolean>;
 }) {
@@ -657,20 +667,10 @@ function ColumnFooter({
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(column.name);
   const [adding, setAdding] = useState(false);
-  const todoCategory = column.kind.startsWith('todo_')
-    ? (column.kind.slice(5) as TaskCategory)
-    : null;
   const empty = (board.cards[column.id] ?? []).length === 0;
 
   return (
-    <div className="column-footer">
-      {todoCategory && canWork && (
-        <NewCardForm
-          board={board}
-          category={todoCategory}
-          onCreate={(input) => onChange(() => api.createBoardTask(project.id, board.id, input))}
-        />
-      )}
+    <ActionMenu label={`${column.name} column actions`}>
       {canManage && (
         <div className="column-admin">
           {renaming ? (
@@ -756,7 +756,7 @@ function ColumnFooter({
           )}
         </div>
       )}
-    </div>
+    </ActionMenu>
   );
 }
 

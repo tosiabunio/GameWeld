@@ -7,8 +7,8 @@ import { ItemBreakdown } from './ItemBreakdown.tsx';
 import { useProject } from './ProjectPage.tsx';
 
 /**
- * Breakdown tab (specification Section 13): pick a backlog item on the left, inspect its
- * description and its Code, Assets, and Content tasks on the right.
+ * Breakdown tab (specification Section 13): pick an item from the horizontal navigation, then
+ * inspect its description and its Code, Assets, and Content task columns.
  */
 export function BreakdownPage() {
   const { project } = useProject();

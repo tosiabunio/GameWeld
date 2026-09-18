@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { ResourcePanel } from '../components/ResourcePanel.tsx';
 import { Attachments } from '../components/Attachments.tsx';
 import { Comments } from '../components/Comments.tsx';
 import { History } from '../components/History.tsx';
@@ -60,7 +61,7 @@ export function TaskPage() {
   const editable = canWork && !task.archived;
 
   return (
-    <article className="item-page">
+    <article className="item-page task-page">
       <p>
         {fromBoard ? (
           <>
@@ -89,12 +90,6 @@ export function TaskPage() {
         </p>
       )}
 
-      {editable && (
-        <WritingPrompt id="task-description">
-          <strong>Optional prompts.</strong> What is the desired result, and how could someone check
-          it? Write as much or as little as helps.
-        </WritingPrompt>
-      )}
       <TaskForm
         key={task.id}
         task={task}
@@ -108,44 +103,49 @@ export function TaskPage() {
         }
       />
 
-      <section className="panel" aria-labelledby="task-comments-heading">
-        <h2 id="task-comments-heading">Comments</h2>
-        <Comments
-          owner={{ taskId: task.id }}
-          comments={task.comments}
-          canComment={canWork}
-          onChanged={reload}
-        />
-      </section>
+      <div className="detail-bottom">
+        <div>
+          <section className="panel" aria-labelledby="task-comments-heading">
+            <h2 id="task-comments-heading">Comments</h2>
+            <Comments
+              owner={{ taskId: task.id }}
+              comments={task.comments}
+              canComment={canWork}
+              onChanged={reload}
+            />
+          </section>
 
-      <section className="panel" aria-labelledby="task-attachments-heading">
-        <h2 id="task-attachments-heading">Attachments</h2>
-        <Attachments
-          owner={{ taskId: task.id }}
-          attachments={task.attachments}
-          canWork={editable}
-          coverId={task.coverAttachmentId}
-          canPickCover={editable}
-          onSetCover={(coverAttachmentId) =>
-            run(() =>
-              api.updateTask(project.id, task.id, { version: task.version, coverAttachmentId }),
-            )
-          }
-          onChanged={reload}
-        />
-      </section>
+          <History query={{ entityType: 'task', entityId: task.id }} />
+        </div>
+        <aside className="detail-resources" aria-label="Task resources">
+          <ResourcePanel title="Attachments" count={task.attachments.length}>
+            <Attachments
+              owner={{ taskId: task.id }}
+              attachments={task.attachments}
+              canWork={editable}
+              coverId={task.coverAttachmentId}
+              canPickCover={editable}
+              onSetCover={(coverAttachmentId) =>
+                run(() =>
+                  api.updateTask(project.id, task.id, { version: task.version, coverAttachmentId }),
+                )
+              }
+              onChanged={reload}
+            />
+          </ResourcePanel>
 
-      <section className="panel" aria-labelledby="task-links-heading">
-        <h2 id="task-links-heading">Links</h2>
-        <LinksList
-          links={task.links}
-          canEdit={editable}
-          onAdd={(url, label) => run(() => api.addTaskLink(project.id, task.id, { url, label }))}
-          onRemove={(linkId) => run(() => api.removeTaskLink(project.id, task.id, linkId))}
-        />
-      </section>
-
-      <History query={{ entityType: 'task', entityId: task.id }} />
+          <ResourcePanel title="Links" count={task.links.length}>
+            <LinksList
+              links={task.links}
+              canEdit={editable}
+              onAdd={(url, label) =>
+                run(() => api.addTaskLink(project.id, task.id, { url, label }))
+              }
+              onRemove={(linkId) => run(() => api.removeTaskLink(project.id, task.id, linkId))}
+            />
+          </ResourcePanel>
+        </aside>
+      </div>
 
       {task.completed && canComplete && !task.archived && (
         <section className="panel" aria-labelledby="reopen-heading">
@@ -231,6 +231,7 @@ function TaskForm({
   const [category, setCategory] = useState<TaskCategory>(task.category);
   const [assigneeId, setAssigneeId] = useState<string | null>(task.assignee?.id ?? null);
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assigned, setAssigned] = useState<string | null>(null);
@@ -248,7 +249,9 @@ function TaskForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setSaved(await onSave({ title: title.trim(), description, category }));
+    const ok = await onSave({ title: title.trim(), description, category });
+    setSaved(ok);
+    if (ok) setEditing(false);
     setSaving(false);
   }
 
@@ -267,18 +270,83 @@ function TaskForm({
   }
 
   return (
-    <form className="form wide" onSubmit={submit}>
-      <label>
-        Title
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          readOnly={readOnly}
-          required
-          maxLength={500}
-        />
-      </label>
-      <div className="row fields">
+    <form className="task-editor" onSubmit={submit}>
+      <div className="task-copy">
+        {editing ? (
+          <div className="form">
+            <WritingPrompt id="task-description">
+              What is the desired result, and how could someone check it?
+            </WritingPrompt>
+            <label>
+              Title
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                maxLength={500}
+                autoFocus
+              />
+            </label>
+            <label>
+              Description
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={8}
+                placeholder="Free-form notes, links to references, anything useful."
+              />
+            </label>
+          </div>
+        ) : (
+          <>
+            <div className="row between">
+              <h1>{task.title}</h1>
+              {!readOnly && (
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => {
+                    setSaved(false);
+                    setEditing(true);
+                  }}
+                >
+                  Edit task
+                </button>
+              )}
+            </div>
+            <p className="description-text">{task.description || 'No description yet.'}</p>
+          </>
+        )}
+        {!readOnly && (editing || dirty) && (
+          <div className="row editor-actions">
+            <button
+              type="submit"
+              className="primary"
+              disabled={!dirty || title.trim() === '' || assigning || saving}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                setTitle(task.title);
+                setDescription(task.description);
+                setCategory(task.category);
+                setEditing(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        {saved && !dirty && (
+          <span className="ok" role="status">
+            Saved.
+          </span>
+        )}
+      </div>
+      <div className="form task-properties">
         <label>
           Category
           <select
@@ -324,30 +392,6 @@ function TaskForm({
           )}
         </label>
       </div>
-      <label>
-        Description
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          readOnly={readOnly}
-          rows={8}
-          placeholder={
-            readOnly ? 'No description.' : 'Free-form notes, links to references, anything useful.'
-          }
-        />
-      </label>
-      {!readOnly && (
-        <div className="row">
-          <button
-            type="submit"
-            className="primary"
-            disabled={!dirty || title.trim() === '' || assigning || saving}
-          >
-            Save
-          </button>
-          {saved && !dirty && <span className="ok">Saved.</span>}
-        </div>
-      )}
     </form>
   );
 }

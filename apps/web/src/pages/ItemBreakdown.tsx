@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { Breakdown } from '../components/Breakdown.tsx';
 import { ReviewPanel } from '../components/ReviewPanel.tsx';
+import { ResourcePanel } from '../components/ResourcePanel.tsx';
 import { Attachments } from '../components/Attachments.tsx';
 import { Dependencies } from '../components/Dependencies.tsx';
 import { History } from '../components/History.tsx';
@@ -76,13 +77,6 @@ export function ItemBreakdown({
         </p>
       )}
 
-      {canManage && (
-        <WritingPrompt id="item-description">
-          <strong>Optional prompts.</strong> What should players experience when this is done? How
-          will the team know it is good enough? Answer in the description if it helps; nothing here
-          is required.
-        </WritingPrompt>
-      )}
       <ItemForm
         item={item}
         readOnly={!canManage}
@@ -91,17 +85,20 @@ export function ItemBreakdown({
         }
       />
 
-      <ReviewPanel item={item} onChanged={changed} />
-
-      <section className="panel" aria-labelledby="tasks-heading">
-        <h2 id="tasks-heading">Breakdown</h2>
-        <p className="muted">
-          The tasks needed to produce this item, grouped by nature. Any combination is fine; no
-          category is required. While the item is on the Workboard, new tasks go straight to its To
-          Do columns.
+      <section className="breakdown-tasks" aria-labelledby="tasks-heading">
+        <h2 id="tasks-heading">
+          Tasks{' '}
+          <span className="muted small">
+            {item.taskCounts.completed} / {item.taskCounts.total}
+          </span>
+        </h2>
+        <p className="muted small">
+          Grouped by nature; any combination is fine and no category is required. While the item is
+          on the Workboard, new tasks go straight to its To Do columns.
         </p>
         <Breakdown
           projectId={project.id}
+          people={project.members}
           itemId={item.id}
           canWork={project.permissions['task.work']}
           canPlaceOutside={project.permissions['out_of_scope.approve']}
@@ -112,47 +109,54 @@ export function ItemBreakdown({
         />
       </section>
 
-      <section className="panel" aria-labelledby="links-heading">
-        <h2 id="links-heading">Links</h2>
-        <LinksList
-          links={item.links}
-          canEdit={canManage}
-          onAdd={(url, label) => run(() => api.addLink(project.id, item.id, { url, label }))}
-          onRemove={(linkId) => run(() => api.removeLink(project.id, item.id, linkId))}
-        />
-      </section>
+      <div className="detail-bottom">
+        <div>
+          <ReviewPanel item={item} onChanged={changed} />
+          <History query={{ entityType: 'backlog_item', entityId: item.id }} />
+        </div>
+        <aside className="detail-resources" aria-label="Item resources">
+          <ResourcePanel title="Links" count={item.links.length}>
+            <LinksList
+              links={item.links}
+              canEdit={canManage}
+              onAdd={(url, label) => run(() => api.addLink(project.id, item.id, { url, label }))}
+              onRemove={(linkId) => run(() => api.removeLink(project.id, item.id, linkId))}
+            />
+          </ResourcePanel>
 
-      <section className="panel" aria-labelledby="attachments-heading">
-        <h2 id="attachments-heading">Attachments</h2>
-        <Attachments
-          owner={{ itemId: item.id }}
-          attachments={item.attachments}
-          canWork={project.permissions['task.work'] && !item.archived}
-          coverId={item.coverAttachmentId}
-          canPickCover={project.permissions['backlog.manage'] && !item.archived}
-          onSetCover={(coverAttachmentId) =>
-            run(() =>
-              api.updateItem(project.id, item.id, { version: item.version, coverAttachmentId }),
-            )
-          }
-          onChanged={changed}
-        />
-      </section>
+          <ResourcePanel title="Attachments" count={item.attachments.length}>
+            <Attachments
+              owner={{ itemId: item.id }}
+              attachments={item.attachments}
+              canWork={project.permissions['task.work'] && !item.archived}
+              coverId={item.coverAttachmentId}
+              canPickCover={project.permissions['backlog.manage'] && !item.archived}
+              onSetCover={(coverAttachmentId) =>
+                run(() =>
+                  api.updateItem(project.id, item.id, { version: item.version, coverAttachmentId }),
+                )
+              }
+              onChanged={changed}
+            />
+          </ResourcePanel>
 
-      <section className="panel" aria-labelledby="deps-heading">
-        <h2 id="deps-heading">Dependencies</h2>
-        <Dependencies
-          itemId={item.id}
-          dependsOn={item.dependsOn}
-          dependents={item.dependents}
-          onChanged={changed}
-        />
-      </section>
-
-      <History query={{ entityType: 'backlog_item', entityId: item.id }} />
+          <ResourcePanel
+            title="Dependencies"
+            count={item.dependsOn.length + item.dependents.length}
+          >
+            <Dependencies
+              itemId={item.id}
+              dependsOn={item.dependsOn}
+              dependents={item.dependents}
+              onChanged={changed}
+            />
+          </ResourcePanel>
+        </aside>
+      </div>
 
       {canManage && (
-        <section className="panel" aria-labelledby="archive-item-heading">
+        <details className="panel resource-disclosure">
+          <summary>{item.archived ? 'Restore item' : 'Archive item'}</summary>
           <h2 id="archive-item-heading">{item.archived ? 'Archived item' : 'Archive'}</h2>
           <p className="muted">
             {item.archived
@@ -172,7 +176,7 @@ export function ItemBreakdown({
           >
             {item.archived ? 'Restore item' : 'Archive item'}
           </button>
-        </section>
+        </details>
       )}
     </article>
   );
@@ -190,6 +194,7 @@ function ItemForm({
   const [title, setTitle] = useState(item.title);
   const [description, setDescription] = useState(item.description);
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     setTitle(item.title);
@@ -199,11 +204,43 @@ function ItemForm({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setSaved(await onSave({ title: title.trim(), description }));
+    const ok = await onSave({ title: title.trim(), description });
+    setSaved(ok);
+    if (ok) setEditing(false);
   }
+
+  if (!editing)
+    return (
+      <div className="item-intro">
+        <div className="row between">
+          <h1>{item.title}</h1>
+          {!readOnly && (
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                setSaved(false);
+                setEditing(true);
+              }}
+            >
+              Edit item
+            </button>
+          )}
+        </div>
+        <p className="description-text">{item.description || 'No description yet.'}</p>
+        {saved && (
+          <span className="ok" role="status">
+            Saved.
+          </span>
+        )}
+      </div>
+    );
 
   return (
     <form className="form wide" onSubmit={submit}>
+      <WritingPrompt id="item-description">
+        What should players experience? How will the team know this is ready?
+      </WritingPrompt>
       <label>
         Title
         <input
@@ -220,7 +257,7 @@ function ItemForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           readOnly={readOnly}
-          rows={10}
+          rows={8}
           placeholder={
             readOnly
               ? 'No description.'
@@ -233,7 +270,16 @@ function ItemForm({
           <button type="submit" className="primary" disabled={!dirty || title.trim() === ''}>
             Save
           </button>
-          {saved && !dirty && <span className="ok">Saved.</span>}
+          <button
+            type="button"
+            onClick={() => {
+              setTitle(item.title);
+              setDescription(item.description);
+              setEditing(false);
+            }}
+          >
+            Cancel
+          </button>
         </div>
       )}
     </form>

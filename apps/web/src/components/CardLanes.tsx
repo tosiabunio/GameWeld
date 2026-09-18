@@ -42,6 +42,7 @@ export interface Lane<T> {
   droppable: boolean;
   className?: string;
   footer?: ReactNode;
+  actions?: ReactNode;
 }
 
 export interface CardRenderContext {
@@ -75,7 +76,7 @@ export interface CardLanesProps<T extends { id: string }> {
 const COLLAPSED_PREFIX = 'gameweld:collapsed:';
 
 /** Collapsed lanes are a per-viewer convenience; storage may be missing or refuse. */
-function useCollapsedLanes(key: string | undefined) {
+export function useCollapsedLanes(key: string | undefined) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
     if (!key) return new Set();
     try {
@@ -118,6 +119,59 @@ export function CardLanes<T extends { id: string }>({
   const [collapsed, toggleLane] = useCollapsedLanes(collapseKey);
   const [local, setLocal] = useState<Record<string, T[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
+  const laneStrip = useRef<HTMLDivElement>(null);
+  const [mobileLane, setMobileLane] = useState(lanes[0]?.id ?? '');
+  const [hidden, setHidden] = useState({ left: 0, right: 0 });
+  const shownIndex = Math.max(
+    0,
+    lanes.findIndex((lane) => lane.id === mobileLane),
+  );
+
+  // Lanes that do not fit are counted per side, so the page can say that there are more.
+  const markHiddenLanes = useCallback(() => {
+    const strip = laneStrip.current;
+    if (!strip) return;
+    const view = strip.getBoundingClientRect();
+    const rects = Array.from(strip.children, (lane) => lane.getBoundingClientRect());
+    const left = rects.filter((lane) => lane.left < view.left - 1).length;
+    const right = rects.filter((lane) => lane.right > view.right + 1).length;
+    setHidden((was) => (was.left === left && was.right === right ? was : { left, right }));
+  }, []);
+
+  function scrollLanes(direction: -1 | 1) {
+    const strip = laneStrip.current;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    strip?.scrollBy({
+      left: direction * strip.clientWidth * 0.8,
+      behavior: reduced ? 'auto' : 'smooth',
+    });
+  }
+
+  // A phone shows one lane at a time, so the strip takes that lane's height rather than the
+  // tallest lane's, which would leave a gap above whatever follows the lanes. A drag needs every
+  // lane at full height to drop into.
+  useEffect(() => {
+    const strip = laneStrip.current;
+    if (!strip) return;
+    const phone = window.matchMedia('(max-width: 560px)');
+    const lane = strip.children[shownIndex] as HTMLElement | undefined;
+    const fit = () => {
+      const style = getComputedStyle(strip);
+      const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      strip.style.height =
+        phone.matches && lane && !activeId ? `${lane.offsetHeight + padding}px` : '';
+      markHiddenLanes();
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(strip);
+    if (lane) observer.observe(lane);
+    phone.addEventListener('change', fit);
+    return () => {
+      observer.disconnect();
+      phone.removeEventListener('change', fit);
+    };
+  }, [shownIndex, activeId, collapsed, markHiddenLanes]);
 
   useEffect(() => {
     if (activeId) return; // do not clobber an in-progress drag with a stale reload
@@ -329,7 +383,68 @@ export function CardLanes<T extends { id: string }>({
         setActiveId(null);
       }}
     >
-      <div className="lanes">
+      <label className="lane-navigation">
+        Column
+        <select
+          aria-label="Visible column"
+          value={lanes[shownIndex]?.id ?? ''}
+          onChange={(event) => {
+            const id = event.target.value;
+            setMobileLane(id);
+            const index = lanes.findIndex((lane) => lane.id === id);
+            const container = laneStrip.current;
+            const lane = container?.children[index];
+            if (container && lane)
+              container.scrollLeft +=
+                lane.getBoundingClientRect().left - container.getBoundingClientRect().left;
+          }}
+        >
+          {lanes.map((lane) => (
+            <option key={lane.id} value={lane.id}>
+              {lane.title} · {lane.items.length}
+            </option>
+          ))}
+        </select>
+      </label>
+      {(hidden.left > 0 || hidden.right > 0) && (
+        <div className="lane-scroll">
+          {hidden.left > 0 && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => scrollLanes(-1)}
+              aria-label={`Show earlier columns, ${hidden.left} hidden`}
+            >
+              ← {hidden.left} more
+            </button>
+          )}
+          {hidden.right > 0 && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => scrollLanes(1)}
+              aria-label={`Show later columns, ${hidden.right} hidden`}
+            >
+              {hidden.right} more →
+            </button>
+          )}
+        </div>
+      )}
+      <div
+        className="lanes"
+        ref={laneStrip}
+        onScroll={() => {
+          markHiddenLanes();
+          const container = laneStrip.current;
+          if (!container || !window.matchMedia('(max-width: 560px)').matches) return;
+          const left = container.getBoundingClientRect().left;
+          const distances = Array.from(container.children, (child) =>
+            Math.abs(child.getBoundingClientRect().left - left),
+          );
+          const nearest = distances.indexOf(Math.min(...distances));
+          if (lanes[nearest]) setMobileLane(lanes[nearest].id);
+        }}
+      >
         {lanes.map((lane) => (
           <LaneView
             key={lane.id}
@@ -437,10 +552,12 @@ function LaneView<T extends { id: string }>({
                 />
               </svg>
             </button>
+            {lane.actions}
           </div>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <ul className="cards">{children}</ul>
           </SortableContext>
+          {items.length === 0 && <p className="lane-empty">No cards yet</p>}
           {lane.footer}
         </>
       )}

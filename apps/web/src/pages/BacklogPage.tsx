@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { ActionMenu } from '../components/ActionMenu.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { useProject } from './ProjectPage.tsx';
@@ -120,6 +121,13 @@ export function BacklogPage() {
 
   return (
     <div data-testid="backlog">
+      <header className="page-head">
+        <p className="eyebrow">Production scope</p>
+        <h1>Backlog</h1>
+        <p className="muted small">
+          {items.length} items · {items.filter((item) => item.activeBoard).length} on the Workboard
+        </p>
+      </header>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -160,6 +168,44 @@ export function BacklogPage() {
                 Open
                 <span aria-hidden="true">→</span>
               </Link>
+              {canManage && item.state === 'open' && (
+                <ActionMenu label={`${item.title} actions`}>
+                  <button
+                    type="button"
+                    data-close-menu
+                    onClick={() => moveBy(item, -1)}
+                    disabled={index === 0}
+                    aria-label={`Move ${item.title} up`}
+                  >
+                    <span aria-hidden="true">↑</span> Move up
+                  </button>
+                  <button
+                    type="button"
+                    data-close-menu
+                    onClick={() => moveBy(item, 1)}
+                    disabled={index === count - 1}
+                    aria-label={`Move ${item.title} down`}
+                  >
+                    <span aria-hidden="true">↓</span> Move down
+                  </button>
+                  <label className="menu-field">
+                    Category
+                    <select
+                      aria-label={`Move ${item.title} to category`}
+                      value={item.category}
+                      onChange={(e) =>
+                        void move(item, e.target.value as MoscowCategory, null, null)
+                      }
+                    >
+                      {MOSCOW_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {CATEGORY_LABELS[c]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </ActionMenu>
+              )}
             </div>
             <div className="card-meta">
               {item.taskCounts.total > 0 ? (
@@ -226,37 +272,6 @@ export function BacklogPage() {
                 <button type="button" onClick={() => setActivating(null)}>
                   Cancel
                 </button>
-              </div>
-            )}
-            {canManage && item.state === 'open' && (
-              <div className="card-actions" aria-label={`Move ${item.title}`}>
-                <button
-                  type="button"
-                  onClick={() => moveBy(item, -1)}
-                  disabled={index === 0}
-                  aria-label={`Move ${item.title} up`}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveBy(item, 1)}
-                  disabled={index === count - 1}
-                  aria-label={`Move ${item.title} down`}
-                >
-                  ↓
-                </button>
-                <select
-                  aria-label={`Move ${item.title} to category`}
-                  value={item.category}
-                  onChange={(e) => void move(item, e.target.value as MoscowCategory, null, null)}
-                >
-                  {MOSCOW_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {CATEGORY_LABELS[c]}
-                    </option>
-                  ))}
-                </select>
               </div>
             )}
           </>

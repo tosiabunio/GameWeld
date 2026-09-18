@@ -58,6 +58,14 @@ export function ProjectPage() {
   return (
     <Shell
       title={project.name}
+      actions={
+        <NavLink
+          to="settings"
+          className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}
+        >
+          Settings
+        </NavLink>
+      }
       nav={
         <nav className="tabs" aria-label="Project sections">
           <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
@@ -68,9 +76,6 @@ export function ProjectPage() {
           </NavLink>
           <NavLink to="board" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
             Workboard
-          </NavLink>
-          <NavLink to="settings" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-            Settings
           </NavLink>
         </nav>
       }

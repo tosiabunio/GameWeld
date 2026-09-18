@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { dropFile, expectCoverFrame, pressAndSettle, signIn, TINY_PNG } from './helpers.ts';
+import {
+  dropFile,
+  expectCoverFrame,
+  openResource,
+  pressAndSettle,
+  signIn,
+  TINY_PNG,
+} from './helpers.ts';
 
 test('Section 15: a Director creates a vague item, reorders it, and edits its description', async ({
   page,
@@ -20,10 +27,12 @@ test('Section 15: a Director creates a vague item, reorders it, and edits its de
   await expect(must.getByTestId('item-card').nth(1)).toContainText('Ranged enemy');
 
   // Non-drag reordering.
+  await must.getByRole('button', { name: 'Ranged enemy actions', exact: true }).click();
   await must.getByLabel('Move Ranged enemy up').click();
   await expect(must.getByTestId('item-card').nth(0)).toContainText('Ranged enemy');
 
   // Recategorize through the select.
+  await must.getByRole('button', { name: 'Make the game fun actions', exact: true }).click();
   await must.getByLabel('Move Make the game fun to category').selectOption('should');
   const should = page.getByTestId('lane-should');
   await expect(should.getByTestId('item-card')).toHaveCount(1);
@@ -31,13 +40,15 @@ test('Section 15: a Director creates a vague item, reorders it, and edits its de
 
   // Open the item and add a free-form description and a link.
   await should.getByRole('link', { name: 'Make the game fun', exact: true }).click();
-  await expect(page.getByLabel('Title')).toHaveValue('Make the game fun');
+  await expect(page.getByRole('heading', { name: 'Make the game fun', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Edit item', exact: true }).click();
   await page
     .getByLabel('Description')
     .fill('Whatever that means. No estimate, no acceptance criteria, and that is fine.');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
 
+  await openResource(page, 'Links');
   const addLink = page.getByRole('form', { name: 'Add link' });
   await addLink.getByLabel('URL').fill('https://example.com/pitch');
   await addLink.getByLabel('Label').fill('Pitch deck');
@@ -75,13 +86,13 @@ test('a Developer browses the Backlog without editing controls', async ({ page }
   // Besides its title, every card has an explicit way into the item's Breakdown.
   await must.getByRole('link', { name: 'Open Ranged enemy in the Breakdown', exact: true }).click();
   await expect(page).toHaveURL(/\/breakdown\/[0-9a-f-]+$/);
-  await expect(page.getByLabel('Title')).toHaveValue('Ranged enemy');
+  await expect(page.getByRole('heading', { name: 'Ranged enemy', exact: true })).toBeVisible();
   await page
     .getByRole('navigation', { name: 'Project sections' })
     .getByRole('link', { name: 'Backlog' })
     .click();
   await must.getByRole('link', { name: 'Ranged enemy', exact: true }).click();
-  await expect(page.getByLabel('Description')).toHaveAttribute('readonly', '');
+  await expect(page.getByRole('button', { name: 'Edit item' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
 });
 
@@ -247,9 +258,11 @@ test('buttons inside a draggable card answer Enter and Space', async ({ page }) 
   }
 
   // The keys press the button; they must not pick up the card around it.
+  await page.getByRole('button', { name: 'Alpha actions', exact: true }).click();
   await page.getByRole('button', { name: 'Move Alpha down' }).focus();
   await page.keyboard.press('Enter');
   await expect(must.getByTestId('item-card').nth(0)).toContainText('Beta');
+  await page.getByRole('button', { name: 'Alpha actions', exact: true }).click();
   await page.getByRole('button', { name: 'Move Alpha up' }).focus();
   await page.keyboard.press('Space');
   await expect(must.getByTestId('item-card').nth(0)).toContainText('Alpha');
@@ -314,6 +327,7 @@ test('an image dropped on a Backlog card becomes its cover', async ({ page }) =>
 
   // The dropped image is an ordinary attachment of the item, marked as its cover.
   await card.getByRole('link', { name: 'Title screen', exact: true }).click();
+  // A panel with something in it is already open.
   await expect(page.getByTestId('attachment')).toContainText('title.png');
   await expect(page.getByTestId('attachment')).toContainText('cover');
 });

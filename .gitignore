@@ -30,4 +30,7 @@ temp/
 # Test artifacts
 playwright-report/
 test-results/
+
+# Design mock-ups and review screenshots produced while working on the interface
+output/
 .env.local

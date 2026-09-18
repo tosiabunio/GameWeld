@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.ts';
+import { openResource, signIn } from './helpers.ts';
 
 test('attachments, comments, dependencies, and history on items and tasks', async ({ page }) => {
   await signIn(page, 'director');
@@ -8,8 +8,9 @@ test('attachments, comments, dependencies, and history on items and tasks', asyn
     .getByTestId('lane-should')
     .getByRole('link', { name: 'Boss arena', exact: true })
     .click();
-  await expect(page.getByLabel('Title')).toHaveValue('Boss arena');
+  await expect(page.getByRole('heading', { name: 'Boss arena', exact: true })).toBeVisible();
 
+  await openResource(page, 'Attachments');
   // Upload a small PNG to the item; the newest image becomes the cover.
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -30,6 +31,7 @@ test('attachments, comments, dependencies, and history on items and tasks', asyn
   expect(download.status()).toBe(200);
   expect(download.headers()['content-disposition']).toContain('attachment');
 
+  await openResource(page, 'Dependencies');
   // Dependency on another item, shown with its state.
   await page
     .getByLabel('Item this one depends on')
@@ -62,9 +64,9 @@ test('attachments, comments, dependencies, and history on items and tasks', asyn
     .getByTestId('lane-must')
     .getByRole('link', { name: 'Ranged enemy', exact: true })
     .click();
-  await expect(page.getByLabel('Title')).toHaveValue('Ranged enemy');
+  await expect(page.getByRole('heading', { name: 'Ranged enemy', exact: true })).toBeVisible();
   await page.getByTestId('tasks-code').getByRole('link', { name: 'Targeting' }).click();
-  await expect(page.getByLabel('Title')).toHaveValue('Targeting');
+  await expect(page.getByRole('heading', { name: 'Targeting', exact: true })).toBeVisible();
   const add = page.getByRole('form', { name: 'Add comment' });
   await add.getByLabel('Comment').fill('Lock-on feels sticky.');
   await add.getByRole('button', { name: 'Add comment' }).click();

@@ -4,11 +4,14 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { useCurrentUser } from '../session.tsx';
+import { AssigneePicker } from './AssigneePicker.tsx';
+import { useCollapsedLanes } from './CardLanes.tsx';
 import { TaskStatus } from './TaskStatus.tsx';
 
 /** The three task groups of an item (Section 7), with inline creation for members. */
 export function Breakdown({
   projectId,
+  people,
   itemId,
   canWork,
   canPlaceOutside,
@@ -18,6 +21,7 @@ export function Breakdown({
   onChanged,
 }: {
   projectId: string;
+  people: { userId: string; displayName: string; avatarUrl: string | null }[];
   itemId: string;
   canWork: boolean;
   /** Director permission to place tasks whose item is outside the board scope. */
@@ -28,6 +32,7 @@ export function Breakdown({
   itemState: 'open' | 'ready_for_review' | 'done';
   onChanged: () => Promise<void>;
 }) {
+  const [collapsed, toggleLane] = useCollapsedLanes(`breakdown:${projectId}:${itemId}`);
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,127 +114,188 @@ export function Breakdown({
           return (
             <section
               key={category}
-              className="task-group"
+              className={`task-group lane cat-${category}${collapsed.has(category) ? ' collapsed' : ''}`}
               aria-label={`${TASK_CATEGORY_LABELS[category]} tasks`}
               data-testid={`tasks-${category}`}
             >
-              <h3>
-                {TASK_CATEGORY_LABELS[category]}{' '}
-                <span className="count">{group.filter((t) => !t.archived).length}</span>
-              </h3>
-              {group.length === 0 ? (
-                <p className="muted small">
-                  No {TASK_CATEGORY_LABELS[category].toLowerCase()} tasks.
-                </p>
+              {collapsed.has(category) ? (
+                <button
+                  type="button"
+                  className="lane-stub"
+                  aria-expanded={false}
+                  aria-label={`Expand ${TASK_CATEGORY_LABELS[category]} tasks`}
+                  onClick={() => toggleLane(category)}
+                >
+                  <span className="count">{group.filter((t) => !t.archived).length}</span>
+                  <span className="lane-stub-title">{TASK_CATEGORY_LABELS[category]}</span>
+                </button>
               ) : (
-                <ul className="task-list">
-                  {group.map((task) => (
-                    <li
-                      key={task.id}
-                      className={task.archived ? 'archived' : ''}
-                      data-testid="task-row"
+                <>
+                  <div className="lane-head">
+                    <h3>
+                      {TASK_CATEGORY_LABELS[category]}{' '}
+                      <span className="count">{group.filter((t) => !t.archived).length}</span>
+                    </h3>
+                    <button
+                      type="button"
+                      className="lane-toggle"
+                      aria-expanded={true}
+                      aria-label={`Collapse ${TASK_CATEGORY_LABELS[category]} tasks`}
+                      onClick={() => toggleLane(category)}
                     >
-                      <Link to={`/projects/${projectId}/tasks/${task.id}`} className="task-title">
-                        {task.title}
-                      </Link>
-                      <div className="card-meta">
-                        <TaskStatus task={task} />
-                        {task.assignee && <span>{task.assignee.displayName}</span>}
-                        {canWork &&
-                          boardId &&
-                          !task.placement &&
-                          !task.completed &&
-                          !task.archived && (
-                            <>
-                              {activeBoard || canPlaceOutside ? (
-                                <button
-                                  type="button"
-                                  className="link"
-                                  onClick={() => void place(task)}
-                                  aria-label={`Add ${task.title} to Workboard`}
-                                >
-                                  {activeBoard ? 'Add to Workboard' : 'Place as exception'}
-                                </button>
-                              ) : task.pendingRequest ? (
+                      ‹
+                    </button>
+                  </div>
+                  {group.length === 0 ? (
+                    <p className="muted small">
+                      No {TASK_CATEGORY_LABELS[category].toLowerCase()} tasks.
+                    </p>
+                  ) : (
+                    <ul className="task-list">
+                      {group.map((task) => (
+                        <li
+                          key={task.id}
+                          className={`card${task.archived ? ' archived' : ''}`}
+                          data-testid="task-row"
+                        >
+                          {task.coverAttachmentId && (
+                            <img
+                              className="cover"
+                              src={api.coverUrl(projectId, task.coverAttachmentId)}
+                              alt=""
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          {/* The column already says what kind of task this is; the head holds who does it. */}
+                          <div className="card-head">
+                            <Link
+                              to={`/projects/${projectId}/tasks/${task.id}`}
+                              className="task-title"
+                            >
+                              {task.title}
+                            </Link>
+                            <AssigneePicker
+                              assignee={task.assignee}
+                              people={people}
+                              taskTitle={task.title}
+                              onAssign={
+                                canWork && !task.archived && !itemArchived
+                                  ? (assigneeId) =>
+                                      act(
+                                        () =>
+                                          api.updateTask(projectId, task.id, {
+                                            version: task.version,
+                                            assigneeId,
+                                          }),
+                                        'Could not assign the task',
+                                      )
+                                  : undefined
+                              }
+                            />
+                          </div>
+                          <div className="card-meta">
+                            <TaskStatus task={task} />
+
+                            {canWork &&
+                              boardId &&
+                              !task.placement &&
+                              !task.completed &&
+                              !task.archived && (
                                 <>
-                                  <span className="badge neutral">Placement requested</span>
-                                  {task.pendingRequest.requesterId === me.id && (
+                                  {activeBoard || canPlaceOutside ? (
                                     <button
                                       type="button"
                                       className="link"
-                                      onClick={() =>
-                                        void act(
-                                          () =>
-                                            api.withdrawRequest(
-                                              projectId,
-                                              boardId,
-                                              task.pendingRequest!.id,
-                                            ),
-                                          'Could not withdraw the request',
-                                        )
-                                      }
-                                      aria-label={`Withdraw request for ${task.title}`}
+                                      onClick={() => void place(task)}
+                                      aria-label={`Add ${task.title} to Workboard`}
                                     >
-                                      Withdraw
+                                      {activeBoard ? 'Add to Workboard' : 'Place as exception'}
                                     </button>
-                                  )}
+                                  ) : task.pendingRequest ? (
+                                    <>
+                                      <span className="badge neutral">Placement requested</span>
+                                      {task.pendingRequest.requesterId === me.id && (
+                                        <button
+                                          type="button"
+                                          className="link"
+                                          onClick={() =>
+                                            void act(
+                                              () =>
+                                                api.withdrawRequest(
+                                                  projectId,
+                                                  boardId,
+                                                  task.pendingRequest!.id,
+                                                ),
+                                              'Could not withdraw the request',
+                                            )
+                                          }
+                                          aria-label={`Withdraw request for ${task.title}`}
+                                        >
+                                          Withdraw
+                                        </button>
+                                      )}
+                                    </>
+                                  ) : requesting?.taskId !== task.id ? (
+                                    <button
+                                      type="button"
+                                      className="link"
+                                      onClick={() => setRequesting({ taskId: task.id, reason: '' })}
+                                      aria-label={`Request placement of ${task.title}`}
+                                    >
+                                      Request placement on Workboard
+                                    </button>
+                                  ) : null}
                                 </>
-                              ) : requesting?.taskId !== task.id ? (
-                                <button
-                                  type="button"
-                                  className="link"
-                                  onClick={() => setRequesting({ taskId: task.id, reason: '' })}
-                                  aria-label={`Request placement of ${task.title}`}
-                                >
-                                  Request placement on Workboard
+                              )}
+                            {requesting?.taskId === task.id && boardId && (
+                              <form
+                                className="confirm small"
+                                aria-label={`Request placement of ${task.title}`}
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  void act(
+                                    () =>
+                                      api.createRequest(projectId, boardId, {
+                                        taskId: task.id,
+                                        reason: requesting.reason.trim(),
+                                      }),
+                                    'Could not send the request',
+                                  ).then((ok) => ok && setRequesting(null));
+                                }}
+                              >
+                                <p>
+                                  Asks a Game Director to place this task on the Workboard although
+                                  its item is outside the scope.
+                                </p>
+                                <input
+                                  value={requesting.reason}
+                                  onChange={(e) =>
+                                    setRequesting({ taskId: task.id, reason: e.target.value })
+                                  }
+                                  placeholder="Why now? (optional)"
+                                  aria-label="Reason"
+                                  maxLength={5000}
+                                />
+                                <button type="submit" className="primary">
+                                  Send request
                                 </button>
-                              ) : null}
-                            </>
-                          )}
-                        {requesting?.taskId === task.id && boardId && (
-                          <form
-                            className="confirm small"
-                            aria-label={`Request placement of ${task.title}`}
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              void act(
-                                () =>
-                                  api.createRequest(projectId, boardId, {
-                                    taskId: task.id,
-                                    reason: requesting.reason.trim(),
-                                  }),
-                                'Could not send the request',
-                              ).then((ok) => ok && setRequesting(null));
-                            }}
-                          >
-                            <p>
-                              Asks a Game Director to place this task on the Workboard although its
-                              item is outside the scope.
-                            </p>
-                            <input
-                              value={requesting.reason}
-                              onChange={(e) =>
-                                setRequesting({ taskId: task.id, reason: e.target.value })
-                              }
-                              placeholder="Why now? (optional)"
-                              aria-label="Reason"
-                              maxLength={5000}
-                            />
-                            <button type="submit" className="primary">
-                              Send request
-                            </button>
-                            <button type="button" onClick={() => setRequesting(null)}>
-                              Cancel
-                            </button>
-                          </form>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {canWork && !itemArchived && (
-                <AddTaskForm category={category} onAdd={(title) => add(category, title)} />
+                                <button type="button" onClick={() => setRequesting(null)}>
+                                  Cancel
+                                </button>
+                              </form>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {canWork && !itemArchived && (
+                    <AddTaskForm category={category} onAdd={(title) => add(category, title)} />
+                  )}
+                </>
               )}
             </section>
           );

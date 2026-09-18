@@ -4,16 +4,16 @@
 :root {
   color-scheme: light dark;
 
-  --bg: #f3f4f8;
+  --bg: #f7f8fb;
   --surface: #ffffff;
-  --sunken: #e9ebf1;
-  --fg: #161922;
+  --sunken: #eef0f5;
+  --fg: #202331;
   --muted: #5f6778;
-  --border: #dde0e9;
+  --border: #e6e8ef;
   --border-strong: #c3c8d6;
 
-  --accent: #4a3fd6;
-  --accent-solid: #5548e8;
+  --accent: #5944d9;
+  --accent-solid: #5944d9;
   --accent-solid-hover: #4639d4;
   --on-accent: #ffffff;
   --accent-soft: color-mix(in srgb, var(--accent-solid) 11%, var(--surface));
@@ -27,11 +27,11 @@
   --error: #c0242b;
   --error-soft: #fde4e4;
 
-  --code: #1d4ed8;
+  --code: #4267a8;
   --code-soft: #dbe7ff;
-  --assets: #a04a00;
+  --assets: #996125;
   --assets-soft: #fde6c9;
-  --content: #1b6e35;
+  --content: #317858;
   --content-soft: #d9f4e1;
 
   --shadow-sm: 0 1px 2px rgb(20 24 40 / 0.06), 0 1px 1px rgb(20 24 40 / 0.04);
@@ -41,7 +41,7 @@
   --r-sm: 6px;
   --r-md: 9px;
   --r-lg: 14px;
-  --topbar-h: 56px;
+  --topbar-h: 65px;
 
   font-family:
     Inter,
@@ -50,23 +50,23 @@
     'Segoe UI',
     Roboto,
     sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d0f14;
-    --surface: #1b1f2a;
+    --bg: #101217;
+    --surface: #191c24;
     --sunken: #14171f;
-    --fg: #e7e9f0;
-    --muted: #949bb0;
-    --border: #2a2f3e;
+    --fg: #ebeef6;
+    --muted: #a1a9bb;
+    --border: #303542;
     --border-strong: #3d4357;
 
-    --accent: #a9a3ff;
-    --accent-solid: #6a5ff2;
+    --accent: #b4a7ff;
+    --accent-solid: #7960ed;
     --accent-solid-hover: #7c72f7;
     --accent-soft: color-mix(in srgb, var(--accent-solid) 20%, var(--surface));
 
@@ -110,15 +110,17 @@ h4 {
 }
 h1 {
   margin: 0 0 4px;
-  font-size: 1.6rem;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
 }
 h2 {
   font-size: 1.25rem;
-  font-weight: 650;
+  font-weight: 500;
 }
 h3 {
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 500;
 }
 a {
   color: var(--accent);
@@ -190,7 +192,7 @@ button,
 a.button,
 label.button {
   font: inherit;
-  font-weight: 550;
+  font-weight: 500;
   font-size: 0.93rem;
   line-height: 1.3;
   padding: 7px 13px;
@@ -317,7 +319,7 @@ input[type='file'] {
 }
 input[type='file']::file-selector-button {
   font: inherit;
-  font-weight: 550;
+  font-weight: 500;
   margin-right: 10px;
   padding: 6px 12px;
   border: 1px solid var(--border-strong);
@@ -366,8 +368,12 @@ input[type='file']::file-selector-button:hover {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
   padding: 20px 24px;
+}
+@media (max-width: 760px) {
+  .form.wide {
+    padding: 16px;
+  }
 }
 .form.new-card {
   gap: 8px;
@@ -412,22 +418,25 @@ input[type='file']::file-selector-button:hover {
   top: 0;
   z-index: 20;
   min-height: var(--topbar-h);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px 28px;
-  flex-wrap: wrap;
-  padding: 8px 24px;
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  backdrop-filter: saturate(1.6) blur(12px);
+  gap: 18px;
+  padding: 0 26px;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
+.topbar:not(:has(.tabs)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: 1.07rem;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
   letter-spacing: -0.015em;
 }
 .brand a {
@@ -444,39 +453,38 @@ input[type='file']::file-selector-button:hover {
 }
 .crumb {
   font-weight: 500;
-  font-size: 0.97rem;
+  font-size: 12px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .crumb::before {
-  content: '/';
+  content: '|';
   margin-right: 10px;
   color: var(--border-strong);
 }
 .tabs {
   display: flex;
-  gap: 2px;
+  gap: 24px;
+  align-self: stretch;
 }
 .tab {
-  padding: 6px 12px;
-  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  padding: 12px 1px;
+  border-bottom: 2px solid transparent;
   text-decoration: none;
-  font-weight: 550;
-  font-size: 0.93rem;
+  font-weight: 500;
+  font-size: 13px;
   color: var(--muted);
-  transition:
-    background-color 0.12s,
-    color 0.12s;
 }
 .tab:hover {
   color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 .tab.active {
   color: var(--accent);
-  background: var(--accent-soft);
+  border-bottom-color: var(--accent);
 }
 .tab.disabled {
   cursor: not-allowed;
@@ -484,11 +492,39 @@ input[type='file']::file-selector-button:hover {
 }
 .user {
   margin-left: auto;
+  justify-self: end;
+  min-width: 0;
   display: flex;
   align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.user .me {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  font-size: 0.93rem;
-  font-weight: 550;
+  min-width: 0;
+  padding: 2px 10px 2px 2px;
+  border-radius: 999px;
+  color: inherit;
+  text-decoration: none;
+}
+.user .me:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+.user .me > span:last-child {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-link {
+  color: var(--muted);
+  text-decoration: none;
+}
+.settings-link.active {
+  color: var(--accent);
 }
 .avatar {
   flex: none;
@@ -500,29 +536,82 @@ input[type='file']::file-selector-button:hover {
   color: #fff;
   background: linear-gradient(135deg, var(--avatar), color-mix(in srgb, var(--avatar) 78%, #000));
 }
+/* Between tablet and desktop the centred tabs need the room the names take. */
+@media (max-width: 1000px) and (min-width: 761px) {
+  .crumb,
+  .user .me > span:last-child {
+    display: none;
+  }
+  .user {
+    gap: 8px;
+  }
+}
+/* Narrow screens: brand and user share the first row, the tabs get their own. */
 @media (max-width: 760px) {
   .topbar {
-    padding: 8px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 10px 16px 0;
+  }
+  .topbar:not(:has(.tabs)) {
+    padding-bottom: 10px;
+  }
+  .topbar .brand {
+    flex: 1;
+  }
+  .crumb {
+    display: none;
+  }
+  .user {
+    gap: 8px;
+  }
+  .user .me > span:last-child {
+    max-width: 85px;
+  }
+  .user > button,
+  .settings-link {
+    font-size: 11px;
+  }
+  .user > button {
+    padding: 6px;
   }
   .tabs {
     order: 3;
     flex-basis: 100%;
+    justify-content: center;
+    gap: 32px;
+    min-height: 42px;
     overflow-x: auto;
+  }
+}
+@media (max-width: 560px) {
+  .user .me > span:last-child {
+    display: none;
+  }
+  .brand > a {
+    gap: 6px;
   }
 }
 
 .page {
   width: 100%;
-  max-width: 1280px;
+  max-width: none;
   margin: 0 auto;
   padding: 28px 24px 56px;
 }
-/* Lanes use the whole window; everything else reads better at a measured width. */
-.page:has([data-testid='backlog'], [data-testid='workboard']) {
-  max-width: none;
-}
 .page-head {
-  margin-bottom: 18px;
+  margin-bottom: 24px;
+}
+.page-head .small {
+  margin-top: 8px;
+}
+.eyebrow {
+  margin: 0 0 7px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
 }
 .page-head h2 {
   margin: 0;
@@ -615,7 +704,6 @@ ul.persona-list {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
   padding: 20px 24px;
   margin-bottom: 20px;
 }
@@ -634,7 +722,7 @@ ul.persona-list {
 .panel h3 > button.link {
   color: var(--fg);
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 500;
   margin-left: -7px;
 }
 .panel h3:has(> button.link) {
@@ -701,7 +789,7 @@ ul.persona-list {
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 0.78rem;
-  font-weight: 650;
+  font-weight: 500;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -730,18 +818,6 @@ ul.persona-list {
   letter-spacing: 0.05em;
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   color: var(--muted);
-}
-.chip.cat-code {
-  background: var(--code-soft);
-  color: var(--code);
-}
-.chip.cat-assets {
-  background: var(--assets-soft);
-  color: var(--assets);
-}
-.chip.cat-content {
-  background: var(--content-soft);
-  color: var(--content);
 }
 .count {
   color: var(--muted);
@@ -778,7 +854,7 @@ ul.persona-list {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
-  font-weight: 650;
+  font-weight: 500;
   padding-top: 4px;
   padding-bottom: 8px;
 }
@@ -859,6 +935,7 @@ ul.project-grid {
 }
 .board-counts strong {
   color: var(--fg);
+  font-weight: 500;
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -873,8 +950,23 @@ ul.project-grid {
   align-items: flex-start;
 }
 .lanes > .lane {
-  flex: 1 1 0;
-  min-width: 220px;
+  flex: 1 0 248px;
+  min-width: 248px;
+}
+/* Lanes that do not fit scroll sideways; these buttons say so and do the scrolling. */
+.lane-scroll {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: -6px 0 6px;
+  font-size: 12px;
+}
+.lane-scroll button.link {
+  color: var(--muted);
+  font-size: inherit;
+}
+.lane-scroll button.link:hover {
+  color: var(--accent);
 }
 .lanes > .lane.collapsed {
   flex: 0 0 44px;
@@ -882,12 +974,40 @@ ul.project-grid {
   min-height: 240px;
   padding: 0;
 }
+/* On a phone one lane fills the screen; the select above the strip jumps between lanes. */
+.lane-navigation {
+  display: none;
+}
+@media (max-width: 560px) {
+  /* The strip is as tall as the lane in view (CardLanes sets it), so taller neighbours clip. */
+  .lanes {
+    overflow-y: hidden;
+  }
+  .lanes > .lane:not(.collapsed) {
+    flex: 0 0 calc(100vw - 40px);
+  }
+  .lane-scroll {
+    display: none;
+  }
+  .lane-navigation {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .lane-navigation select {
+    flex: 1;
+    min-width: 0;
+  }
+}
 .lane {
   --lane-accent: var(--border-strong);
   background: var(--sunken);
   border: 1px solid transparent;
-  border-radius: var(--r-lg);
-  padding: 10px;
+  border-radius: 10px;
+  padding: 9px;
   min-height: 160px;
   display: flex;
   flex-direction: column;
@@ -901,6 +1021,7 @@ ul.project-grid {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-height: 34px;
 }
 .lane-head h3 {
   flex: 1;
@@ -910,19 +1031,14 @@ ul.project-grid {
   flex: none;
   display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   border-radius: var(--r-sm);
   background: none;
   box-shadow: none;
   color: var(--muted);
-  opacity: 0.6;
-}
-.lane:hover .lane-toggle,
-.lane-toggle:focus-visible {
-  opacity: 1;
 }
 .lane-toggle:hover:not(:disabled) {
   color: var(--fg);
@@ -944,7 +1060,7 @@ ul.project-grid {
   box-shadow: none;
   color: var(--fg);
   font-size: 0.87rem;
-  font-weight: 650;
+  font-weight: 500;
 }
 .lane-stub::before {
   content: '';
@@ -973,7 +1089,7 @@ ul.project-grid {
 .lane h3 {
   margin: 2px 4px 2px;
   font-size: 0.87rem;
-  font-weight: 650;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -987,13 +1103,9 @@ ul.project-grid {
   flex: none;
 }
 .lane h3 .count {
-  margin-left: auto;
-  min-width: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  min-width: 16px;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 400;
   text-align: center;
 }
 .lane.prio-must {
@@ -1015,15 +1127,19 @@ ul.project-grid {
 .lane.kind-done {
   --lane-accent: var(--ok);
 }
-.lane.kind-todo_code {
+.lane.kind-todo_code,
+.lane.cat-code {
   --lane-accent: var(--code);
 }
-.lane.kind-todo_assets {
+.lane.kind-todo_assets,
+.lane.cat-assets {
   --lane-accent: var(--assets);
 }
-.lane.kind-todo_content {
+.lane.kind-todo_content,
+.lane.cat-content {
   --lane-accent: var(--content);
 }
+/* Ready for Review and Done are states an item reaches, not priorities to sort it into. */
 .lane.lifecycle {
   background: transparent;
   border: 1px dashed var(--border-strong);
@@ -1045,6 +1161,20 @@ ul.project-grid {
   display: grid;
   gap: 8px;
 }
+.lane-empty {
+  margin: 0;
+  padding: 28px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.lane > .link {
+  width: 100%;
+  font-size: 12px;
+  color: var(--muted);
+}
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1052,7 +1182,7 @@ ul.project-grid {
   box-shadow: var(--shadow-sm);
   padding: 10px 12px;
   display: grid;
-  gap: 7px;
+  gap: 8px;
   transition:
     box-shadow 0.12s,
     border-color 0.12s;
@@ -1088,13 +1218,17 @@ ul.project-grid {
 .card-title {
   touch-action: auto;
 }
-.card-title {
-  font-weight: 600;
-  line-height: 1.3;
+.card-title,
+.task-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
   color: inherit;
   text-decoration: none;
 }
-.card-title:hover {
+.card-title:hover,
+.task-title:hover {
   color: var(--accent);
 }
 .card-meta {
@@ -1102,45 +1236,69 @@ ul.project-grid {
   gap: 6px 8px;
   flex-wrap: wrap;
   align-items: center;
-  font-size: 0.83rem;
+  font-size: 12px;
   color: var(--muted);
 }
-/* The title shares its first line with the assignee, so an avatar never adds a row. */
+/* The card footer: what kind of work it is on the left, who does it on the right. */
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+.category-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.category-label.cat-code {
+  color: var(--code);
+}
+.category-label.cat-assets {
+  color: var(--assets);
+}
+.category-label.cat-content {
+  color: var(--content);
+}
+/* Keep the card title and its action controls together; assignment lives in the footer. */
 .card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
-.card-head .card-title {
+.card-head .card-title,
+.card-head .task-title {
   min-width: 0;
-  overflow-wrap: anywhere;
 }
-/* An explicit way into an item's Breakdown, beside the title that also leads there. */
+/* An explicit way into an item's Breakdown, beside the title that also leads there. Only the
+   arrow shows; the word "Open" stays in the markup for the accessible name. */
 .card-open {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin: -2px -4px 0 0;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
+  min-width: 20px;
+  height: 20px;
+  margin: 0 -4px 0 0;
   border-radius: 999px;
-  background: var(--surface);
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0;
   font-weight: 600;
   text-decoration: none;
   touch-action: auto;
   transition:
     color 0.12s,
-    border-color 0.12s,
     background-color 0.12s;
+}
+.card-open span {
+  font-size: 14px;
 }
 .card-open:hover,
 .card-open:focus-visible {
   color: var(--accent);
-  border-color: var(--accent-line);
   background: var(--accent-soft);
 }
 .assignee {
@@ -1190,18 +1348,6 @@ button.assignee.busy {
   height: 100%;
   object-fit: cover;
 }
-.user .me {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 10px 2px 2px;
-  border-radius: 999px;
-  color: inherit;
-  text-decoration: none;
-}
-.user .me:hover {
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
-}
 .avatar.nobody {
   background: transparent;
   color: var(--muted);
@@ -1244,7 +1390,7 @@ button.assignee:hover .avatar.nobody {
 }
 .assignee-menu button[aria-checked='true'] {
   color: var(--accent);
-  font-weight: 650;
+  font-weight: 500;
 }
 .assignee-menu .name {
   overflow: hidden;
@@ -1293,15 +1439,6 @@ progress::-moz-progress-bar {
   margin-left: -7px;
   font-size: 0.83rem;
 }
-/* Deleting is available on every board card, so it stays quiet until it is wanted. */
-.lane.column .card-actions button.link {
-  color: var(--muted);
-  font-weight: 500;
-}
-.lane.column .card-actions button.link:hover:not(:disabled) {
-  color: var(--error);
-  background: var(--error-soft);
-}
 .card-actions select {
   font-size: 0.83rem;
   padding: 2px 4px;
@@ -1334,33 +1471,16 @@ progress::-moz-progress-bar {
 .add-item button {
   padding: 6px 11px;
 }
-.column-footer {
-  display: grid;
-  gap: 6px;
-  margin-top: auto;
-}
-.column-footer > button.link {
-  width: 100%;
-  padding: 6px;
-  border: 1px dashed transparent;
-  color: var(--muted);
-  text-align: left;
-}
-.column-footer > button.link:hover:not(:disabled) {
-  color: var(--accent);
-  border-color: var(--accent-line);
-}
+/* Column administration lives in the column's action menu. */
 .column-admin {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 2px;
-  flex-wrap: wrap;
   font-size: 0.8rem;
-  opacity: 0.55;
-  transition: opacity 0.12s;
 }
-.lane:hover .column-admin,
-.column-admin:focus-within {
-  opacity: 1;
+.column-admin > button {
+  text-align: left;
 }
 .column-admin button.link {
   font-size: 0.8rem;
@@ -1368,6 +1488,81 @@ progress::-moz-progress-bar {
 }
 .column-admin button.link:hover:not(:disabled) {
   color: var(--accent);
+}
+
+/* Action menus: a quiet trigger and a popover in the top layer, so lanes never clip it. */
+.action-trigger {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}
+/* Beside a card title, the trigger and the arrow centre on the title's first line. */
+.card-head .action-trigger {
+  margin: -5px -6px -5px 0;
+}
+.action-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: max-content;
+  min-width: 176px;
+  max-width: min(260px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  padding: 8px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+}
+.action-popover > button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  box-shadow: none;
+}
+.action-popover > button > span {
+  display: inline-block;
+  width: 1.4em;
+  color: var(--muted);
+}
+.menu-field {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 8px 6px 2px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.action-popover .add-item {
+  flex-wrap: wrap;
+}
+.action-popover .add-item input {
+  flex-basis: 100%;
+}
+@media (pointer: coarse) {
+  .action-trigger,
+  .lane-toggle {
+    min-width: 36px;
+    min-height: 44px;
+  }
+  .card-head .action-trigger {
+    margin-block: -12px;
+  }
+  .assignee {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 /* Workboard header and scope */
@@ -1383,11 +1578,27 @@ progress::-moz-progress-bar {
   margin: 0 0 8px;
   font-size: 1.5rem;
 }
+/* The action menu sits in the corner; an open confirmation takes a row of its own instead. */
+.board-header:not(:has(.confirm)) {
+  position: relative;
+  padding-right: 42px;
+}
+.board-header:not(:has(.confirm)) > .row {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
 .board-counts {
   display: flex;
-  gap: 6px;
+  gap: 8px 16px;
   flex-wrap: wrap;
   margin: 0;
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .board-counts > span:first-child {
+    display: none;
+  }
 }
 .title-edit {
   font: inherit;
@@ -1432,7 +1643,7 @@ progress::-moz-progress-bar {
 }
 .scope-chips {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
@@ -1442,12 +1653,12 @@ progress::-moz-progress-bar {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 11px;
+  padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   background: var(--bg);
   box-shadow: none;
-  font-size: 0.9rem;
+  font-size: 12px;
   max-width: 260px;
 }
 .scope-toggle:hover:not(:disabled) {
@@ -1461,7 +1672,7 @@ progress::-moz-progress-bar {
   opacity: 0.7;
 }
 .scope-title {
-  font-weight: 600;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1478,73 +1689,71 @@ progress::-moz-progress-bar {
 .scope-details p {
   margin: 0;
 }
+/* What the Director can do about the scope right now; it stays in sight. */
+.scope-guidance {
+  font-size: 12px;
+  color: var(--muted);
+}
+.scope-guidance strong {
+  color: var(--fg);
+  font-weight: 500;
+}
 
 /* ---------------------------------------------------------------------------------------------
    Breakdown, items, and tasks
    --------------------------------------------------------------------------------------------- */
 .breakdown-layout {
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
-  align-items: start;
-}
-@media (max-width: 800px) {
-  .breakdown-layout {
-    grid-template-columns: 1fr;
-  }
 }
 .item-nav {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 8px;
-  position: sticky;
-  top: calc(var(--topbar-h) + 16px);
-  max-height: calc(100vh - var(--topbar-h) - 32px);
-  overflow-y: auto;
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding: 0 0 8px;
 }
-@media (max-width: 800px) {
-  .item-nav {
-    position: static;
-    max-height: 240px;
-  }
+.item-nav section {
+  flex: none;
 }
 .item-nav h4 {
-  margin: 12px 8px 4px;
-  font-size: 0.72rem;
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
-}
-.item-nav section:first-child h4 {
-  margin-top: 6px;
 }
 .item-nav ul {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: flex;
+  gap: 6px;
 }
 .item-nav a {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
   color: inherit;
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 12px;
 }
 .item-nav a:hover {
   background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 .item-nav a.active {
+  border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 500;
 }
 .item-nav-title {
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1560,27 +1769,76 @@ progress::-moz-progress-bar {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  font-size: 12px;
 }
+.item-intro {
+  margin-bottom: 24px;
+}
+.description-text {
+  max-width: 80ch;
+  color: var(--muted);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.breakdown-tasks > h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.breakdown-tasks > h2 span {
+  margin-left: 8px;
+}
+.breakdown-tasks > h2 + p {
+  max-width: 80ch;
+  margin: 0 0 16px;
+}
+/* Task groups are lanes: the same head, stub, and cards as the Backlog and the Workboard. */
 .task-groups {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 14px;
+  align-items: flex-start;
+}
+.task-groups > .task-group {
+  flex: 1 0 248px;
+}
+.task-groups > .task-group.collapsed {
+  flex: 0 0 44px;
+  min-width: 44px;
+  min-height: 200px;
+  padding: 0;
 }
 .task-group {
   min-width: 0;
-  background: var(--sunken);
   border-radius: var(--r-md);
   padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
-.task-group h3 {
-  margin: 2px 4px;
-  font-size: 0.87rem;
-  display: flex;
-  justify-content: space-between;
+/* On a phone the groups stack, and a collapsed one lies down as a row. */
+@media (max-width: 560px) {
+  .task-groups {
+    flex-direction: column;
+    overflow: visible;
+  }
+  .task-groups > .task-group,
+  .task-groups > .task-group.collapsed {
+    flex: none;
+    width: 100%;
+  }
+  .task-groups > .task-group.collapsed {
+    min-height: 44px;
+  }
+  .task-group .lane-stub {
+    flex-direction: row;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+  .task-group .lane-stub-title {
+    writing-mode: horizontal-tb;
+  }
 }
 .task-list {
   list-style: none;
@@ -1589,27 +1847,131 @@ progress::-moz-progress-bar {
   display: grid;
   gap: 6px;
 }
-.task-list li {
+.task-list > li {
   min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  display: grid;
-  gap: 5px;
+  padding: 11px 12px 12px;
+}
+.task-list .cover {
+  max-height: 140px;
+  margin-top: -11px;
+}
+.task-list > li .badge {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .task-list li.archived {
   opacity: 0.6;
   box-shadow: none;
 }
-.task-title {
-  font-weight: 600;
-  color: inherit;
-  text-decoration: none;
+
+/* Item and task pages: the text on the left, properties and resources in a side column. */
+.task-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 32px;
+  align-items: start;
+  margin: 24px 0;
 }
-.task-title:hover {
-  color: var(--accent);
+.task-copy {
+  min-width: 0;
+}
+.task-copy .form {
+  max-width: none;
+}
+.task-properties {
+  border-left: 1px solid var(--border);
+  padding-left: 24px;
+}
+.editor-actions {
+  margin-top: 16px;
+}
+.detail-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 32px;
+  align-items: start;
+  margin-top: 24px;
+}
+.detail-bottom > div {
+  min-width: 0;
+}
+.detail-bottom .panel {
+  margin: 0;
+  padding: 16px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+.detail-resources {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 24px;
+}
+.detail-resources .form {
+  max-width: 100%;
+}
+.detail-resources input,
+.detail-resources select {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .task-editor {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .task-properties {
+    border-left: 0;
+    padding-left: 0;
+    grid-template-columns: 1fr 1fr;
+  }
+  .task-properties label {
+    min-width: 0;
+  }
+  .detail-bottom {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .detail-resources {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+.resource-section summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+.resource-section summary::-webkit-details-marker {
+  display: none;
+}
+.resource-section summary::before {
+  content: '›';
+  width: 8px;
+  color: var(--muted);
+}
+.resource-section[open] summary::before {
+  content: '⌄';
+}
+.resource-section summary .count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.resource-content {
+  padding-top: 16px;
+}
+.resource-disclosure {
+  margin-top: 20px;
+  background: transparent;
+}
+.resource-disclosure summary {
+  cursor: pointer;
+  color: var(--muted);
 }
 
 /* Lists inside panels */

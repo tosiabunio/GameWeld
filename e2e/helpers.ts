@@ -35,6 +35,13 @@ export async function activateFromBacklog(page: Page, title: string) {
   await page.getByRole('link', { name: 'Workboard' }).click();
 }
 
+/** Links, Attachments, and Dependencies start closed while they are empty. */
+export async function openResource(page: Page, title: 'Links' | 'Attachments' | 'Dependencies') {
+  const panel = page.getByTestId(`resource-${title.toLowerCase()}`);
+  if (!(await panel.evaluate((details: HTMLDetailsElement) => details.open)))
+    await panel.locator('summary').click();
+}
+
 /** A 1×1 PNG, small enough to inline. */
 export const TINY_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';

@@ -8,10 +8,12 @@ export function Shell({
   children,
   title,
   nav,
+  actions,
 }: {
   children: ReactNode;
   title?: ReactNode;
   nav?: ReactNode;
+  actions?: ReactNode;
 }) {
   const user = useCurrentUser();
   const { signOut } = useSession();
@@ -27,6 +29,7 @@ export function Shell({
         </div>
         {nav}
         <div className="user">
+          {actions}
           <Link to="/profile" className="me" title="Your profile and picture">
             <Avatar name={user.displayName} url={user.avatarUrl} />
             <span data-testid="current-user">{user.displayName}</span>
