@@ -3,7 +3,7 @@ import { CATEGORY_LABELS, STATE_LABELS, TASK_CATEGORY_LABELS, todoKindFor } from
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
-import { Avatar } from '../components/Brand.tsx';
+import { AssigneePicker } from '../components/AssigneePicker.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { History } from '../components/History.tsx';
@@ -556,16 +556,22 @@ function Columns({
             >
               {card.title}
             </Link>
-            {card.assignee && (
-              <span
-                className="assignee"
-                title={`Assigned to ${card.assignee.displayName}`}
-                data-testid="card-assignee"
-              >
-                <Avatar name={card.assignee.displayName} size={24} />
-                <span className="sr-only">Assigned to {card.assignee.displayName}</span>
-              </span>
-            )}
+            <AssigneePicker
+              assignee={card.assignee}
+              people={project.members}
+              taskTitle={card.title}
+              onAssign={
+                canWork
+                  ? (assigneeId) =>
+                      onChange(async () => {
+                        await api.updateTask(project.id, card.id, {
+                          version: card.version,
+                          assigneeId,
+                        });
+                      })
+                  : undefined
+              }
+            />
           </div>
           <div className="card-meta">
             <span className={`chip cat-${card.category}`}>

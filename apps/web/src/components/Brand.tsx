@@ -69,3 +69,16 @@ export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
     </span>
   );
 }
+
+/** Stands in for an avatar where nobody is assigned. */
+export function NobodyAvatar({ size = 28 }: { size?: number }) {
+  return (
+    <span
+      className="avatar nobody"
+      aria-hidden="true"
+      style={{ width: size, height: size, fontSize: size * 0.5 }}
+    >
+      ?
+    </span>
+  );
+}

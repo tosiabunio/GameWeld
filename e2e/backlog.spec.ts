@@ -118,6 +118,28 @@ test('cards can be dragged between lanes and reordered within a lane', async ({ 
   );
 });
 
+test('buttons inside a draggable card answer Enter and Space', async ({ page }) => {
+  await signIn(page, 'director');
+  await page.getByRole('link', { name: 'New project' }).click();
+  await page.getByLabel('Name').fill('Keyboard project');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: 'Backlog' }).click();
+  const must = page.getByTestId('lane-must');
+  for (const title of ['Alpha', 'Beta']) {
+    await must.getByLabel('New item in Must Have').fill(title);
+    await must.getByRole('button', { name: 'Add' }).click();
+    await expect(must.getByTestId('item-card').filter({ hasText: title })).toBeVisible();
+  }
+
+  // The keys press the button; they must not pick up the card around it.
+  await page.getByRole('button', { name: 'Move Alpha down' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(must.getByTestId('item-card').nth(0)).toContainText('Beta');
+  await page.getByRole('button', { name: 'Move Alpha up' }).focus();
+  await page.keyboard.press('Space');
+  await expect(must.getByTestId('item-card').nth(0)).toContainText('Alpha');
+});
+
 test('a Director activates an item straight from its Backlog card', async ({ page }) => {
   await signIn(page, 'director');
   await page.getByRole('link', { name: 'Demo project' }).click();

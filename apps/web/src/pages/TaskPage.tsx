@@ -96,11 +96,15 @@ export function TaskPage() {
         </WritingPrompt>
       )}
       <TaskForm
+        key={task.id}
         task={task}
         readOnly={!editable}
         members={project.members}
         onSave={(input) =>
           run(() => api.updateTask(project.id, task.id, { version: task.version, ...input }))
+        }
+        onAssign={(assigneeId) =>
+          run(() => api.updateTask(project.id, task.id, { version: task.version, assigneeId }))
         }
       />
 
@@ -209,6 +213,7 @@ function TaskForm({
   readOnly,
   members,
   onSave,
+  onAssign,
 }: {
   task: TaskDetail;
   readOnly: boolean;
@@ -217,31 +222,48 @@ function TaskForm({
     title: string;
     description: string;
     category: TaskCategory;
-    assigneeId: string | null;
   }) => Promise<boolean>;
+  /** Assignment applies on its own, the moment a person is picked. */
+  onAssign: (assigneeId: string | null) => Promise<boolean>;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [category, setCategory] = useState<TaskCategory>(task.category);
   const [assigneeId, setAssigneeId] = useState<string | null>(task.assignee?.id ?? null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [assigned, setAssigned] = useState<string | null>(null);
 
-  useEffect(() => {
-    setTitle(task.title);
-    setDescription(task.description);
-    setCategory(task.category);
-    setAssigneeId(task.assignee?.id ?? null);
-  }, [task]);
+  // Take each field from the server only when it changed there, so assigning someone does not
+  // wipe a title or description that is still being written.
+  useEffect(() => setTitle(task.title), [task.title]);
+  useEffect(() => setDescription(task.description), [task.description]);
+  useEffect(() => setCategory(task.category), [task.category]);
+  useEffect(() => setAssigneeId(task.assignee?.id ?? null), [task.assignee?.id]);
 
   const dirty =
-    title !== task.title ||
-    description !== task.description ||
-    category !== task.category ||
-    assigneeId !== (task.assignee?.id ?? null);
+    title !== task.title || description !== task.description || category !== task.category;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setSaved(await onSave({ title: title.trim(), description, category, assigneeId }));
+    setSaving(true);
+    setSaved(await onSave({ title: title.trim(), description, category }));
+    setSaving(false);
+  }
+
+  async function assign(next: string | null) {
+    setAssigneeId(next);
+    setAssigned(null);
+    setAssigning(true);
+    const ok = await onAssign(next);
+    setAssigning(false);
+    if (!ok) {
+      setAssigneeId(task.assignee?.id ?? null);
+      return;
+    }
+    const name = members.find((m) => m.userId === next)?.displayName;
+    setAssigned(name ? `Assigned to ${name}.` : 'Unassigned.');
   }
 
   return (
@@ -256,7 +278,7 @@ function TaskForm({
           maxLength={500}
         />
       </label>
-      <div className="row">
+      <div className="row fields">
         <label>
           Category
           <select
@@ -280,8 +302,9 @@ function TaskForm({
           Assignee
           <select
             value={assigneeId ?? ''}
-            onChange={(e) => setAssigneeId(e.target.value || null)}
-            disabled={readOnly}
+            onChange={(e) => void assign(e.target.value || null)}
+            // Each write carries the task's version, so the two never race each other.
+            disabled={readOnly || assigning || saving}
           >
             <option value="">Unassigned</option>
             {members.map((m) => (
@@ -290,6 +313,15 @@ function TaskForm({
               </option>
             ))}
           </select>
+          {assigning ? (
+            <span className="hint">Saving…</span>
+          ) : (
+            assigned && (
+              <span className="hint ok" role="status">
+                {assigned}
+              </span>
+            )
+          )}
         </label>
       </div>
       <label>
@@ -306,7 +338,11 @@ function TaskForm({
       </label>
       {!readOnly && (
         <div className="row">
-          <button type="submit" className="primary" disabled={!dirty || title.trim() === ''}>
+          <button
+            type="submit"
+            className="primary"
+            disabled={!dirty || title.trim() === '' || assigning || saving}
+          >
             Save
           </button>
           {saved && !dirty && <span className="ok">Saved.</span>}

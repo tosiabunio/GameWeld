@@ -158,6 +158,9 @@ p.error {
   color: var(--muted);
   font-size: 0.87rem;
 }
+.hint.ok {
+  color: var(--ok);
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -174,6 +177,10 @@ p.error {
 }
 .row.between {
   justify-content: space-between;
+}
+/* Side-by-side fields line up by their labels, whatever sits beneath each control. */
+.row.fields {
+  align-items: flex-start;
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -1023,6 +1030,89 @@ ul.project-grid {
   display: inline-flex;
   margin-top: -2px;
   border-radius: 50%;
+}
+button.assignee {
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  cursor: pointer;
+  touch-action: auto;
+}
+button.assignee:hover:not(:disabled) {
+  background: none;
+}
+button.assignee .avatar {
+  transition: box-shadow 0.12s;
+}
+button.assignee:hover .avatar,
+button.assignee:focus-visible .avatar {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent-line);
+}
+button.assignee:focus-visible {
+  outline: none;
+}
+button.assignee[aria-expanded='true'] .avatar {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent-solid);
+}
+button.assignee.busy {
+  opacity: 0.5;
+}
+.avatar.nobody {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px dashed var(--border-strong);
+}
+button.assignee:hover .avatar.nobody {
+  color: var(--accent);
+  border-color: var(--accent-solid);
+}
+.assignee-menu {
+  position: fixed;
+  z-index: 50;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+}
+.assignee-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  box-shadow: none;
+  font-weight: 500;
+  text-align: left;
+}
+.assignee-menu button:hover:not(:disabled),
+.assignee-menu button:focus-visible {
+  outline: none;
+  background: var(--accent-soft);
+}
+.assignee-menu button[aria-checked='true'] {
+  color: var(--accent);
+  font-weight: 650;
+}
+.assignee-menu .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.assignee-menu .check {
+  margin-left: auto;
 }
 .task-progress {
   display: inline-flex;

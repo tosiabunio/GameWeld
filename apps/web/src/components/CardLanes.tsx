@@ -277,10 +277,21 @@ function Card({
   onFiles?: ((files: File[]) => void) | undefined;
   children: ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id,
-    disabled,
-  });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled });
+  // The card itself is the drag handle. Without naming it, dnd-kit takes Enter and Space from any
+  // button inside the card as the start of a keyboard drag and swallows the button's click.
+  const ref = (node: HTMLLIElement | null) => {
+    setNodeRef(node);
+    setActivatorNodeRef(node);
+  };
   // Native file drags are separate from dnd-kit's pointer drags. Entering a child fires
   // dragenter before the parent's dragleave, so a depth count keeps the highlight steady.
   const depth = useRef(0);
@@ -312,7 +323,7 @@ function Card({
   };
   return (
     <li
-      ref={setNodeRef}
+      ref={ref}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={`card${isDragging ? ' dragging' : ''}${disabled ? '' : ' draggable'}${fileOver ? ' file-over' : ''}`}
       data-testid="item-card"

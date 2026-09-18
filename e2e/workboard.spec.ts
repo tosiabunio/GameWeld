@@ -237,39 +237,85 @@ test('an image dropped on a Workboard card becomes the task cover', async ({ pag
   await expect(card.locator('img.cover')).toHaveCount(0);
 });
 
-test('an assigned task shows its assignee as an avatar on the Workboard card', async ({ page }) => {
+test('every Workboard card shows its assignee, and the avatar picks a new one', async ({
+  page,
+}) => {
   await signIn(page, 'director');
   await createProjectWithItems(page, 'Assignee project');
+  await page.getByRole('link', { name: 'Settings' }).click();
+  const add = page.getByRole('form', { name: 'Add member' });
+  await add.getByLabel('Email').fill('developer@gameweld.local');
+  await add.getByRole('button', { name: 'Add member' }).click();
+  await expect(page.getByTestId('member-developer@gameweld.local')).toBeVisible();
   await page.getByRole('link', { name: 'Workboard' }).click();
   await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
   await page.getByRole('button', { name: 'Create Workboard' }).click();
   await activateFromBacklog(page, 'Ranged enemy');
 
+  // Unassigned cards show a "?" in the assignee's place.
   const card = page.getByTestId('item-card').filter({ hasText: 'Targeting' });
-  await expect(card).toBeVisible();
-  await expect(card.getByTestId('card-assignee')).toHaveCount(0);
-
-  await card.getByRole('link', { name: 'Targeting' }).click();
-  await page.getByLabel('Assignee').selectOption({ label: 'Dana Director' });
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Saved.')).toBeVisible();
-  await page.getByRole('link', { name: '← Workboard' }).click();
-
-  const assignee = card.getByTestId('card-assignee');
-  await expect(assignee).toHaveAttribute('title', 'Assigned to Dana Director');
-  await expect(assignee.locator('.avatar')).toHaveText('DD');
-  await expect(assignee).toContainText('Assigned to Dana Director');
+  const avatar = card.getByTestId('card-assignee');
+  await expect(avatar).toHaveAccessibleName('Assignee of Targeting: nobody');
+  await expect(avatar).toHaveText('?');
   // It shares the title's first line instead of adding a row to the card.
   const [avatarBox, titleBox] = [
-    await assignee.boundingBox(),
+    await avatar.boundingBox(),
     await card.getByRole('link', { name: 'Targeting' }).boundingBox(),
   ];
   expect(Math.abs(avatarBox!.y - titleBox!.y)).toBeLessThan(8);
-  // Unassigned cards show no avatar.
+
+  // One click lists the members; one more assigns.
+  await avatar.click();
+  const menu = page.getByRole('menu', { name: 'Assign Targeting' });
+  const choices = menu.getByRole('menuitemradio');
+  await expect(choices).toHaveCount(3);
+  for (const [i, name] of ['Unassigned', 'Dana Director', 'Devin Developer'].entries())
+    await expect(choices.nth(i)).toHaveAccessibleName(name);
+  await expect(menu.getByRole('menuitemradio', { checked: true })).toHaveAccessibleName(
+    'Unassigned',
+  );
+  await menu.getByRole('menuitemradio', { name: 'Devin Developer' }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(avatar).toHaveAccessibleName('Assignee of Targeting: Devin Developer');
+  await expect(avatar).toHaveText('DD');
   await expect(
     page
       .getByTestId('item-card')
       .filter({ hasText: 'Attack animation' })
       .getByTestId('card-assignee'),
-  ).toHaveCount(0);
+  ).toHaveText('?');
+
+  // The keyboard works too: the menu opens on the current choice, arrows move, Escape closes.
+  await avatar.focus();
+  await page.keyboard.press('Enter');
+  await expect(menu.getByRole('menuitemradio', { name: 'Devin Developer' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(avatar).toBeFocused();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowUp');
+  await expect(menu.getByRole('menuitemradio', { name: 'Dana Director' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(avatar).toHaveAccessibleName('Assignee of Targeting: Dana Director');
+
+  // A click outside dismisses without a change, and picking Unassigned clears the card.
+  await avatar.click();
+  await page.getByRole('heading', { name: 'Sprint 1' }).click();
+  await expect(menu).toHaveCount(0);
+  await avatar.click();
+  await menu.getByRole('menuitemradio', { name: 'Unassigned' }).click();
+  await expect(avatar).toHaveAccessibleName('Assignee of Targeting: nobody');
+
+  // The task page assigns the moment a person is picked, and keeps unsaved text.
+  await card.getByRole('link', { name: 'Targeting' }).click();
+  await page.getByLabel('Description').fill('Lead the target by its speed.');
+  await page.getByLabel('Assignee').selectOption({ label: 'Dana Director' });
+  await expect(page.getByRole('status')).toHaveText('Assigned to Dana Director.');
+  await expect(page.getByLabel('Description')).toHaveValue('Lead the target by its speed.');
+  await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
+  await page.reload();
+  await expect(page.getByLabel('Assignee').locator('option:checked')).toHaveText('Dana Director');
+  await expect(page.getByLabel('Description')).toHaveValue('');
+  await page.getByRole('link', { name: '← Workboard' }).click();
+  await expect(avatar).toHaveAccessibleName('Assignee of Targeting: Dana Director');
 });
