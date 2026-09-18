@@ -4,6 +4,11 @@ GameWeld runs on an OVH VPS under [Dokploy](https://dokploy.com), which manages 
 the database, and HTTPS through Traefik. Every green build of `main` publishes an image to the
 GitHub Container Registry and asks Dokploy to roll it out.
 
+gameweld.eu is a development and demonstration instance for showing GameWeld to prospective
+users, not production. Its data is sample data that can be rebuilt, so it has no backups yet;
+[backup-plan.md](backup-plan.md) describes what to set up before it holds data worth keeping.
+(Dokploy calls its default environment "production"; that is only the name.)
+
 ## Server
 
 | | |
