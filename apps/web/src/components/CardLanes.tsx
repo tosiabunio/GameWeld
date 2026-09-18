@@ -10,15 +10,20 @@ import {
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
+  type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from 'react';
 
 /**
  * Generic lanes of draggable cards, shared by the Backlog (items) and later the Workboard (tasks).
@@ -82,9 +87,59 @@ export function CardLanes<T extends { id: string }>({
     setLocal(Object.fromEntries(lanes.map((l) => [l.id, l.items])));
   }, [lanes, activeId]);
 
+  // The keyboard sensor keeps the options it had when the drag began, so the coordinate getter
+  // reads the lanes through a ref rather than from a stale closure.
+  const layout = useRef({ lanes, local, canDrop });
+  useLayoutEffect(() => {
+    layout.current = { lanes, local, canDrop };
+  });
+
+  /**
+   * Keyboard moves that follow the lanes. dnd-kit's sortable getter picks the nearest target
+   * "to the right" by comparing left edges, and a card in the same lane can sit a subpixel to the
+   * right of the dragged one, so Right moved cards up their own lane instead of across. Here Up
+   * and Down step within the lane, and Left and Right jump to the next lane that accepts the
+   * card, landing above its first card.
+   */
+  const laneKeyboardCoordinates: KeyboardCoordinateGetter = useCallback((event, { context }) => {
+    const step = { ArrowDown: 1, ArrowUp: -1, ArrowRight: 1, ArrowLeft: -1 }[event.code];
+    const { active, over, collisionRect, droppableRects } = context;
+    if (step === undefined || !active || !collisionRect) return undefined;
+    event.preventDefault();
+    const { lanes, local, canDrop } = layout.current;
+    const activeId = String(active.id);
+    const from = Object.keys(local).find((id) => local[id]!.some((i) => i.id === activeId));
+    if (!from) return undefined;
+
+    if (event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+      // The card's slot is the card it is over; items only reorder in state on drop.
+      const items = local[from]!;
+      const start = items.findIndex((i) => i.id === activeId);
+      const at = items.findIndex((i) => i.id === over?.id);
+      let next = (at === -1 ? start : at) + step;
+      if (items[next]?.id === activeId) next += step;
+      const target = items[next];
+      const rect = target && droppableRects.get(target.id);
+      if (!rect) return undefined;
+      // Moving down aligns bottoms, as dnd-kit does, so cards of different heights still land.
+      return { x: rect.left, y: next > start ? rect.bottom - collisionRect.height : rect.top };
+    }
+
+    const dragged = local[from]!.find((i) => i.id === activeId)!;
+    const order = lanes.map((l) => l.id);
+    for (let i = order.indexOf(from) + step; i >= 0 && i < order.length; i += step) {
+      const lane = lanes[i]!;
+      if (!lane.droppable || (canDrop && !canDrop(dragged, lane.id))) continue;
+      const first = local[lane.id]?.[0];
+      const rect = droppableRects.get(first ? first.id : lane.id);
+      if (rect) return { x: rect.left, y: rect.top };
+    }
+    return undefined;
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: laneKeyboardCoordinates }),
   );
 
   const byId = useMemo(() => {

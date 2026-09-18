@@ -3,6 +3,7 @@ import {
   activateFromBacklog,
   dropFile,
   expectCoverFrame,
+  pressAndSettle,
   signIn,
   switchPersona,
   TINY_PNG,
@@ -318,4 +319,33 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
   await expect(page.getByLabel('Description')).toHaveValue('');
   await page.getByRole('link', { name: '← Workboard' }).click();
   await expect(avatar).toHaveAccessibleName('Assignee of Targeting: Dana Director');
+});
+
+test('a card moves across the board by keyboard, skipping columns it cannot enter', async ({
+  page,
+}) => {
+  await signIn(page, 'director');
+  await createProjectWithItems(page, 'Keyboard board');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+  await page.getByRole('form', { name: 'Create Workboard' }).getByLabel('Name').fill('Sprint 1');
+  await page.getByRole('button', { name: 'Create Workboard' }).click();
+  await activateFromBacklog(page, 'Ranged enemy');
+  const code = page.getByRole('region', { name: 'To Do · Code' });
+  const done = page.getByRole('region', { name: 'Done' });
+  await expect(code.getByTestId('item-card')).toHaveText([/Targeting/]);
+
+  // One Right passes the Assets and Content To Do columns, which only take their own tasks.
+  await code.getByTestId('item-card').filter({ hasText: 'Targeting' }).focus();
+  for (const key of ['Space', 'ArrowRight', 'Space']) await pressAndSettle(page, key);
+  await expect(done.getByTestId('item-card')).toHaveText([/Targeting/]);
+  await expect(code.getByTestId('item-card')).toHaveCount(0);
+
+  // And one Left brings it back to its own To Do column.
+  await done.getByTestId('item-card').filter({ hasText: 'Targeting' }).focus();
+  for (const key of ['Space', 'ArrowLeft', 'Space']) await pressAndSettle(page, key);
+  await expect(code.getByTestId('item-card')).toHaveText([/Targeting/]);
+  await page.reload();
+  await expect(
+    page.getByRole('region', { name: 'To Do · Code' }).getByTestId('item-card'),
+  ).toHaveText([/Targeting/]);
 });

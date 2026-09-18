@@ -69,3 +69,15 @@ export async function expectCoverFrame(card: Locator) {
   expect(Math.abs(coverBox!.width - cardBox!.width)).toBeLessThanOrEqual(2);
   expect(coverBox!.width / coverBox!.height).toBeCloseTo(16 / 9, 1);
 }
+
+/**
+ * Presses a key and lets two frames pass, so dnd-kit can measure and apply a keyboard drag step
+ * before the next key arrives. A key in the very frame a card is picked up has nothing measured
+ * to move to yet.
+ */
+export async function pressAndSettle(page: Page, key: string) {
+  await page.keyboard.press(key);
+  await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
+}

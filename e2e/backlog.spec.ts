@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { dropFile, expectCoverFrame, signIn, TINY_PNG } from './helpers.ts';
+import { dropFile, expectCoverFrame, pressAndSettle, signIn, TINY_PNG } from './helpers.ts';
 
 test('Section 15: a Director creates a vague item, reorders it, and edits its description', async ({
   page,
@@ -116,6 +116,54 @@ test('cards can be dragged between lanes and reordered within a lane', async ({ 
   await expect(page.getByTestId('lane-must').getByTestId('item-card').nth(0)).toContainText(
     'Gamma',
   );
+});
+
+test('cards move within and across lanes with the keyboard', async ({ page }) => {
+  await signIn(page, 'director');
+  await page.getByRole('link', { name: 'New project' }).click();
+  await page.getByLabel('Name').fill('Keyboard lanes');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: 'Backlog' }).click();
+  const must = page.getByTestId('lane-must');
+  const should = page.getByTestId('lane-should');
+  const card = (title: string) => page.getByTestId('item-card').filter({ hasText: title });
+  for (const title of ['Alpha', 'Beta', 'Gamma']) {
+    await must.getByLabel('New item in Must Have').fill(title);
+    await must.getByRole('button', { name: 'Add' }).click();
+    await expect(card(title)).toBeVisible();
+  }
+  async function move(title: string, ...keys: string[]) {
+    await card(title).focus();
+    for (const key of ['Space', ...keys]) await pressAndSettle(page, key);
+  }
+
+  // Space picks a card up, arrows step it through its lane, Space drops it.
+  await move('Alpha', 'ArrowDown', 'ArrowDown', 'Space');
+  await expect(must.getByTestId('item-card')).toHaveText([/Beta/, /Gamma/, /Alpha/]);
+  await move('Alpha', 'ArrowUp', 'Space');
+  await expect(must.getByTestId('item-card')).toHaveText([/Beta/, /Alpha/, /Gamma/]);
+
+  // Right carries a card to the next lane, even an empty one, and never along its own lane.
+  await move('Beta', 'ArrowRight', 'Space');
+  await expect(should.getByTestId('item-card')).toHaveText([/Beta/]);
+  await expect(must.getByTestId('item-card')).toHaveText([/Alpha/, /Gamma/]);
+  // Entering a lane that has cards lands on top of them.
+  await move('Gamma', 'ArrowRight', 'Space');
+  await expect(should.getByTestId('item-card')).toHaveText([/Gamma/, /Beta/]);
+
+  // Escape abandons a move, even one that crossed lanes on the way.
+  await move('Alpha', 'ArrowRight', 'ArrowRight', 'Escape');
+  await expect(must.getByTestId('item-card')).toHaveText([/Alpha/]);
+
+  // Left brings a card back, and every drop was saved.
+  await move('Beta', 'ArrowLeft', 'Space');
+  await expect(must.getByTestId('item-card')).toHaveText([/Beta/, /Alpha/]);
+  await page.reload();
+  await expect(page.getByTestId('lane-must').getByTestId('item-card')).toHaveText([
+    /Beta/,
+    /Alpha/,
+  ]);
+  await expect(page.getByTestId('lane-should').getByTestId('item-card')).toHaveText([/Gamma/]);
 });
 
 test('buttons inside a draggable card answer Enter and Space', async ({ page }) => {
