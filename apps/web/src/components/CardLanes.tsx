@@ -25,6 +25,7 @@ import {
   type DragEvent,
   type ReactNode,
 } from 'react';
+import { useDisplayOptions } from '../displayOptions.ts';
 
 /**
  * Generic lanes of draggable cards, shared by the Backlog (items) and later the Workboard (tasks).
@@ -116,7 +117,33 @@ export function CardLanes<T extends { id: string }>({
   testIdPrefix = 'lane',
   collapseKey,
 }: CardLanesProps<T>) {
-  const [collapsed, toggleLane] = useCollapsedLanes(collapseKey);
+  const [chosen, toggleChosen] = useCollapsedLanes(collapseKey);
+  const { collapseEmpty } = useDisplayOptions();
+  // With "Collapse empty columns" on, a lane without cards is a stub until it gets one, unless
+  // the viewer opened it during this visit, for instance to type a new card into it. Emptiness
+  // follows the loaded lanes, not a drag in progress, so lanes do not fold under the pointer.
+  const [opened, setOpened] = useState<Set<string>>(new Set());
+  const emptyLanes = lanes
+    .filter((lane) => lane.items.length === 0)
+    .map((lane) => lane.id)
+    .join('\n');
+  const collapsed = useMemo(() => {
+    if (!collapseEmpty || emptyLanes === '') return chosen;
+    const all = new Set(chosen);
+    for (const id of emptyLanes.split('\n')) if (!opened.has(id)) all.add(id);
+    return all;
+  }, [chosen, collapseEmpty, emptyLanes, opened]);
+  const toggleLane = (laneId: string) => {
+    if (!collapseEmpty || !emptyLanes.split('\n').includes(laneId)) return toggleChosen(laneId);
+    // An empty lane: opening it overrides both reasons it may be shut; closing it hands it back.
+    if (collapsed.has(laneId) && chosen.has(laneId)) toggleChosen(laneId);
+    setOpened((was) => {
+      const next = new Set(was);
+      if (collapsed.has(laneId)) next.add(laneId);
+      else next.delete(laneId);
+      return next;
+    });
+  };
   const [local, setLocal] = useState<Record<string, T[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
   const laneStrip = useRef<HTMLDivElement>(null);

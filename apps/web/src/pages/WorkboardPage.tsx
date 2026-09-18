@@ -7,6 +7,7 @@ import { ActionMenu } from '../components/ActionMenu.tsx';
 import { AssigneePicker } from '../components/AssigneePicker.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
+import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { History } from '../components/History.tsx';
 import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { useProject } from './ProjectPage.tsx';
@@ -250,59 +251,56 @@ function BoardHeader({
           )}
         </p>
       </div>
-      {canManage && (
-        <div className="row">
-          {!archiving && (
-            <ActionMenu label="Workboard actions">
-              {!renaming && board.state === 'active' && (
-                <button
-                  type="button"
-                  data-close-menu
-                  onClick={() => {
-                    setName(board.name);
-                    setRenaming(true);
-                  }}
-                >
-                  Rename
-                </button>
-              )}
-              <button type="button" data-close-menu onClick={() => setArchiving(true)}>
-                Archive Workboard
-              </button>
-            </ActionMenu>
-          )}
-          {archiving && (
-            <div className="confirm" role="group" aria-label="Archive Workboard">
-              <p>
-                {c.unfinishedTasks > 0
-                  ? `${c.unfinishedTasks} unfinished task${c.unfinishedTasks === 1 ? '' : 's'} will return to Breakdown. Nothing is marked complete.`
-                  : 'The board becomes read-only history.'}
-              </p>
-              {c.pendingRequests > 0 && (
-                <p>
-                  Pending placement requests will be rejected with the note “Workboard archived”.
-                </p>
-              )}
+      <div className="row">
+        <DisplayMenu />
+        {canManage && !archiving && (
+          <ActionMenu label="Workboard actions">
+            {!renaming && board.state === 'active' && (
               <button
                 type="button"
-                className="primary"
-                onClick={() =>
-                  void onSaved(() =>
-                    api.archiveBoard(project.id, board.id, { returnUnfinished: true }),
-                  ).then((ok) => {
-                    if (ok) void onArchived();
-                  })
-                }
+                data-close-menu
+                onClick={() => {
+                  setName(board.name);
+                  setRenaming(true);
+                }}
               >
-                {c.unfinishedTasks > 0 ? 'Return tasks and archive' : 'Archive'}
+                Rename
               </button>
-              <button type="button" onClick={() => setArchiving(false)}>
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+            <button type="button" data-close-menu onClick={() => setArchiving(true)}>
+              Archive Workboard
+            </button>
+          </ActionMenu>
+        )}
+        {canManage && archiving && (
+          <div className="confirm" role="group" aria-label="Archive Workboard">
+            <p>
+              {c.unfinishedTasks > 0
+                ? `${c.unfinishedTasks} unfinished task${c.unfinishedTasks === 1 ? '' : 's'} will return to Breakdown. Nothing is marked complete.`
+                : 'The board becomes read-only history.'}
+            </p>
+            {c.pendingRequests > 0 && (
+              <p>Pending placement requests will be rejected with the note “Workboard archived”.</p>
+            )}
+            <button
+              type="button"
+              className="primary"
+              onClick={() =>
+                void onSaved(() =>
+                  api.archiveBoard(project.id, board.id, { returnUnfinished: true }),
+                ).then((ok) => {
+                  if (ok) void onArchived();
+                })
+              }
+            >
+              {c.unfinishedTasks > 0 ? 'Return tasks and archive' : 'Archive'}
+            </button>
+            <button type="button" onClick={() => setArchiving(false)}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
     </header>
   );
 }

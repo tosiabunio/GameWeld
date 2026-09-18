@@ -1,7 +1,18 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 /** Native popovers escape scrolling lanes and supply outside-click and Escape dismissal. */
-export function ActionMenu({ label, children }: { label: string; children: ReactNode }) {
+export function ActionMenu({
+  label,
+  children,
+  triggerContent,
+  triggerClassName = 'action-trigger',
+}: {
+  label: string;
+  children: ReactNode;
+  /** What the trigger shows instead of the three dots, with the class that styles it. */
+  triggerContent?: ReactNode;
+  triggerClassName?: string;
+}) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const popover = useRef<HTMLDivElement>(null);
@@ -45,18 +56,20 @@ export function ActionMenu({ label, children }: { label: string; children: React
       <button
         ref={trigger}
         type="button"
-        className="action-trigger"
+        className={triggerClassName}
         aria-label={label}
         aria-expanded={open}
         aria-controls={id}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={toggle}
       >
-        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-          <circle cx="3" cy="8" r="1.3" fill="currentColor" />
-          <circle cx="8" cy="8" r="1.3" fill="currentColor" />
-          <circle cx="13" cy="8" r="1.3" fill="currentColor" />
-        </svg>
+        {triggerContent ?? (
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <circle cx="3" cy="8" r="1.3" fill="currentColor" />
+            <circle cx="8" cy="8" r="1.3" fill="currentColor" />
+            <circle cx="13" cy="8" r="1.3" fill="currentColor" />
+          </svg>
+        )}
       </button>
       <div
         id={id}

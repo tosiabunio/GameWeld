@@ -12,6 +12,7 @@ import { api, ApiError } from '../api.ts';
 import { ActionMenu } from '../components/ActionMenu.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
+import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { useProject } from './ProjectPage.tsx';
 
 const isCategory = (lane: string): lane is MoscowCategory =>
@@ -121,12 +122,16 @@ export function BacklogPage() {
 
   return (
     <div data-testid="backlog">
-      <header className="page-head">
-        <p className="eyebrow">Production scope</p>
-        <h1>Backlog</h1>
-        <p className="muted small">
-          {items.length} items · {items.filter((item) => item.activeBoard).length} on the Workboard
-        </p>
+      <header className="page-head row between">
+        <div>
+          <p className="eyebrow">Production scope</p>
+          <h1>Backlog</h1>
+          <p className="muted small">
+            {items.length} items · {items.filter((item) => item.activeBoard).length} on the
+            Workboard
+          </p>
+        </div>
+        <DisplayMenu />
       </header>
       {error && (
         <p className="error" role="alert">

@@ -629,6 +629,11 @@ input[type='file']::file-selector-button:hover {
 .page-head .small {
   margin-top: 8px;
 }
+/* A page head that carries a control keeps it level with the eyebrow. */
+.page-head.row {
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
 .eyebrow {
   margin: 0 0 7px;
   color: var(--muted);
@@ -1493,6 +1498,35 @@ progress::-moz-progress-bar {
   background: var(--sunken);
   border-radius: calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
 }
+/* "Small cover images": the cover is a thumbnail at the card's right edge instead of a banner.
+   The card becomes two columns. The thumbnail stands beside the title and the line under it;
+   rows that own the card's corners or need its width (the footer, a confirmation) span both. On a
+   Backlog card the row under the title is such a footer, so there the thumbnail keeps to the
+   title's row. */
+[data-small-covers] .card:has(> .cover) {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  column-gap: 10px;
+}
+[data-small-covers] .card > .cover {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  width: 44px;
+  height: 44px;
+  max-height: none;
+  aspect-ratio: auto;
+  margin: 0;
+  border-radius: var(--r-sm);
+}
+[data-small-covers] .card:has(> .card-foot) > .cover {
+  grid-row: 1;
+}
+[data-small-covers] .card:has(> .cover) > :not(.cover) {
+  grid-column: 1;
+}
+[data-small-covers] .card:has(> .cover) > :is(.confirm, .card-bottom, .card-foot) {
+  grid-column: 1 / -1;
+}
 .add-item {
   display: flex;
   gap: 6px;
@@ -1570,6 +1604,37 @@ progress::-moz-progress-bar {
   width: 1.4em;
   color: var(--muted);
 }
+/* The Display menu: a labelled trigger, and options that stay open while they are ticked. */
+.display-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .display-trigger span {
+    display: none;
+  }
+}
+.menu-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+.menu-check:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+.menu-note {
+  margin: 6px 0 0;
+  padding: 8px 8px 2px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
 .menu-field {
   display: grid;
   gap: 4px;
@@ -1616,7 +1681,12 @@ progress::-moz-progress-bar {
 /* The action menu sits in the corner; an open confirmation takes a row of its own instead. */
 .board-header:not(:has(.confirm)) {
   position: relative;
-  padding-right: 42px;
+  padding-right: 140px;
+}
+@media (max-width: 560px) {
+  .board-header:not(:has(.confirm)) {
+    padding-right: 84px;
+  }
 }
 .board-header:not(:has(.confirm)) > .row {
   position: absolute;
