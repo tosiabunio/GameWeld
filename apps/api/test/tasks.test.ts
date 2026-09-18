@@ -332,13 +332,36 @@ describe('tasks and breakdown', () => {
     expect(back.completed).toBe(false);
     expect(back.placement).toMatchObject({ columnName: 'To Do · Code', inDone: false });
 
-    // A placed, unfinished task cannot be archived away from the board.
+    // Deletion removes an unfinished task from the board and completion checks.
     const archive = await t.app.inject({
       method: 'PATCH',
       url: `/api/projects/${demo}/tasks/${targeting}`,
       headers: { cookie: director },
       payload: { version: back.version, archived: true },
     });
-    expect(archive.statusCode).toBe(409);
+    expect(archive.statusCode).toBe(200);
+    expect(archive.json()).toMatchObject({ archived: true, completed: false, placement: null });
+    const history = await t.db.query(
+      'SELECT is_current, removed_reason, last_column_id FROM task_placements WHERE task_id = $1',
+      [targeting],
+    );
+    expect(history.rows).toContainEqual({
+      is_current: false,
+      removed_reason: 'task deleted',
+      last_column_id: back.placement!.columnId,
+    });
+    // Restoring an unfinished task under an in-scope item puts it straight back in To Do.
+    const restored = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/projects/${demo}/tasks/${targeting}`,
+      headers: { cookie: director },
+      payload: { version: archive.json().version, archived: false },
+    });
+    expect(restored.statusCode).toBe(200);
+    expect(restored.json()).toMatchObject({
+      archived: false,
+      completed: false,
+      placement: { boardId: back.placement!.boardId, columnName: 'To Do · Code' },
+    });
   });
 });

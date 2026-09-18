@@ -238,8 +238,8 @@ export function Breakdown({
       {archivedCount > 0 && (
         <button type="button" className="link" onClick={() => setShowArchived((v) => !v)}>
           {showArchived
-            ? 'Hide archived tasks'
-            : `Show ${archivedCount} archived task${archivedCount === 1 ? '' : 's'}`}
+            ? 'Hide deleted tasks'
+            : `Show ${archivedCount} deleted task${archivedCount === 1 ? '' : 's'}`}
         </button>
       )}
     </div>

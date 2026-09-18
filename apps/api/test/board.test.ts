@@ -201,7 +201,7 @@ describe('workboard', () => {
     tasks['Arena light'] = card.id;
   });
 
-  it('D8 (revised): a task created under an in-scope item is placed at once; returned tasks come back by hand', async () => {
+  it('D8 (revised): tasks created under in-scope items are placed at once and cannot be individually unplaced', async () => {
     const created = await t.app.inject({
       method: 'POST',
       url: `/api/projects/${projectId}/backlog/${items['Ranged enemy']}/tasks`,
@@ -214,23 +214,11 @@ describe('workboard', () => {
     expect((await post(`${boards()}/${boardId}/placements`, { taskId }, tester)).statusCode).toBe(
       409,
     );
-    // Returned to Breakdown, it stays unplaced until someone adds it again.
     expect(
       (await post(`${boards()}/${boardId}/placements/${taskId}/return`, undefined, tester))
         .statusCode,
-    ).toBe(200);
-    expect(
-      (
-        await t.app.inject({
-          method: 'GET',
-          url: `/api/projects/${projectId}/tasks/${taskId}`,
-          headers: { cookie: tester },
-        })
-      ).json().placement,
-    ).toBeNull();
-    const placed = await post(`${boards()}/${boardId}/placements`, { taskId }, tester);
-    expect(placed.statusCode).toBe(201);
-    expect(cardTitles(placed.json(), 'todo_assets')).toContain('Death animation');
+    ).toBe(404);
+    expect(cardTitles(await board(), 'todo_assets')).toContain('Death animation');
     // A task under an item outside scope stays unplaced; placing it needs a Director.
     const outsideTask = (
       await t.app.inject({
@@ -353,30 +341,6 @@ describe('workboard', () => {
       false,
     );
     expect(b.scope.find((s) => s.title === 'Ranged enemy')?.state).toBe('open');
-    // Completed cards cannot be "returned"; unfinished ones can, and come back unplaced.
-    const finished = b.cards[done]![0]!;
-    expect(
-      (await post(`${boards()}/${boardId}/placements/${finished.id}/return`, undefined, developer))
-        .statusCode,
-    ).toBe(409);
-    const returned = await post(
-      `${boards()}/${boardId}/placements/${targeting.id}/return`,
-      undefined,
-      developer,
-    );
-    expect(returned.statusCode).toBe(200);
-    const task = (
-      await t.app.inject({
-        method: 'GET',
-        url: `/api/projects/${projectId}/tasks/${targeting.id}`,
-        headers: { cookie: developer },
-      })
-    ).json();
-    expect(task.placement).toBeNull();
-    expect(
-      (await post(`${boards()}/${boardId}/placements`, { taskId: targeting.id }, developer))
-        .statusCode,
-    ).toBe(201);
   });
 
   it('Section 15 "Done restriction is enabled": Developers cannot enter or leave Done, Testers can', async () => {

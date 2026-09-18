@@ -2,7 +2,7 @@ import type { Task } from '@gameweld/domain';
 
 /** Section 7: each task shows whether it is unplaced, on a Workboard, or complete. */
 export function TaskStatus({ task }: { task: Task }) {
-  if (task.archived) return <span className="badge warn">Archived</span>;
+  if (task.archived) return <span className="badge warn">Deleted</span>;
   if (task.completed) return <span className="badge done">Complete</span>;
   if (task.placement) {
     return (

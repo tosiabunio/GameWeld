@@ -275,8 +275,4 @@ export const api = {
       `/api/projects/${projectId}/boards/${boardId}/requests/${requestId}/${verb}`,
       json('POST', input),
     ),
-  returnTask: (projectId: string, boardId: string, taskId: string) =>
-    request<BoardView>(`/api/projects/${projectId}/boards/${boardId}/placements/${taskId}/return`, {
-      method: 'POST',
-    }),
 };

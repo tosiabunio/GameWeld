@@ -94,24 +94,35 @@ test('Director creates a board, activates the next item, hits the limit, renames
     .click();
   await expect(page.getByRole('heading', { name: /Milestone 1/ })).toBeVisible();
 
-  // Return to Breakdown asks first, then says where the task went.
-  await page
-    .getByRole('button', { name: 'Return Attack animation to Breakdown', exact: true })
-    .click();
-  await page
-    .getByRole('group', { name: 'Confirm returning Attack animation' })
-    .getByRole('button', { name: 'Return' })
-    .click();
+  // Deleting a task removes it from the board and the item's active breakdown.
+  await expect(page.getByRole('button', { name: /Return .* to Breakdown/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Delete Attack animation', exact: true }).click();
+  const confirmation = page.getByRole('group', { name: 'Confirm deleting Attack animation' });
+  await confirmation.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByTestId('item-card').filter({ hasText: 'Attack animation' })).toHaveCount(
+    1,
+  );
+  await page.getByRole('button', { name: 'Delete Attack animation', exact: true }).click();
+  await confirmation.getByRole('button', { name: 'Delete task' }).click();
   await expect(page.getByTestId('board-notice')).toContainText(
-    '“Attack animation” returned to Breakdown.',
+    '“Attack animation” deleted from “Ranged enemy”.',
   );
   await expect(page.getByTestId('item-card').filter({ hasText: 'Attack animation' })).toHaveCount(
     0,
   );
-  await page.getByTestId('board-notice').getByRole('link', { name: 'Open Ranged enemy' }).click();
-  await expect(page.getByTestId('tasks-assets').getByTestId('task-row').first()).toContainText(
-    'Unplaced',
+  await expect(page.getByTestId('board-counts')).toContainText('0/1 tasks done');
+  await page.getByTestId('board-notice').getByRole('link', { name: 'View deleted task' }).click();
+  await expect(page.getByText('Deleted', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '← Ranged enemy' }).click();
+  await expect(page.getByTestId('tasks-assets').getByTestId('task-row')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show 1 deleted task', exact: true }).click();
+  await page.getByRole('link', { name: 'Attack animation', exact: true }).click();
+  await page.getByRole('button', { name: 'Restore task' }).click();
+  await page.getByRole('link', { name: 'Workboard', exact: true }).click();
+  await expect(page.getByTestId('item-card').filter({ hasText: 'Attack animation' })).toHaveCount(
+    1,
   );
+  await expect(page.getByTestId('board-counts')).toContainText('0/2 tasks done');
 });
 
 test('Developer creates cards: default parent with one item in scope, choice with several', async ({
@@ -138,6 +149,10 @@ test('Developer creates cards: default parent with one item in scope, choice wit
   await page.getByRole('button', { name: 'Switch persona' }).click();
   await page.getByTestId('persona-developer').click();
   await page.goto(url);
+
+  await expect(
+    page.getByRole('button', { name: /^Delete (Targeting|Attack animation)$/ }),
+  ).toHaveCount(0);
 
   // One item in scope: the parent is preselected.
   const codeColumn = page.locator('[data-testid^="column-"]').nth(0);

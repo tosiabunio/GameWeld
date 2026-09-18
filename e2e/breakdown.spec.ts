@@ -44,7 +44,7 @@ test('a Developer breaks an item down into tasks and edits one', async ({ page }
   );
 });
 
-test('a placed task shows its board and column; a Director sees archive and reparent actions', async ({
+test('a placed task shows its board and column; a Director sees delete and reparent actions', async ({
   page,
 }) => {
   await signIn(page, 'director');
@@ -55,5 +55,5 @@ test('a placed task shows its board and column; a Director sees archive and repa
   await row.getByRole('link', { name: 'Targeting' }).click();
   await expect(page.getByLabel('Category')).toBeDisabled();
   await expect(page.getByRole('heading', { name: 'Game Director actions' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Archive task' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete task' })).toBeVisible();
 });

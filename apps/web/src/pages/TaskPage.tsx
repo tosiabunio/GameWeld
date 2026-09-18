@@ -24,6 +24,7 @@ export function TaskPage() {
   const canWork = project.permissions['task.work'];
   const canDirect = project.permissions['backlog.manage'];
   const canComplete = project.permissions['task.complete'];
+  const [deleting, setDeleting] = useState(false);
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +38,7 @@ export function TaskPage() {
   }, [project.id, taskId]);
 
   useEffect(() => {
+    setDeleting(false);
     void reload();
   }, [reload]);
 
@@ -159,12 +161,16 @@ export function TaskPage() {
           />
           <p className="muted">
             {task.archived
-              ? 'This task is archived and excluded from its item’s completion check.'
-              : 'Archiving removes the task from completion checks without counting it as done. A task on a Workboard must be returned or finished first.'}
+              ? 'This task is deleted and excluded from its item’s completion check. Restoring an unfinished task adds it back to the active Workboard when its item is in scope.'
+              : 'Deleting removes the task from the Workboard and its item’s completion checks without counting it as done. History is kept and the task can be restored.'}
           </p>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              if (!task.archived && !deleting) {
+                setDeleting(true);
+                return;
+              }
               void run(() =>
                 api.updateTask(project.id, task.id, {
                   version: task.version,
@@ -175,11 +181,16 @@ export function TaskPage() {
                   ok &&
                   !task.archived &&
                   navigate(`/projects/${project.id}/breakdown/${task.item.id}`),
-              )
-            }
+              );
+            }}
           >
-            {task.archived ? 'Restore task' : 'Archive task'}
+            {task.archived ? 'Restore task' : deleting ? 'Confirm deletion' : 'Delete task'}
           </button>
+          {deleting && !task.archived && (
+            <button type="button" onClick={() => setDeleting(false)}>
+              Cancel
+            </button>
+          )}
         </section>
       )}
     </article>
@@ -247,7 +258,7 @@ function TaskForm({
             disabled={readOnly || task.placement !== null}
             title={
               task.placement
-                ? 'Return the task from the Workboard before changing its category'
+                ? 'Category cannot be changed while the task is on a Workboard'
                 : undefined
             }
           >

@@ -481,11 +481,6 @@ describe('collaboration and history (Phase 7)', () => {
     }); // reparenting
     expect(moved.statusCode).toBe(200);
     await t.app.inject({
-      method: 'POST',
-      url: p(`/boards/${boardId}/placements/${exceptionTask}/return`),
-      headers: { cookie: developer },
-    });
-    await t.app.inject({
       method: 'PATCH',
       url: p(`/tasks/${exceptionTask}`),
       headers: { cookie: director },

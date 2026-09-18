@@ -99,7 +99,7 @@ This table is the source of truth for permissions. Other sections describe behav
 - Developers can create and edit tasks under existing backlog items. This does not give them authority to activate an item on a Workboard.
 - Developers can add tasks to a Workboard when the parent item is already in that board's scope.
 - Directors manage boards, project settings, and membership in the MVP.
-- Task removal is an archive operation available to Directors, with an audit record.
+- Task removal is available to Directors as **Delete task**, with confirmation and an audit record. Internally it is a reversible archive operation: it closes the current placement, hides the task from the active Breakdown, and excludes it from completion checks without marking it complete. Pending placement requests are rejected. Deleted tasks remain accessible through “Show deleted tasks” and can be restored. Restoring an unfinished task whose item is in the active Workboard scope places it directly in its category’s To Do column.
 - Users may comment on and move unassigned tasks; assignment does not create exclusive editing rights.
 
 ### Completion permissions
@@ -173,7 +173,7 @@ It can be opened from a Backlog card or from the list of scoped backlog items on
 
 Optional writing prompts may suggest a desired result or acceptance method. They are dismissible guidance, not required form fields.
 
-**Confirmed (revised 16 September 2026):** creating a task in Breakdown under an item that is in the active Workboard's scope places the task in its category's To Do column immediately. Tasks whose item is outside the scope stay unplaced; a task that was returned to Breakdown stays unplaced until “Add to Workboard” is used. The item can therefore still contain planned work that is not currently placed on the execution board.
+**Confirmed (revised 16 September 2026):** creating a task in Breakdown under an item that is in the active Workboard's scope places the task in its category's To Do column immediately. Tasks whose item is outside the scope stay unplaced. **Revised 18 September 2026:** individual cards have no “Return to Breakdown” action. A placed task is worked through to completion or deleted from its Backlog Item. Returning unfinished tasks to Breakdown remains part of removing a whole item from scope or archiving a Workboard; such tasks can later be added to a Workboard again.
 
 ## 8. Workboard behavior
 

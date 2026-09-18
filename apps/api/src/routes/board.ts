@@ -883,32 +883,6 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     });
     return view(req, boardId);
   });
-
-  app.post(`${base}/:boardId/placements/:taskId/return`, projectRoute('task.work'), async (req) => {
-    const { boardId, taskId } = req.params as { boardId: string; taskId: string };
-    const projectId = req.access!.project.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
-      const task = await fetchTask(tx, projectId, taskId);
-      if (!task?.placement || task.placement.boardId !== boardId)
-        throw notFound('The task is not on this Workboard.');
-      if (task.completed)
-        throw conflict(
-          'Completed tasks stay in Done. Reopen the task first if it needs more work.',
-        );
-      await returnTask(tx, taskId, 'returned to Breakdown');
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'task.returned',
-        entityType: 'task',
-        entityId: taskId,
-        previous: { columnId: task.placement.columnId },
-      });
-    });
-    return view(req, boardId);
-  });
 };
 
 /** Rank for an intermediate column between two others (or at the end, just before Done). */

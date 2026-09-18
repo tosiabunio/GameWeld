@@ -13,7 +13,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
-import { placeTask } from '../services/placement.ts';
+import { placeTask, returnTask } from '../services/placement.ts';
 import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
 
 const uuid = z.string().uuid();
@@ -333,9 +333,20 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     if (archived !== undefined) requireDirector(req, 'archive or restore a task');
 
     await withTransaction(db, async (tx) => {
+      // Serialize deletion/restoration with placement, moves, scope changes and archival.
+      const boards = await tx.query<{ id: string; state: string }>(
+        `SELECT w.id, w.state FROM workboards w WHERE w.project_id = $1
+           AND (w.state = 'active' OR EXISTS (
+             SELECT 1 FROM task_placements p WHERE p.board_id = w.id AND p.task_id = $2 AND p.is_current
+           )) ORDER BY w.id FOR UPDATE OF w`,
+        [projectId, taskId],
+      );
       await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
       const current = await fetchTask(tx, projectId, taskId);
       if (!current) throw notFound('Task not found');
+      if (current.placement && !boards.rows.some((b) => b.id === current.placement!.boardId)) {
+        throw conflict('The task’s Workboard changed. Reload and try again.');
+      }
       if (current.version !== version) {
         throw conflict('The task was changed by someone else. Reload and try again.', {
           currentVersion: current.version,
@@ -346,10 +357,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         fields.category !== current.category &&
         current.placement
       ) {
-        throw conflict('Return the task from the Workboard before changing its category.');
-      }
-      if (archived === true && !current.archived && current.placement && !current.completed) {
-        throw conflict('Return or finish the task on the Workboard before archiving it.');
+        throw conflict('Category cannot be changed while the task is on a Workboard.');
       }
       if (assigneeId) await assertMember(tx, projectId, assigneeId);
       if (newItemId !== undefined && newItemId !== current.itemId) {
@@ -369,6 +377,50 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         item_id: newItemId ?? current.itemId,
         archived_at: archived === undefined ? current.archived : archived,
       };
+      if (archived === true && !current.archived) {
+        await returnTask(tx, taskId, 'task deleted');
+        const rejected = await tx.query<{ id: string; board_id: string }>(
+          `UPDATE work_requests SET status = 'rejected', decided_by = $2, decided_at = now(),
+             decision_note = 'Task deleted', version = version + 1
+           WHERE task_id = $1 AND status = 'pending' RETURNING id, board_id`,
+          [taskId, actorId],
+        );
+        for (const request of rejected.rows) {
+          await recordActivity(tx, {
+            projectId,
+            actorId,
+            action: 'request.rejected',
+            entityType: 'work_request',
+            entityId: request.id,
+            next: { boardId: request.board_id, taskId, note: 'Task deleted' },
+          });
+        }
+      }
+      if (archived === false && current.archived) {
+        const parent = await tx.query<{ archived_at: Date | null }>(
+          'SELECT archived_at FROM backlog_items WHERE id = $1 FOR UPDATE',
+          [next.item_id],
+        );
+        if (parent.rows[0]?.archived_at) throw conflict('Restore the backlog item first.');
+        const active = boards.rows.find((b) => b.state === 'active');
+        if (active && !current.completed && !current.placement) {
+          const scope = await tx.query(
+            'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
+            [active.id, next.item_id],
+          );
+          if (scope.rowCount) {
+            await placeTask(tx, active.id, { id: taskId, category: next.category }, actorId, false);
+            await recordActivity(tx, {
+              projectId,
+              actorId,
+              action: 'task.placed',
+              entityType: 'task',
+              entityId: taskId,
+              next: { boardId: active.id, reason: 'restored under an item in scope' },
+            });
+          }
+        }
+      }
       await tx.query(
         `UPDATE tasks SET title = $2, description = $3, category = $4, assignee_id = $5, item_id = $6,
                           archived_at = CASE WHEN $7::boolean THEN coalesce(archived_at, now()) ELSE NULL END,
@@ -404,6 +456,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           assigneeId: current.assignee?.id ?? null,
           itemId: current.itemId,
           archived: current.archived,
+          placement: current.placement,
         },
         next: {
           title: next.title,

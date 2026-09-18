@@ -471,9 +471,10 @@ function Columns({
   onNotice: (notice: { text: string; link?: { to: string; label: string } } | null) => void;
 }) {
   const { project } = useProject();
-  const [returning, setReturning] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const canWork = project.permissions['task.work'] && board.state === 'active';
   const canComplete = project.permissions['task.complete'];
+  const canDelete = project.permissions['backlog.manage'] && board.state === 'active';
   const canManage = project.permissions['board.manage'] && board.state === 'active';
   const columnById = useMemo(() => new Map(board.columns.map((c) => [c.id, c])), [board.columns]);
 
@@ -531,48 +532,54 @@ function Columns({
             {card.outOfScope && <span className="badge warn">Out of scope</span>}
             {card.assignee && <span>{card.assignee.displayName}</span>}
           </div>
-          {canWork && !card.completed && returning !== card.id && (
+          {canDelete && deleting !== card.id && (
             <div className="card-actions">
               <button
                 type="button"
                 className="link"
-                onClick={() => setReturning(card.id)}
-                aria-label={`Return ${card.title} to Breakdown`}
+                onClick={() => setDeleting(card.id)}
+                aria-label={`Delete ${card.title}`}
               >
-                Return to Breakdown
+                Delete task
               </button>
             </div>
           )}
-          {returning === card.id && (
+          {deleting === card.id && (
             <div
               className="confirm small"
               role="group"
-              aria-label={`Confirm returning ${card.title}`}
+              aria-label={`Confirm deleting ${card.title}`}
             >
               <p>
-                Leaves the board and shows as Unplaced in the item's Breakdown. Nothing is lost.
+                Delete this task from “{card.itemTitle}”? It will leave the Workboard and no longer
+                count toward the item’s completion. Its history is kept, and you can restore it.
               </p>
               <button
                 type="button"
                 className="primary"
                 onClick={() =>
-                  void onChange(() => api.returnTask(project.id, board.id, card.id)).then((ok) => {
-                    setReturning(null);
+                  void onChange(async () => {
+                    await api.updateTask(project.id, card.id, {
+                      version: card.version,
+                      archived: true,
+                    });
+                  }).then((ok) => {
                     if (ok) {
+                      setDeleting(null);
                       onNotice({
-                        text: `“${card.title}” returned to Breakdown.`,
+                        text: `“${card.title}” deleted from “${card.itemTitle}”.`,
                         link: {
-                          to: `/projects/${project.id}/breakdown/${card.itemId}`,
-                          label: `Open ${card.itemTitle}`,
+                          to: `/projects/${project.id}/tasks/${card.id}`,
+                          label: 'View deleted task',
                         },
                       });
                     }
                   })
                 }
               >
-                Return
+                Delete task
               </button>
-              <button type="button" onClick={() => setReturning(null)}>
+              <button type="button" onClick={() => setDeleting(null)}>
                 Cancel
               </button>
             </div>
