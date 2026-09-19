@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useParams } from 'react-router';
 import { BacklogPage } from './pages/BacklogPage.tsx';
 import { BreakdownPage } from './pages/BreakdownPage.tsx';
+import { MyTasksPage } from './pages/MyTasksPage.tsx';
 import { NewProjectPage } from './pages/NewProjectPage.tsx';
 import { ProjectPage } from './pages/ProjectPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
@@ -22,6 +23,7 @@ export function App() {
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/projects/:projectId" element={<ProjectPage />}>
         <Route index element={<Navigate to="backlog" replace />} />
+        <Route path="my-tasks" element={<MyTasksPage />} />
         <Route path="backlog" element={<BacklogPage />} />
         <Route path="backlog/:itemId" element={<RedirectToBreakdown />} />
         <Route path="breakdown" element={<BreakdownPage />} />

@@ -18,10 +18,11 @@ import { WritingPrompt } from '../components/WritingPrompt.tsx';
 import { useProject } from './ProjectPage.tsx';
 
 export function TaskPage() {
-  const { project } = useProject();
+  const { project, refreshMyTasks } = useProject();
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
-  const fromBoard = (useLocation().state as { from?: string } | null)?.from === 'board';
+  const from = (useLocation().state as { from?: string } | null)?.from;
+  const fromBoard = from === 'board';
   const canWork = project.permissions['task.work'];
   const canDirect = project.permissions['backlog.manage'];
   const canComplete = project.permissions['task.complete'];
@@ -53,6 +54,9 @@ export function TaskPage() {
       if (e instanceof ApiError && e.status === 409) await reload();
       setError(e instanceof ApiError ? e.message : 'Something went wrong');
       return false;
+    } finally {
+      // Assigning, finishing, or deleting the task changes whose "My tasks" it is on.
+      void refreshMyTasks();
     }
   }
 
@@ -63,9 +67,13 @@ export function TaskPage() {
   return (
     <article className="item-page task-page">
       <p>
-        {fromBoard ? (
+        {fromBoard || from === 'my-tasks' ? (
           <>
-            <Link to={`/projects/${project.id}/board`}>← Workboard</Link>
+            {fromBoard ? (
+              <Link to={`/projects/${project.id}/board`}>← Workboard</Link>
+            ) : (
+              <Link to={`/projects/${project.id}/my-tasks`}>← My tasks</Link>
+            )}
             <span className="muted"> · </span>
             <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>{task.item.title}</Link>
           </>

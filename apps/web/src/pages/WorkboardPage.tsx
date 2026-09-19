@@ -13,7 +13,7 @@ import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { useProject } from './ProjectPage.tsx';
 
 export function WorkboardPage() {
-  const { project, reload: reloadProject } = useProject();
+  const { project, reload: reloadProject, refreshMyTasks } = useProject();
   const canManage = project.permissions['board.manage'];
   const [board, setBoard] = useState<BoardView | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +43,9 @@ export function WorkboardPage() {
       setError(e instanceof ApiError ? e.message : 'Something went wrong');
       await reload();
       return false;
+    } finally {
+      // Assigning, finishing, or deleting a card changes whose "My tasks" it is on.
+      void refreshMyTasks();
     }
   }
 

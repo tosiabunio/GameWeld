@@ -1,8 +1,11 @@
 import { setDisplayOption, useDisplayOptions } from '../displayOptions.ts';
 import { ActionMenu } from './ActionMenu.tsx';
 
-/** This viewer's display options for lanes and cards, kept in this browser. */
-export function DisplayMenu() {
+/**
+ * This viewer's display options for lanes and cards, kept in this browser. A page of cards
+ * without lanes leaves the lane option out.
+ */
+export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
   const options = useDisplayOptions();
   return (
     <ActionMenu
@@ -28,14 +31,16 @@ export function DisplayMenu() {
         </>
       }
     >
-      <label className="menu-check">
-        <input
-          type="checkbox"
-          checked={options.collapseEmpty}
-          onChange={(event) => setDisplayOption('collapseEmpty', event.target.checked)}
-        />
-        Collapse empty columns
-      </label>
+      {lanes && (
+        <label className="menu-check">
+          <input
+            type="checkbox"
+            checked={options.collapseEmpty}
+            onChange={(event) => setDisplayOption('collapseEmpty', event.target.checked)}
+          />
+          Collapse empty columns
+        </label>
+      )}
       <label className="menu-check">
         <input
           type="checkbox"

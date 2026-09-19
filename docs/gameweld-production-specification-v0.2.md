@@ -305,6 +305,7 @@ Defer task-level dependency graphs and automatic scheduling. A shared task has o
 | Screen | Primary purpose |
 | --- | --- |
 | Project selection | Open or create a project and see accessible projects. |
+| My tasks | The viewer's unfinished tasks in the project as one free board of cards, read left to right and then down, in an order the viewer sets by dragging. The order is personal: it moves no task and nobody else sees it. Tasks not yet ordered follow the ordered ones, oldest first. The section is first in the navigation and shows only while the viewer has such tasks. |
 | Backlog | Define, prioritize, inspect, review, and accept backlog items. |
 | Breakdown | Inspect one item's description and its three task categories. |
 | Workboard | Execute tasks, view current item scope, and identify out-of-scope work. |

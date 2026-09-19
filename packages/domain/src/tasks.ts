@@ -51,6 +51,18 @@ export interface TaskDetail extends Task {
   links: { id: string; url: string; label: string }[];
 }
 
+/** A card on "My tasks": an unfinished task assigned to the viewer, with its parent item. */
+export interface MyTask extends Task {
+  itemTitle: string;
+  itemCategory: MoscowCategory;
+}
+
+/** Where the viewer puts a task in their own order; neither neighbour means the end. */
+export interface MoveMyTaskInput {
+  afterId?: string | null;
+  beforeId?: string | null;
+}
+
 export interface CreateTaskInput {
   category: TaskCategory;
   title: string;

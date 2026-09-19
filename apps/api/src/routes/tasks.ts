@@ -38,7 +38,7 @@ const updateSchema = z.object({
   coverAttachmentId: uuid.nullable().optional(),
 });
 
-interface TaskRow {
+export interface TaskRow {
   id: string;
   project_id: string;
   item_id: string;
@@ -67,7 +67,7 @@ interface TaskRow {
   request_requester_id: string | null;
 }
 
-const taskSelect = `
+export const taskSelect = `
   SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
          u.display_name AS assignee_name, u.avatar_id AS assignee_avatar_id, t.completed, t.completed_at, t.archived_at, t.version,
          t.created_at, t.updated_at, t.cover_attachment_id,
@@ -82,7 +82,7 @@ const taskSelect = `
     LEFT JOIN work_requests r ON r.task_id = t.id AND r.status = 'pending'
     LEFT JOIN workboards rw ON rw.id = r.board_id`;
 
-function toTask(r: TaskRow): Task {
+export function toTask(r: TaskRow): Task {
   return {
     id: r.id,
     projectId: r.project_id,
@@ -494,6 +494,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           next.cover_attachment_id,
         ],
       );
+      // A task that changes hands starts unordered on its new assignee's "My tasks".
+      if (next.assignee_id !== (current.assignee?.id ?? null))
+        await tx.query('DELETE FROM my_task_ranks WHERE task_id = $1', [taskId]);
       const action =
         newItemId !== undefined && newItemId !== current.itemId
           ? 'task.reparented'

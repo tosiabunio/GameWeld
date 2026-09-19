@@ -20,7 +20,7 @@ export function ItemBreakdown({
   itemId: string;
   onChanged: () => Promise<void>;
 }) {
-  const { project } = useProject();
+  const { project, refreshMyTasks } = useProject();
   const navigate = useNavigate();
   const canManage = project.permissions['backlog.manage'];
   const [item, setItem] = useState<BacklogItemDetail | null>(null);
@@ -38,7 +38,8 @@ export function ItemBreakdown({
   const changed = useCallback(async () => {
     await reload();
     await onChanged();
-  }, [reload, onChanged]);
+    void refreshMyTasks();
+  }, [reload, onChanged, refreshMyTasks]);
 
   useEffect(() => {
     void reload();

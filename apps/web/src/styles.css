@@ -1665,6 +1665,30 @@ progress::-moz-progress-bar {
   }
 }
 
+/* My tasks: a free board. Cards run left to right, then down, in the viewer's own order. */
+.free-board {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 12px;
+  /* Each card keeps its own height, so a cover on one does not stretch its row's neighbours. */
+  align-items: start;
+}
+/* The card's place in the order, where the lanes' cards show who does the work. */
+.my-task-order {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 /* Workboard header and scope */
 .board-header {
   display: flex;

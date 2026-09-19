@@ -14,6 +14,7 @@ import { backlogRoutes } from './routes/backlog.ts';
 import { collabRoutes } from './routes/collab.ts';
 import { boardRoutes } from './routes/board.ts';
 import { memberRoutes } from './routes/members.ts';
+import { myTaskRoutes } from './routes/myTasks.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { requestRoutes } from './routes/requests.ts';
 import { taskRoutes } from './routes/tasks.ts';
@@ -75,6 +76,7 @@ export async function buildApp(
   await app.register(avatarRoutes, { prefix: '/api' });
   await app.register(backlogRoutes, { prefix: '/api' });
   await app.register(taskRoutes, { prefix: '/api' });
+  await app.register(myTaskRoutes, { prefix: '/api' });
   await app.register(boardRoutes, { prefix: '/api' });
   await app.register(acceptanceRoutes, { prefix: '/api' });
   await app.register(requestRoutes, { prefix: '/api' });

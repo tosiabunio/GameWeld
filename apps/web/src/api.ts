@@ -22,6 +22,8 @@ import type {
   DecideRequestInput,
   WorkRequest,
   MovePlacementInput,
+  MoveMyTaskInput,
+  MyTask,
   RemoveScopeInput,
   UpdateBoardInput,
   UpdateColumnInput,
@@ -170,6 +172,11 @@ export const api = {
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/complete`, { method: 'POST' }),
   reopenTask: (projectId: string, taskId: string) =>
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/reopen`, { method: 'POST' }),
+
+  /** The viewer's unfinished tasks in this project, in the viewer's own order. */
+  myTasks: (projectId: string) => request<MyTask[]>(`/api/projects/${projectId}/my-tasks`),
+  moveMyTask: (projectId: string, taskId: string, input: MoveMyTaskInput) =>
+    request<MyTask[]>(`/api/projects/${projectId}/my-tasks/${taskId}/move`, json('POST', input)),
 
   activeBoard: (projectId: string) => request<BoardView | null>(`/api/projects/${projectId}/board`),
   boards: (projectId: string) => request<BoardSummary[]>(`/api/projects/${projectId}/boards`),

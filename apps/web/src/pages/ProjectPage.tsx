@@ -1,12 +1,14 @@
 import type { ProjectDetail } from '@gameweld/domain';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams } from 'react-router';
+import { NavLink, Outlet, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { Shell } from './Shell.tsx';
 
 interface ProjectContextValue {
   project: ProjectDetail;
   reload: () => Promise<void>;
+  /** Call after a change that may assign, finish, or delete a task: "My tasks" comes and goes. */
+  refreshMyTasks: () => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -39,6 +41,21 @@ export function ProjectPage() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // The "My tasks" tab exists only while the viewer has tasks. Other people assign work too, so
+  // every move between sections looks again.
+  const [hasMyTasks, setHasMyTasks] = useState(false);
+  const { pathname } = useLocation();
+  const refreshMyTasks = useCallback(async () => {
+    try {
+      setHasMyTasks((await api.myTasks(projectId!)).length > 0);
+    } catch {
+      // The tab keeps its last known state; the project's own load reports real trouble.
+    }
+  }, [projectId]);
+  useEffect(() => {
+    void refreshMyTasks();
+  }, [refreshMyTasks, pathname]);
 
   if (error) {
     return (
@@ -83,6 +100,11 @@ export function ProjectPage() {
       }
       nav={
         <nav className="tabs" aria-label="Project sections">
+          {hasMyTasks && (
+            <NavLink to="my-tasks" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+              My tasks
+            </NavLink>
+          )}
           <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
             Backlog
           </NavLink>
@@ -95,7 +117,7 @@ export function ProjectPage() {
         </nav>
       }
     >
-      <ProjectContext.Provider value={{ project, reload }}>
+      <ProjectContext.Provider value={{ project, reload, refreshMyTasks }}>
         <Outlet />
       </ProjectContext.Provider>
     </Shell>
