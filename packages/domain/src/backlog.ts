@@ -1,4 +1,5 @@
 import type { Attachment, Comment, Dependency } from './collab.ts';
+import type { TaskCategory } from './tasks.ts';
 /** Backlog vocabulary from specification Section 6. */
 
 export const MOSCOW_CATEGORIES = ['must', 'should', 'could', 'wont'] as const;
@@ -41,6 +42,11 @@ export interface TaskCounts {
   completed: number;
 }
 
+export interface TaskFacet {
+  assigneeId: string | null;
+  category: TaskCategory;
+}
+
 export interface BacklogItem {
   id: string;
   projectId: string;
@@ -52,6 +58,12 @@ export interface BacklogItem {
   archived: boolean;
   version: number;
   taskCounts: TaskCounts;
+  /**
+   * Who the item's tasks are assigned to and of what kind they are, one entry per distinct pair
+   * among its tasks that are not deleted, finished or not. The Backlog filters by them: an item
+   * has no assignee or kind of its own.
+   */
+  taskFacets: TaskFacet[];
   /** The active Workboard whose scope includes this item, if any (the "board badge"). */
   activeBoard: { id: string; name: string } | null;
   /** Attachment id of the cover image, if one is set. */

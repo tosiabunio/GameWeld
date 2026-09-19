@@ -6,12 +6,18 @@ export function ActionMenu({
   children,
   triggerContent,
   triggerClassName = 'action-trigger',
+  popoverClassName,
+  align = 'end',
 }: {
   label: string;
   children: ReactNode;
   /** What the trigger shows instead of the three dots, with the class that styles it. */
   triggerContent?: ReactNode;
   triggerClassName?: string;
+  /** For a menu that holds more than a list of actions and needs its own width. */
+  popoverClassName?: string;
+  /** Which edge of the trigger the menu lines up with; a trigger on the left wants 'start'. */
+  align?: 'start' | 'end';
 }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -46,7 +52,8 @@ export function ActionMenu({
     // `toggle` is queued by the browser; subscribe before an immediate scroll or resize.
     setOpen(true);
     const rect = button.getBoundingClientRect();
-    panel.style.left = `${Math.max(8, Math.min(rect.right - panel.offsetWidth, innerWidth - panel.offsetWidth - 8))}px`;
+    const left = align === 'start' ? rect.left : rect.right - panel.offsetWidth;
+    panel.style.left = `${Math.max(8, Math.min(left, innerWidth - panel.offsetWidth - 8))}px`;
     panel.style.top = `${Math.max(8, Math.min(rect.bottom + 6, innerHeight - panel.offsetHeight - 8))}px`;
     panel.querySelector<HTMLElement>(':is(button, select, input):enabled, a[href]')?.focus();
   }
@@ -75,7 +82,7 @@ export function ActionMenu({
         id={id}
         ref={popover}
         popover="auto"
-        className="action-popover"
+        className={`action-popover${popoverClassName ? ` ${popoverClassName}` : ''}`}
         role="group"
         aria-label={label}
         onToggle={(event) => setOpen(event.newState === 'open')}

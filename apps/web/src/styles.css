@@ -957,7 +957,7 @@ ul.project-grid {
   margin: 12px 0 0 !important;
 }
 .stats span,
-.board-counts span {
+.board-counts > span {
   padding: 2px 9px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--fg) 6%, transparent);
@@ -973,6 +973,102 @@ ul.project-grid {
 /* ---------------------------------------------------------------------------------------------
    Lanes and cards (Backlog and Workboard)
    --------------------------------------------------------------------------------------------- */
+/* Search and filters sit behind icons beside the Display menu. An icon whose filter is on is
+   marked, and the filter icon counts the filters that are on. */
+.icon-button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--r-sm);
+}
+.icon-button.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.icon-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+}
+.page-controls {
+  flex: none;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.filter-menu {
+  display: grid;
+  gap: 10px;
+  min-width: 220px;
+  padding: 6px 6px 8px;
+}
+.filter-menu label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.filter-menu select {
+  width: 100%;
+  min-height: 32px;
+  font-size: 13px;
+}
+.filter-menu select.set {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+/* The search field comes out beside its icon, in the row of controls. */
+.header-search {
+  width: 200px;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.header-search:not(:placeholder-shown) {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+/* The line above the lanes, there only while the search or a filter hides cards. */
+.card-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0 2px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+/* On a phone the field takes a line of its own under the head, with the controls at its end. */
+@media (max-width: 560px) {
+  .page-head.row:has(.header-search) {
+    flex-wrap: wrap;
+  }
+  .page-head.row:has(.header-search) .page-controls {
+    width: 100%;
+  }
+  .header-search {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .card-filters {
+    justify-content: flex-start;
+  }
+}
+
 /* A row of lanes sharing the width equally, up to the widest a lane may be: on a large window
    the lanes keep to the left and leave the rest empty. A collapsed lane shrinks to a stub. */
 .lanes {
@@ -1745,17 +1841,39 @@ progress::-moz-progress-bar {
 /* The action menu sits in the corner; an open confirmation takes a row of its own instead. */
 .board-header:not(:has(.confirm)) {
   position: relative;
-  padding-right: 140px;
+  padding-right: 216px;
 }
+.board-header:not(:has(.confirm)):has(.header-search) {
+  padding-right: 424px;
+}
+/* On a phone the controls share the line of the small label above the name, and the name gets
+   the whole width. */
 @media (max-width: 560px) {
   .board-header:not(:has(.confirm)) {
-    padding-right: 84px;
+    padding-right: 0;
+  }
+  .board-header:not(:has(.confirm)) .eyebrow {
+    min-height: 32px;
+    padding-right: 152px;
+    line-height: 32px;
+  }
+  /* The search field, out, takes the label's line whole. */
+  .board-header:not(:has(.confirm)):has(.header-search) {
+    padding-right: 0;
+  }
+  .board-header:has(.header-search) .eyebrow {
+    visibility: hidden;
+  }
+  .board-header:not(:has(.confirm)):has(.header-search) > .row {
+    left: 0;
   }
 }
 .board-header:not(:has(.confirm)) > .row {
   position: absolute;
   top: 0;
   right: 0;
+  flex-wrap: nowrap;
+  gap: 4px;
 }
 .board-counts {
   display: flex;
@@ -1764,11 +1882,6 @@ progress::-moz-progress-bar {
   margin: 0;
   font-size: 12px;
 }
-@media (max-width: 560px) {
-  .board-counts > span:first-child {
-    display: none;
-  }
-}
 .title-edit {
   font: inherit;
   font-size: inherit;
@@ -1776,6 +1889,7 @@ progress::-moz-progress-bar {
   letter-spacing: inherit;
   padding: 2px 8px;
   margin-left: -9px;
+  text-align: left;
   border: 1px dashed transparent;
   border-radius: var(--r-md);
   background: none;
@@ -1799,67 +1913,85 @@ progress::-moz-progress-bar {
 .title-edit:focus-visible .pencil {
   opacity: 1;
 }
-.panel.scope {
-  padding: 12px 16px;
-  margin-bottom: 16px;
-}
 .panel.requests,
 .panel.history-panel {
   padding: 12px 20px;
 }
-.scope .row.between h3 {
-  margin: 0;
-}
-.scope-chips {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.scope-toggle {
+/* The scope lives behind the pill that counts it, among the header's other counts. */
+.scope-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--bg);
+  gap: 6px;
+  padding: 2px 8px 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
   box-shadow: none;
-  font-size: 12px;
-  max-width: 260px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
 }
-.scope-toggle:hover:not(:disabled) {
-  border-color: var(--accent-line);
-}
-.scope-chip.open .scope-toggle {
-  border-color: var(--accent-solid);
+.scope-pill:hover:not(:disabled),
+.scope-pill[aria-expanded='true'] {
   background: var(--accent-soft);
+  color: var(--fg);
 }
-.scope-chip.accepted .scope-toggle {
+.scope-pill.review {
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+.action-popover.scope-popover {
+  width: min(400px, calc(100vw - 16px));
+  max-width: none;
+  padding: 14px 16px;
+}
+.scope h3 {
+  margin: 0 0 6px;
+}
+.scope-items {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+}
+.scope-items li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.scope-items li.accepted {
   opacity: 0.7;
 }
+.scope-items p {
+  margin: 0;
+}
+.scope-items .link {
+  justify-self: start;
+  padding: 0;
+  font-size: 12px;
+}
+.scope-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .scope-title {
+  min-width: 0;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.scope-details {
-  margin-top: 10px;
-  padding: 10px 14px;
-  border: 1px solid var(--accent-line);
-  border-radius: var(--r-md);
-  background: var(--accent-soft);
-  display: grid;
-  gap: 8px;
+.scope-item-head .badge {
+  flex: none;
+  margin-left: auto;
 }
-.scope-details p {
-  margin: 0;
-}
-/* What the Director can do about the scope right now; it stays in sight. */
+/* What the Director can do about the scope right now. */
 .scope-guidance {
+  margin: 0;
   font-size: 12px;
   color: var(--muted);
 }

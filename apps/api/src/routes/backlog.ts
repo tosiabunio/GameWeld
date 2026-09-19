@@ -56,6 +56,7 @@ interface ItemRow {
   updated_at: Date;
   task_total: string;
   task_completed: string;
+  task_facets: BacklogItem['taskFacets'];
   board_id: string | null;
   board_name: string | null;
   cover_attachment_id: string | null;
@@ -66,6 +67,8 @@ const itemSelect = `
          b.version, b.created_at, b.updated_at, b.cover_attachment_id,
          (SELECT count(*) FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL) AS task_total,
          (SELECT count(*) FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL AND t.completed) AS task_completed,
+         (SELECT coalesce(jsonb_agg(DISTINCT jsonb_build_object('assigneeId', t.assignee_id, 'category', t.category)), '[]')
+            FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL) AS task_facets,
          w.id AS board_id, w.name AS board_name
     FROM backlog_items b
     LEFT JOIN workboard_scope s ON s.item_id = b.id
@@ -83,6 +86,7 @@ function toItem(r: ItemRow): BacklogItem {
     archived: r.archived_at !== null,
     version: r.version,
     taskCounts: { total: Number(r.task_total), completed: Number(r.task_completed) },
+    taskFacets: r.task_facets,
     activeBoard: r.board_id && r.board_name ? { id: r.board_id, name: r.board_name } : null,
     coverAttachmentId: r.cover_attachment_id,
     createdAt: r.created_at.toISOString(),

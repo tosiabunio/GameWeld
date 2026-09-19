@@ -9,7 +9,9 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { backlogFiltersOn, matchesItem, useCardFilters } from '../cardFilters.ts';
 import { ActionMenu } from '../components/ActionMenu.tsx';
+import { CardFilterControls, CardFilterRow } from '../components/CardFilterBar.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
@@ -95,12 +97,18 @@ export function BacklogPage() {
     void move(item, item.category, without[target - 1]?.id ?? null, without[target]?.id ?? null);
   }
 
+  const [filters] = useCardFilters(project.id);
+  const filtering = backlogFiltersOn(filters);
+
   const lanes: Lane<BacklogItem>[] = useMemo(
     () =>
       BACKLOG_LANES.map((lane) => ({
         id: lane,
         title: LANE_LABELS[lane],
-        items: grouped.get(lane)!,
+        items: filtering
+          ? grouped.get(lane)!.filter((item) => matchesItem(item, filters))
+          : grouped.get(lane)!,
+        total: grouped.get(lane)!.length,
         droppable: isCategory(lane),
         className: isCategory(lane) ? `prio-${lane}` : `lifecycle state-${lane}`,
         ...(isCategory(lane) && canManage
@@ -116,7 +124,7 @@ export function BacklogPage() {
             }
           : {}),
       })),
-    [grouped, canManage, project.id],
+    [grouped, canManage, project.id, filtering, filters],
   );
 
   if (items === null) return <p>Loading…</p>;
@@ -132,15 +140,26 @@ export function BacklogPage() {
             Workboard
           </p>
         </div>
-        <DisplayMenu />
+        <div className="row page-controls">
+          <CardFilterControls projectId={project.id} people={project.members} />
+          <DisplayMenu />
+        </div>
       </header>
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
+      <CardFilterRow
+        projectId={project.id}
+        board={false}
+        shown={lanes.reduce((sum, lane) => sum + lane.items.length, 0)}
+        total={items.length}
+        noun="items"
+      />
       <CardLanes
         lanes={lanes}
+        reorder={!filtering}
         collapseKey={`backlog:${project.id}`}
         canDrag={canManage}
         isDraggable={(item) => item.state === 'open'}
@@ -197,7 +216,8 @@ export function BacklogPage() {
                     type="button"
                     data-close-menu
                     onClick={() => moveBy(item, -1)}
-                    disabled={index === 0}
+                    // Up and down are places among all the lane's cards, not the ones showing.
+                    disabled={filtering || index === 0}
                     aria-label={`Move ${item.title} up`}
                   >
                     <span aria-hidden="true">↑</span> Move up
@@ -206,7 +226,7 @@ export function BacklogPage() {
                     type="button"
                     data-close-menu
                     onClick={() => moveBy(item, 1)}
-                    disabled={index === count - 1}
+                    disabled={filtering || index === count - 1}
                     aria-label={`Move ${item.title} down`}
                   >
                     <span aria-hidden="true">↓</span> Move down

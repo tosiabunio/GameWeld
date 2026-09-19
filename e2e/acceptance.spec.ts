@@ -32,11 +32,11 @@ test('finish all tasks, accept the item, then reopen it by adding a task', async
   await expect(page.getByTestId('scope-item').first()).toContainText('Ready for Review');
 
   // Reject first, with a visible comment; the item stays Ready for Review.
-  await page
-    .getByTestId('scope-item')
-    .getByRole('button', { name: /Ranged enemy/ })
-    .click();
-  await page.getByTestId('scope-details').getByRole('link', { name: 'Open in Breakdown' }).click();
+  // The scope is behind the pill that counts it, which now marks an item waiting for review.
+  const scopePill = page.getByRole('button', { name: /items in scope/ });
+  await expect(scopePill).toContainText('ready for review');
+  await scopePill.click();
+  await page.getByTestId('scope-item').getByRole('link', { name: 'Ranged enemy' }).click();
   await page.getByRole('button', { name: 'Reject' }).click();
   await page.getByLabel('What needs to change').fill('Timing feels off.');
   await page.getByRole('button', { name: 'Record rejection' }).click();

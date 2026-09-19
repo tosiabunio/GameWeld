@@ -416,3 +416,45 @@ test('a card moves across the board by keyboard, skipping columns it cannot ente
     page.getByRole('region', { name: 'To Do · Code' }).getByTestId('item-card'),
   ).toHaveText([/Targeting/]);
 });
+
+test('the scope sits behind the pill that counts it, with each item’s state and the way out', async ({
+  page,
+}) => {
+  await signIn(page, 'director');
+  await createProjectWithItems(page, 'Scope project');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
+
+  // Nothing about the scope stands above the columns; the pill opens it.
+  const pill = page.getByRole('button', { name: /items in scope/ });
+  const scope = page.getByTestId('scope');
+  await expect(scope).toBeHidden();
+  await pill.click();
+  await expect(scope).toContainText('Next in priority: Ranged enemy');
+  await expect(scope).toContainText('No items in scope yet');
+  await page.keyboard.press('Escape');
+  await expect(scope).toBeHidden();
+
+  await activateFromBacklog(page, 'Ranged enemy');
+  await expect(pill).toHaveText(/1\/1 items in scope/);
+  await pill.click();
+  const item = scope.getByTestId('scope-item');
+  await expect(item).toContainText('Ranged enemy');
+  await expect(item).toContainText('Open');
+  await expect(item).toContainText('Must Have · 0/2 tasks complete');
+  await expect(scope).toContainText('Scope limit reached');
+
+  // Removing asks what becomes of the item's cards; kept, they turn into out-of-scope work.
+  await item.getByRole('button', { name: 'Remove Ranged enemy from scope' }).click();
+  await item
+    .getByRole('group', { name: 'Remove Ranged enemy from scope' })
+    .getByRole('button', { name: 'Keep them as out-of-scope work' })
+    .click();
+  await expect(scope.getByTestId('scope-item')).toHaveCount(0);
+  await expect(pill).toHaveText(/0\/1 items in scope/);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('item-card').filter({ hasText: 'Targeting' })).toContainText(
+    'Out of scope',
+  );
+  await expect(page.getByTestId('board-counts')).toContainText('2 out-of-scope tasks');
+});

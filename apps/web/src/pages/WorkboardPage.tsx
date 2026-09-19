@@ -3,7 +3,9 @@ import { CATEGORY_LABELS, STATE_LABELS, TASK_CATEGORY_LABELS, todoKindFor } from
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { boardFiltersOn, boardItemsOf, matchesCard, useCardFilters } from '../cardFilters.ts';
 import { ActionMenu } from '../components/ActionMenu.tsx';
+import { CardFilterControls, CardFilterRow } from '../components/CardFilterBar.tsx';
 import { AssigneePicker } from '../components/AssigneePicker.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
@@ -93,7 +95,6 @@ export function WorkboardPage() {
           )}
         </p>
       )}
-      <ScopePanel board={board} onChange={run} />
       <Columns board={board} onChange={run} onNotice={setNotice} />
       <RequestsPanel board={board} onBoardChanged={reload} />
       <History query={{ entityType: 'workboard', entityId: board.id }} />
@@ -181,6 +182,7 @@ function BoardHeader({
   const [archiving, setArchiving] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(board.name);
+  const boardItems = useMemo(() => boardItemsOf(board), [board]);
   const c = board.counts;
   return (
     <header className="board-header">
@@ -236,10 +238,8 @@ function BoardHeader({
             )}
           </h2>
         )}
-        <p className="muted board-counts" data-testid="board-counts">
-          <span>
-            <strong>{c.scopeItems}</strong>/{board.scopeLimit} items in scope
-          </span>
+        <div className="muted board-counts" data-testid="board-counts">
+          <ScopeMenu board={board} onChange={onSaved} />
           {c.acceptedItems > 0 && <span>{c.acceptedItems} accepted</span>}
           {c.outOfScopeTasks > 0 && (
             <span>
@@ -256,9 +256,14 @@ function BoardHeader({
               {c.pendingRequests === 1 ? '' : 's'}
             </span>
           )}
-        </p>
+        </div>
       </div>
       <div className="row">
+        <CardFilterControls
+          projectId={project.id}
+          people={project.members}
+          boardItems={boardItems}
+        />
         <DisplayMenu />
         {canManage && !archiving && (
           <ActionMenu label="Workboard actions">
@@ -312,7 +317,12 @@ function BoardHeader({
   );
 }
 
-function ScopePanel({
+/**
+ * The board's scope, behind the pill that counts it: the items, what state each is in, the way
+ * to its Breakdown and out of the scope, and what the Director can do about the scope right now.
+ * It used to be a panel of its own above the columns; the top of the board is quieter without it.
+ */
+function ScopeMenu({
   board,
   onChange,
 }: {
@@ -321,14 +331,48 @@ function ScopePanel({
 }) {
   const { project } = useProject();
   const canSelect = project.permissions['board.select_scope'];
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [removing, setRemoving] = useState<ScopeItem | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const full = board.counts.scopeItems >= board.scopeLimit;
-  const expandedItem = board.scope.find((s) => s.id === expanded) ?? null;
+  const toReview = board.scope.filter((s) => s.state === 'ready_for_review').length;
+  const stateOf = (s: ScopeItem) => (s.accepted ? 'Accepted' : STATE_LABELS[s.state]);
+
+  const remove = (item: ScopeItem, returnTasks: boolean) =>
+    void onChange(() => api.removeFromScope(project.id, board.id, item.id, { returnTasks })).then(
+      () => setRemoving(null),
+    );
 
   return (
-    <section className="panel scope" aria-labelledby="scope-heading" data-testid="scope">
-      <div className="row between">
+    <ActionMenu
+      label={`${board.counts.scopeItems}/${board.scopeLimit} items in scope`}
+      triggerClassName={`scope-pill${toReview > 0 ? ' review' : ''}`}
+      popoverClassName="scope-popover"
+      align="start"
+      triggerContent={
+        <>
+          <span>
+            <strong>{board.counts.scopeItems}</strong>/{board.scopeLimit} items in scope
+          </span>
+          {/* An item waiting for acceptance is the one thing about the scope worth a glance. */}
+          {toReview > 0 && (
+            <>
+              <span className="dot review" aria-hidden="true" />
+              <span className="sr-only">, {toReview} ready for review</span>
+            </>
+          )}
+          <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" focusable="false">
+            <path
+              d="m4 6 4 4 4-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </>
+      }
+    >
+      <section className="scope" aria-labelledby="scope-heading" data-testid="scope">
         <h3 id="scope-heading">
           Scope{' '}
           <span className="count">
@@ -336,7 +380,7 @@ function ScopePanel({
           </span>
         </h3>
         {board.state === 'active' && (
-          <span className="scope-guidance">
+          <p className="scope-guidance">
             {full ? (
               'Scope limit reached. Remove an item to make room.'
             ) : board.nextEligible ? (
@@ -347,126 +391,77 @@ function ScopePanel({
             ) : (
               'No open item is eligible. Add items from the Backlog when there are some.'
             )}
-          </span>
+          </p>
         )}
-      </div>
-      {board.scope.length === 0 ? (
-        <p className="muted small">
-          No items in scope yet. Use “Add to Workboard” on a Backlog card.
-        </p>
-      ) : (
-        <ul className="scope-chips">
-          {board.scope.map((s) => {
-            const open = expanded === s.id;
-            return (
+        {board.scope.length === 0 ? (
+          <p className="muted small">
+            No items in scope yet. Use “Add to Workboard” on a Backlog card.
+          </p>
+        ) : (
+          <ul className="scope-items">
+            {board.scope.map((s) => (
               <li
                 key={s.id}
-                className={`scope-chip${s.accepted ? ' accepted' : ''}${open ? ' open' : ''}`}
+                className={s.accepted ? 'accepted' : undefined}
                 data-testid="scope-item"
               >
-                <button
-                  type="button"
-                  className="scope-toggle"
-                  aria-expanded={open}
-                  title={`${CATEGORY_LABELS[s.category]} · ${s.taskCounts.completed}/${s.taskCounts.total} tasks complete`}
-                  onClick={() => {
-                    setExpanded(open ? null : s.id);
-                    setRemoving(null);
-                  }}
-                >
-                  <span className="scope-title">{s.title}</span>
+                <div className="scope-item-head">
                   <span
                     className={`dot ${s.accepted ? 'done' : s.state === 'ready_for_review' ? 'review' : ''}`}
                     aria-hidden="true"
                   />
-                  <span className="sr-only">{s.accepted ? 'Accepted' : STATE_LABELS[s.state]}</span>
-                </button>
+                  <Link
+                    to={`/projects/${project.id}/breakdown/${s.id}`}
+                    className="scope-title"
+                    title="Open in Breakdown"
+                  >
+                    {s.title}
+                  </Link>
+                  <span
+                    className={`badge ${s.accepted ? 'done' : s.state === 'ready_for_review' ? '' : 'neutral'}`}
+                  >
+                    {stateOf(s)}
+                  </span>
+                </div>
+                <p className="muted small">
+                  {CATEGORY_LABELS[s.category]} · {s.taskCounts.completed}/{s.taskCounts.total}{' '}
+                  tasks complete · added {new Date(s.addedAt).toLocaleDateString()}
+                </p>
+                {canSelect &&
+                  board.state === 'active' &&
+                  (removing === s.id ? (
+                    <div
+                      className="confirm small"
+                      role="group"
+                      aria-label={`Remove ${s.title} from scope`}
+                    >
+                      <p>What happens to its unfinished tasks on this board?</p>
+                      <button type="button" onClick={() => remove(s, true)}>
+                        Return them to Breakdown
+                      </button>
+                      <button type="button" onClick={() => remove(s, false)}>
+                        Keep them as out-of-scope work
+                      </button>
+                      <button type="button" onClick={() => setRemoving(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() => setRemoving(s.id)}
+                      aria-label={`Remove ${s.title} from scope`}
+                    >
+                      Remove from scope
+                    </button>
+                  ))}
               </li>
-            );
-          })}
-        </ul>
-      )}
-      {expandedItem && (
-        <div className="scope-details" data-testid="scope-details">
-          <div className="row between">
-            <div>
-              <strong>{expandedItem.title}</strong>{' '}
-              <span
-                className={`badge ${expandedItem.accepted ? 'done' : expandedItem.state === 'ready_for_review' ? '' : 'neutral'}`}
-              >
-                {expandedItem.accepted ? 'Accepted' : STATE_LABELS[expandedItem.state]}
-              </span>
-              <span className="muted small">
-                {' '}
-                · {CATEGORY_LABELS[expandedItem.category]} · {expandedItem.taskCounts.completed}/
-                {expandedItem.taskCounts.total} tasks complete · added{' '}
-                {new Date(expandedItem.addedAt).toLocaleDateString()}
-              </span>
-            </div>
-            <div className="row">
-              <Link to={`/projects/${project.id}/breakdown/${expandedItem.id}`}>
-                Open in Breakdown
-              </Link>
-              {canSelect && board.state === 'active' && removing?.id !== expandedItem.id && (
-                <button type="button" onClick={() => setRemoving(expandedItem)}>
-                  Remove from scope
-                </button>
-              )}
-              <button
-                type="button"
-                className="link"
-                onClick={() => setExpanded(null)}
-                aria-label="Close details"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-          {removing?.id === expandedItem.id && (
-            <div
-              className="confirm small"
-              role="group"
-              aria-label={`Remove ${expandedItem.title} from scope`}
-            >
-              <p>What happens to its unfinished tasks on this board?</p>
-              <button
-                type="button"
-                onClick={() =>
-                  void onChange(() =>
-                    api.removeFromScope(project.id, board.id, expandedItem.id, {
-                      returnTasks: true,
-                    }),
-                  ).then(() => {
-                    setRemoving(null);
-                    setExpanded(null);
-                  })
-                }
-              >
-                Return them to Breakdown
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  void onChange(() =>
-                    api.removeFromScope(project.id, board.id, expandedItem.id, {
-                      returnTasks: false,
-                    }),
-                  ).then(() => {
-                    setRemoving(null);
-                    setExpanded(null);
-                  })
-                }
-              >
-                Keep them as out-of-scope work
-              </button>
-              <button type="button" onClick={() => setRemoving(null)}>
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </section>
+            ))}
+          </ul>
+        )}
+      </section>
+    </ActionMenu>
   );
 }
 
@@ -490,6 +485,14 @@ function Columns({
   const canDelete = project.permissions['backlog.manage'] && board.state === 'active';
   const canManage = project.permissions['board.manage'] && board.state === 'active';
   const columnById = useMemo(() => new Map(board.columns.map((c) => [c.id, c])), [board.columns]);
+  const [filters, changeFilters] = useCardFilters(project.id);
+  const filtering = boardFiltersOn(filters);
+  const boardItems = useMemo(() => boardItemsOf(board), [board]);
+  // An item that left the board cannot be chosen again, so it must not go on filtering unseen.
+  useEffect(() => {
+    if (filters.itemId && !boardItems.some((item) => item.id === filters.itemId))
+      changeFilters({ itemId: '' });
+  }, [filters.itemId, boardItems, changeFilters]);
 
   const canDrop = (card: BoardCard, columnId: string) => {
     const target = columnById.get(columnId);
@@ -514,7 +517,10 @@ function Columns({
   const lanes: Lane<BoardCard>[] = board.columns.map((col) => ({
     id: col.id,
     title: col.name,
-    items: board.cards[col.id] ?? [],
+    items: filtering
+      ? (board.cards[col.id] ?? []).filter((card) => matchesCard(card, filters))
+      : (board.cards[col.id] ?? []),
+    total: (board.cards[col.id] ?? []).length,
     droppable: canWork,
     className: `column kind-${col.kind}`,
     actions: canManage ? (
@@ -531,115 +537,126 @@ function Columns({
   }));
 
   return (
-    <CardLanes
-      lanes={lanes}
-      collapseKey={`board:${board.id}`}
-      canDrag={canWork}
-      canDrop={canDrop}
-      onFilesDrop={canWork ? (card, files) => void attachImages(card, files) : undefined}
-      onCardClick={(card) => void tasks.open(card.id)}
-      testIdPrefix="column"
-      onMove={(card, columnId, afterId, beforeId) =>
-        onChange(() =>
-          api.movePlacement(project.id, board.id, card.id, { columnId, afterId, beforeId }),
-        ).then(() => undefined)
-      }
-      renderCard={(card) => (
-        <>
-          {card.coverAttachmentId && (
-            <img
-              className="cover"
-              src={api.coverUrl(project.id, card.coverAttachmentId)}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              // An image the server cannot read leaves the card without a cover, not a broken icon.
-              onError={(e) => (e.currentTarget.style.display = 'none')}
-            />
-          )}
-          <div className="card-head">
-            <Link {...tasks.link(card.id)} className="card-title">
-              {card.title}
-            </Link>
-            {canDelete && deleting !== card.id && (
-              <ActionMenu label={`${card.title} actions`}>
+    <>
+      <CardFilterRow
+        projectId={project.id}
+        board
+        shown={lanes.reduce((sum, lane) => sum + lane.items.length, 0)}
+        total={board.counts.placedTasks}
+        noun="tasks"
+      />
+      <CardLanes
+        lanes={lanes}
+        reorder={!filtering}
+        collapseKey={`board:${board.id}`}
+        canDrag={canWork}
+        canDrop={canDrop}
+        onFilesDrop={canWork ? (card, files) => void attachImages(card, files) : undefined}
+        onCardClick={(card) => void tasks.open(card.id)}
+        testIdPrefix="column"
+        onMove={(card, columnId, afterId, beforeId) =>
+          onChange(() =>
+            api.movePlacement(project.id, board.id, card.id, { columnId, afterId, beforeId }),
+          ).then(() => undefined)
+        }
+        renderCard={(card) => (
+          <>
+            {card.coverAttachmentId && (
+              <img
+                className="cover"
+                src={api.coverUrl(project.id, card.coverAttachmentId)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                // An image the server cannot read leaves the card without a cover, not a broken icon.
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
+            )}
+            <div className="card-head">
+              <Link {...tasks.link(card.id)} className="card-title">
+                {card.title}
+              </Link>
+              {canDelete && deleting !== card.id && (
+                <ActionMenu label={`${card.title} actions`}>
+                  <button
+                    type="button"
+                    data-close-menu
+                    onClick={() => setDeleting(card.id)}
+                    aria-label={`Delete ${card.title}`}
+                  >
+                    Delete task
+                  </button>
+                </ActionMenu>
+              )}
+            </div>
+            <div className="card-meta">
+              <span className="muted">{card.itemTitle}</span>
+              {card.outOfScope && <span className="badge warn">Out of scope</span>}
+              {uploading === card.id && <span role="status">Uploading…</span>}
+            </div>
+            <div className="card-bottom">
+              <span className={`category-label cat-${card.category}`}>
+                {TASK_CATEGORY_LABELS[card.category]}
+              </span>
+              <AssigneePicker
+                assignee={card.assignee}
+                people={project.members}
+                taskTitle={card.title}
+                onAssign={
+                  canWork
+                    ? (assigneeId) =>
+                        onChange(async () => {
+                          await api.updateTask(project.id, card.id, {
+                            version: card.version,
+                            assigneeId,
+                          });
+                        })
+                    : undefined
+                }
+              />
+            </div>
+            {deleting === card.id && (
+              <div
+                className="confirm small"
+                role="group"
+                aria-label={`Confirm deleting ${card.title}`}
+              >
+                <p>
+                  Delete this task from “{card.itemTitle}”? It will leave the Workboard and no
+                  longer count toward the item’s completion. Its history is kept, and you can
+                  restore it.
+                </p>
                 <button
                   type="button"
-                  data-close-menu
-                  onClick={() => setDeleting(card.id)}
-                  aria-label={`Delete ${card.title}`}
+                  className="primary"
+                  onClick={() =>
+                    void onChange(async () => {
+                      await api.updateTask(project.id, card.id, {
+                        version: card.version,
+                        archived: true,
+                      });
+                    }).then((ok) => {
+                      if (ok) {
+                        setDeleting(null);
+                        onNotice({
+                          text: `“${card.title}” deleted from “${card.itemTitle}”.`,
+                          link: { ...tasks.link(card.id), label: 'View deleted task' },
+                        });
+                      }
+                    })
+                  }
                 >
                   Delete task
                 </button>
-              </ActionMenu>
+                <button type="button" onClick={() => setDeleting(null)}>
+                  Cancel
+                </button>
+              </div>
             )}
-          </div>
-          <div className="card-meta">
-            <span className="muted">{card.itemTitle}</span>
-            {card.outOfScope && <span className="badge warn">Out of scope</span>}
-            {uploading === card.id && <span role="status">Uploading…</span>}
-          </div>
-          <div className="card-bottom">
-            <span className={`category-label cat-${card.category}`}>
-              {TASK_CATEGORY_LABELS[card.category]}
-            </span>
-            <AssigneePicker
-              assignee={card.assignee}
-              people={project.members}
-              taskTitle={card.title}
-              onAssign={
-                canWork
-                  ? (assigneeId) =>
-                      onChange(async () => {
-                        await api.updateTask(project.id, card.id, {
-                          version: card.version,
-                          assigneeId,
-                        });
-                      })
-                  : undefined
-              }
-            />
-          </div>
-          {deleting === card.id && (
-            <div
-              className="confirm small"
-              role="group"
-              aria-label={`Confirm deleting ${card.title}`}
-            >
-              <p>
-                Delete this task from “{card.itemTitle}”? It will leave the Workboard and no longer
-                count toward the item’s completion. Its history is kept, and you can restore it.
-              </p>
-              <button
-                type="button"
-                className="primary"
-                onClick={() =>
-                  void onChange(async () => {
-                    await api.updateTask(project.id, card.id, {
-                      version: card.version,
-                      archived: true,
-                    });
-                  }).then((ok) => {
-                    if (ok) {
-                      setDeleting(null);
-                      onNotice({
-                        text: `“${card.title}” deleted from “${card.itemTitle}”.`,
-                        link: { ...tasks.link(card.id), label: 'View deleted task' },
-                      });
-                    }
-                  })
-                }
-              >
-                Delete task
-              </button>
-              <button type="button" onClick={() => setDeleting(null)}>
-                Cancel
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    />
+          </>
+        )}
+      />
+    </>
   );
 }
 

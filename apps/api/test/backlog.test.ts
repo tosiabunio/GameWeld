@@ -237,4 +237,35 @@ describe('backlog', () => {
     const flying = items.find((i) => i.title === 'Flying enemy')!;
     expect(flying.activeBoard).toBeNull();
   });
+  it('reports who an item’s tasks belong to and of what kind they are, deleted ones aside', async () => {
+    const inject = (method: 'GET' | 'POST' | 'PATCH', url: string, payload?: object) =>
+      t.app.inject({ method, url, headers: { cookie: director }, ...(payload ? { payload } : {}) });
+    const me = (await inject('GET', '/api/me')).json().id;
+    const item = (
+      await inject('POST', `/api/projects/${projectId}/backlog`, {
+        title: 'Faceted',
+        category: 'could',
+      })
+    ).json();
+    expect(item.taskFacets).toEqual([]);
+    const tasks = `/api/projects/${projectId}/backlog/${item.id}/tasks`;
+    await inject('POST', tasks, { title: 'Mine', category: 'code', assigneeId: me });
+    await inject('POST', tasks, { title: 'Mine too', category: 'code', assigneeId: me });
+    await inject('POST', tasks, { title: 'Nobody’s', category: 'assets' });
+    const gone = (await inject('POST', tasks, { title: 'Gone', category: 'content' })).json();
+    await inject('PATCH', `/api/projects/${projectId}/tasks/${gone.id}`, {
+      version: gone.version,
+      archived: true,
+    });
+    const listed: BacklogItem = (await inject('GET', `/api/projects/${projectId}/backlog`))
+      .json()
+      .find((i: BacklogItem) => i.id === item.id);
+    expect(listed.taskFacets).toHaveLength(2);
+    expect(listed.taskFacets).toEqual(
+      expect.arrayContaining([
+        { assigneeId: me, category: 'code' },
+        { assigneeId: null, category: 'assets' },
+      ]),
+    );
+  });
 });

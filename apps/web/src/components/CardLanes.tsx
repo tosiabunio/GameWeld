@@ -40,6 +40,8 @@ export interface Lane<T> {
   id: string;
   title: string;
   items: T[];
+  /** How many cards the lane holds when `items` are only those that pass a filter. */
+  total?: number;
   /** Cards may be dropped into this lane. */
   droppable: boolean;
   className?: string;
@@ -78,6 +80,12 @@ export interface CardLanesProps<T extends { id: string }> {
   testIdPrefix?: string;
   /** Remembers which lanes this viewer collapsed, in this browser, under this key. */
   collapseKey?: string;
+  /**
+   * False while a filter hides cards: a place among the cards that show says nothing about the
+   * hidden ones between them, so a card dropped in its own lane goes back, and one dropped in
+   * another lane joins its end.
+   */
+  reorder?: boolean;
 }
 
 const COLLAPSED_PREFIX = 'gameweld:collapsed:';
@@ -123,6 +131,7 @@ export function CardLanes<T extends { id: string }>({
   onMove,
   testIdPrefix = 'lane',
   collapseKey,
+  reorder = true,
 }: CardLanesProps<T>) {
   const [chosen, toggleChosen] = useCollapsedLanes(collapseKey);
   const { collapseEmpty } = useDisplayOptions();
@@ -207,7 +216,9 @@ export function CardLanes<T extends { id: string }>({
     };
   }, [shownIndex, activeId, collapsed, markHiddenLanes]);
 
-  useEffect(() => {
+  // Before paint: a filter changes the lanes on every keystroke, and a frame of the cards it
+  // just hid would flicker.
+  useLayoutEffect(() => {
     if (activeId) return; // do not clobber an in-progress drag with a stale reload
     setLocal(Object.fromEntries(lanes.map((l) => [l.id, l.items])));
   }, [lanes, activeId]);
@@ -362,6 +373,12 @@ export function CardLanes<T extends { id: string }>({
     const lane = laneOfId(id);
     const item = byId.get(id);
     if (!lane || !item) return;
+
+    if (!reorder) {
+      const home = lanes.find((l) => l.items.some((i) => i.id === id));
+      if (home && home.id !== lane) await onMove(item, lane, null, null);
+      return;
+    }
 
     let items = local[lane]!;
     if (over && over.id !== id) {
@@ -566,7 +583,12 @@ function LaneView<T extends { id: string }>({
         <>
           <div className="lane-head">
             <h3>
-              {lane.title} <span className="count">{items.length}</span>
+              {lane.title}{' '}
+              <span className="count">
+                {lane.total === undefined || lane.total === items.length
+                  ? items.length
+                  : `${items.length}/${lane.total}`}
+              </span>
             </h3>
             <button
               type="button"
@@ -592,7 +614,9 @@ function LaneView<T extends { id: string }>({
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <ul className="cards">{children}</ul>
           </SortableContext>
-          {items.length === 0 && <p className="lane-empty">No cards yet</p>}
+          {items.length === 0 && (
+            <p className="lane-empty">{lane.total ? 'No matching cards' : 'No cards yet'}</p>
+          )}
           {lane.footer}
         </>
       )}
