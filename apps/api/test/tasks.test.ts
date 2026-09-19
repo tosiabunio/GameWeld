@@ -285,12 +285,24 @@ describe('tasks and breakdown', () => {
   });
 
   it('keeps board placement consistent: completing moves to Done, reopening back to To Do, category locked while placed', async () => {
-    const demo = (
-      await t.db.query<{ id: string }>(`SELECT id FROM projects WHERE name = 'Demo project'`)
-    ).rows[0]!.id;
-    const targeting = (
-      await t.db.query<{ id: string }>(`SELECT id FROM tasks WHERE title = 'Targeting'`)
-    ).rows[0]!.id;
+    // In this file's own project: other test files read the Demo project's board while this runs.
+    const demo = projectId;
+    const item = await createItem('Placed work');
+    const boardId = (
+      await t.app.inject({
+        method: 'POST',
+        url: `/api/projects/${projectId}/boards`,
+        headers: { cookie: director },
+        payload: { name: 'September production' },
+      })
+    ).json().id;
+    // Straight into the scope: the priority rule is not what this test is about.
+    await t.db.query('INSERT INTO workboard_scope (board_id, item_id) VALUES ($1, $2)', [
+      boardId,
+      item.id,
+    ]);
+    const targeting = (await createTask(item.id, { category: 'code', title: 'Targeting' })).json()
+      .id as string;
     const before: TaskDetail = (
       await t.app.inject({
         method: 'GET',

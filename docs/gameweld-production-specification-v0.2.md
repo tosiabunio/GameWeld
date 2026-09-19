@@ -342,6 +342,7 @@ Backlog item references always open the same Breakdown. Task references always o
 - Enforce project access and action permissions on the server, including attachment downloads.
 - Apply scope limits, task moves, request approvals, and acceptance transitions atomically.
 - Detect conflicting edits and surface a refresh/retry path instead of silently losing another user's changes.
+- Show other members' changes without a reload. A committed change announces that something changed in its project, never the change itself; every open page of that project then reads its data again through the same permission-checked routes, and the notification bell rings at once. Text someone is writing is kept. After a lost connection every page reads again.
 - Use stable ordering for backlog items and columns.
 - Record scope changes, completion, acceptance, role changes, exceptions, reparenting, and archival in activity history.
 - Provide a non-drag alternative for moving cards, and communicate category and out-of-scope status with text as well as color.

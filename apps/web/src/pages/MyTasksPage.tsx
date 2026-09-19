@@ -28,7 +28,7 @@ import { useProject } from './ProjectPage.tsx';
  * no task on the Workboard and nobody else sees it.
  */
 export function MyTasksPage() {
-  const { project, refreshMyTasks, tasksVersion } = useProject();
+  const { project, refreshMyTasks, dataVersion } = useProject();
   const taskLinks = useTaskLinks(project.id);
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function MyTasksPage() {
   // Also after a task's window, open over the board, changed something.
   useEffect(() => {
     void reload();
-  }, [reload, tasksVersion]);
+  }, [reload, dataVersion]);
 
   // The keyboard sensor keeps the options it had when the drag began, so the coordinate getter
   // reads the order through a ref rather than from a stale closure.

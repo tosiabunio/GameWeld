@@ -1,4 +1,5 @@
 import type { Queryable } from './db.ts';
+import { emitLive } from './live.ts';
 import { notifyFromActivity } from './services/notifications.ts';
 
 export interface ActivityInput {
@@ -13,8 +14,8 @@ export interface ActivityInput {
 
 /**
  * Appends one activity record (Section 14). Call inside the transaction that made the change.
- * The record is also where notifications come from, so whoever a change concerns hears of it
- * whichever route made it.
+ * The record is also where notifications and live updates come from, so whoever a change
+ * concerns hears of it, and every open board shows it, whichever route made it.
  */
 export async function recordActivity(db: Queryable, a: ActivityInput): Promise<void> {
   await db.query(
@@ -31,4 +32,5 @@ export async function recordActivity(db: Queryable, a: ActivityInput): Promise<v
     ],
   );
   await notifyFromActivity(db, a);
+  await emitLive(db, { p: a.projectId, t: a.entityType, id: a.entityId, a: a.action });
 }

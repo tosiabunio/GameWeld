@@ -21,7 +21,7 @@ const isCategory = (lane: string): lane is MoscowCategory =>
   (MOSCOW_CATEGORIES as readonly string[]).includes(lane);
 
 export function BacklogPage() {
-  const { project } = useProject();
+  const { project, dataVersion } = useProject();
   const navigate = useNavigate();
   const canManage = project.permissions['backlog.manage'];
   const [items, setItems] = useState<BacklogItem[] | null>(null);
@@ -43,9 +43,10 @@ export function BacklogPage() {
     setBoard(nextBoard);
   }, [project.id]);
 
+  // Also when someone else changes the project (live updates).
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, dataVersion]);
 
   const grouped = useMemo(() => {
     const map = new Map<BacklogLane, BacklogItem[]>(BACKLOG_LANES.map((l) => [l, []]));

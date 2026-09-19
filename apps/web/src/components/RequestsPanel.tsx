@@ -25,7 +25,7 @@ export function RequestsPanel({
   board: BoardView;
   onBoardChanged: () => Promise<void>;
 }) {
-  const { project } = useProject();
+  const { project, dataVersion } = useProject();
   const me = useCurrentUser();
   const canDecide = project.permissions['out_of_scope.approve'] && board.state === 'active';
   // A Director has no one to ask: "+ New task" on a To Do column places outside work directly.
@@ -47,7 +47,7 @@ export function RequestsPanel({
 
   useEffect(() => {
     void reload();
-  }, [reload, board.counts.pendingRequests]);
+  }, [reload, board.counts.pendingRequests, dataVersion]);
 
   async function run(action: () => Promise<unknown>): Promise<boolean> {
     setError(null);

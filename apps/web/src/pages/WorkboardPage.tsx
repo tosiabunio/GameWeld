@@ -16,7 +16,7 @@ import { useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
 
 export function WorkboardPage() {
-  const { project, reload: reloadProject, refreshMyTasks, tasksVersion } = useProject();
+  const { project, reload: reloadProject, refreshMyTasks, dataVersion } = useProject();
   const canManage = project.permissions['board.manage'];
   const [board, setBoard] = useState<BoardView | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export function WorkboardPage() {
   // Also after a task's window, open over the board, changed something.
   useEffect(() => {
     void reload();
-  }, [reload, tasksVersion]);
+  }, [reload, dataVersion]);
 
   /** Runs a board mutation; every endpoint returns the fresh view, and conflicts reload. */
   async function run(action: () => Promise<BoardView | void>): Promise<boolean> {

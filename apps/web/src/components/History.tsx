@@ -99,14 +99,15 @@ export function History({
   query: ActivityQuery;
   open?: boolean;
 }) {
-  const { project } = useProject();
+  const { project, dataVersion } = useProject();
   const [open, setOpen] = useState(initiallyOpen);
   const [entries, setEntries] = useState<ActivityEntry[] | null>(null);
 
+  // An open history follows what happens, by whoever's hand.
   useEffect(() => {
     if (!open) return;
     api.activity(project.id, query).then(setEntries);
-  }, [open, project.id, query.entityType, query.entityId]);
+  }, [open, project.id, query.entityType, query.entityId, dataVersion]);
 
   return (
     <section

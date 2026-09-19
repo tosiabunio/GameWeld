@@ -11,7 +11,7 @@ import { useProject } from './ProjectPage.tsx';
  * description and its Code, Assets, and Content task columns on the right.
  */
 export function BreakdownPage() {
-  const { project } = useProject();
+  const { project, dataVersion } = useProject();
   const { itemId } = useParams<{ itemId?: string }>();
   const [items, setItems] = useState<BacklogItem[] | null>(null);
 
@@ -19,9 +19,10 @@ export function BreakdownPage() {
     setItems(await api.backlog(project.id));
   }, [project.id]);
 
+  // Also when someone else changes the project (live updates).
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, dataVersion]);
 
   // The list scrolls on its own, so an item opened from elsewhere may sit out of sight in it.
   const nav = useRef<HTMLElement>(null);

@@ -44,10 +44,10 @@ export function Breakdown({
   }, [projectId, itemId]);
 
   // Also after a task's window, open over this page, changed something.
-  const { tasksVersion } = useProject();
+  const { dataVersion } = useProject();
   useEffect(() => {
     void reload();
-  }, [reload, tasksVersion]);
+  }, [reload, dataVersion]);
   const taskLinks = useTaskLinks(projectId);
 
   const me = useCurrentUser();

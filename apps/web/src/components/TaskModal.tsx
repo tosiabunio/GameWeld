@@ -62,7 +62,7 @@ export function TaskHome() {
  * window changed. Unsaved text is not thrown away without asking.
  */
 export function TaskModal({ taskId, background, direct }: OpenTask) {
-  const { project, refreshMyTasks, notifyTasksChanged } = useProject();
+  const { project, refreshMyTasks, notifyChanged, dataVersion } = useProject();
   const navigate = useNavigate();
   const dialog = useRef<HTMLDialogElement>(null);
   const changed = useRef(false);
@@ -89,6 +89,11 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
     setDeleting(false);
     void reload();
   }, [reload]);
+  // Someone else may change the task while its window is open (live updates). The form keeps
+  // text that is being written: it takes a field from the server only when it changed there.
+  useEffect(() => {
+    if (dataVersion > 0) void reload();
+  }, [reload, dataVersion]);
 
   // A modal dialog keeps focus inside, makes the page under it inert, and sits above everything.
   useEffect(() => {
@@ -99,9 +104,9 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
       document.documentElement.classList.remove('modal-open');
       element.close();
       // The page under the window was loaded before the window changed anything.
-      if (changed.current) notifyTasksChanged();
+      if (changed.current) notifyChanged();
     };
-  }, [notifyTasksChanged]);
+  }, [notifyChanged]);
 
   /** Back to the page underneath: a step back when a link led here, otherwise straight to it. */
   const close = useCallback(() => {

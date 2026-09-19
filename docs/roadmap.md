@@ -21,8 +21,8 @@ enforce such a process at all; Taiga and Plane only in part.
 
 **The board layer.** Dragging by pointer and keyboard, custom and collapsible columns, covers,
 attachments, links, comments, assignees with avatars, "My tasks" in the member's own order,
-notifications in the app with a list of what waits for the viewer's decision, filters and title
-search, the task in a window over its board, dark mode, a phone layout,
+notifications in the app with a list of what waits for the viewer's decision, live updates of
+every open page, filters and title search, the task in a window over its board, dark mode, a phone layout,
 archive and restore instead of hard deletion, and continuous deployment.
 
 ## What is missing
@@ -37,7 +37,6 @@ Wekan, Taiga, and Plane.
 | Real sign-in and invitations | All five | Planned as Phase 8 (Google OIDC). Today anyone who reaches the instance can sign in as a Game Director. |
 | Backups | n/a | [backup-plan.md](backup-plan.md) describes them; nothing is set up. |
 | Notifications by e-mail | All five | The app has a bell (since 19 September 2026): events that concern the viewer, and what waits for their decision. It reaches only someone who has the app open. E-mail needs real addresses, so it follows real sign-in. |
-| Live updates | Trello, Planka, Wekan, Plane | A board refreshes only after the viewer's own action. Two people see different states until one of them hits an edit conflict. |
 
 ### 2. Everyday comfort that even the simplest tools offer
 
@@ -65,7 +64,7 @@ Wekan, Taiga, and Plane.
 - **Import from Trello** (Planka, Wekan, and Taiga have one) and **JSON/CSV export**. Without an
   import nobody moves an existing board over; without an export nobody trusts it with their data.
 - **Webhooks, and notifications to Discord or Slack.** Game teams live on Discord, and it is the
-  cheapest notification channel to build.
+  cheapest notification channel to build. Deferred for now (19 September 2026).
 - **API tokens and API documentation.**
 - **A read-only role or a public link** for a publisher or stakeholder (Trello's observers,
   Plane's guests).
@@ -85,9 +84,9 @@ exists.
 
 1. **Phase 8:** real sign-in and backups.
 2. **Notifications.** Done in the app: the bell, with what waits for the viewer (requests to
-   decide, items to accept). Still to do: a Discord webhook per project, then e-mail once
-   sign-in is real.
-3. **Live updates** (server-sent events).
+   decide, items to accept). E-mail follows real sign-in, which gives it real addresses. A
+   Discord webhook is deferred (decided 19 September 2026); it stays listed under adoption.
+3. **Live updates.** Done (19 September 2026): server-sent events fed by Postgres NOTIFY.
 4. **Markdown, @mentions, and checklists.**
 5. **Labels with a "blocked" flag, and optional dates.**
 6. **Swimlanes, and opening archived Workboards.**

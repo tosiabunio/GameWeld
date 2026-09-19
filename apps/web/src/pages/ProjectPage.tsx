@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { NavLink, Outlet, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { TaskModal, type OpenTask } from '../components/TaskModal.tsx';
+import { isForeignChange, subscribeLive } from '../live.ts';
 import { Shell } from './Shell.tsx';
 
 interface ProjectContextValue {
@@ -10,9 +11,12 @@ interface ProjectContextValue {
   reload: () => Promise<void>;
   /** Call after a change that may assign, finish, or delete a task: "My tasks" comes and goes. */
   refreshMyTasks: () => Promise<void>;
-  /** Counts changes made in a task's window; pages that show tasks load again when it moves. */
-  tasksVersion: number;
-  notifyTasksChanged: () => void;
+  /**
+   * Counts changes to the project's data that a page may not have seen: made in a task's window
+   * open over it, or by someone else (live updates). Pages load again when it moves.
+   */
+  dataVersion: number;
+  notifyChanged: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -64,8 +68,30 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
     void refreshMyTasks();
   }, [refreshMyTasks, pathname]);
 
-  const [tasksVersion, setTasksVersion] = useState(0);
-  const notifyTasksChanged = useCallback(() => setTasksVersion((version) => version + 1), []);
+  const [dataVersion, setDataVersion] = useState(0);
+  const notifyChanged = useCallback(() => setDataVersion((version) => version + 1), []);
+
+  // Live updates: someone else changed something in this project. A burst of events, as one
+  // action often causes, is one reload. Membership and settings belong to the project itself.
+  useEffect(() => {
+    let timer: number | undefined;
+    let projectToo = false;
+    const unsubscribe = subscribeLive((event) => {
+      if (!isForeignChange(event, projectId!)) return;
+      projectToo ||= event.resync === true || event.t === 'project' || event.t === 'user';
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (projectToo) void reload();
+        projectToo = false;
+        notifyChanged();
+        void refreshMyTasks();
+      }, 200);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [projectId, reload, notifyChanged, refreshMyTasks]);
 
   if (error) {
     return (
@@ -128,7 +154,7 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
       }
     >
       <ProjectContext.Provider
-        value={{ project, reload, refreshMyTasks, tasksVersion, notifyTasksChanged }}
+        value={{ project, reload, refreshMyTasks, dataVersion, notifyChanged }}
       >
         <Outlet />
         {openTask && <TaskModal key={openTask.taskId} {...openTask} />}

@@ -1,6 +1,7 @@
 import type { NotificationKind } from '@gameweld/domain';
 import type { ActivityInput } from '../activity.ts';
 import type { Queryable } from '../db.ts';
+import { emitLive } from '../live.ts';
 
 interface NotifyInput {
   projectId: string;
@@ -33,6 +34,8 @@ export async function notify(db: Queryable, n: NotifyInput): Promise<void> {
       recipients,
     ],
   );
+  // Their bells ring at once. After the rows exist: outside a transaction this goes out now.
+  await emitLive(db, { u: recipients });
 }
 
 const field = (value: unknown, name: string): unknown =>

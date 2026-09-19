@@ -2,17 +2,20 @@ import type { Notification, NotificationSummary, WaitingEntry } from '@gameweld/
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { api } from '../api.ts';
+import { subscribeLive } from '../live.ts';
 import { ActionMenu } from './ActionMenu.tsx';
 import { Avatar } from './Brand.tsx';
 
-/** How often the bell looks again while the page just sits there. */
-const POLL_MS = 60_000;
+/** A fallback for when live updates do not get through: how often the bell looks by itself. */
+const POLL_MS = 5 * 60_000;
 
 /**
  * The bell in the top bar. It counts what waits for the viewer's decision (placement requests to
  * decide, items to accept: states, which stay until someone decides) together with what they
- * have not read yet (events), and opens both. Until the app has live updates it looks again
- * every minute, on every move between pages, and when the window comes back into view.
+ * have not read yet (events), and opens both. Live updates ring it the moment a notification is
+ * made, and tell it when something in a project changed, which may be a decision that was
+ * waiting. It also looks again on every move between pages, when the window comes back into
+ * view, when it is opened, and now and then.
  */
 export function NotificationsBell() {
   const [summary, setSummary] = useState<NotificationSummary | null>(null);
@@ -29,6 +32,17 @@ export function NotificationsBell() {
   useEffect(() => {
     void reload();
   }, [reload, pathname]);
+  useEffect(() => {
+    let soon: number | undefined;
+    const unsubscribe = subscribeLive(() => {
+      window.clearTimeout(soon);
+      soon = window.setTimeout(() => void reload(), 300);
+    });
+    return () => {
+      window.clearTimeout(soon);
+      unsubscribe();
+    };
+  }, [reload]);
   useEffect(() => {
     const timer = window.setInterval(() => void reload(), POLL_MS);
     const onVisible = () => document.visibilityState === 'visible' && void reload();

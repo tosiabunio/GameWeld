@@ -51,6 +51,8 @@ import type {
   UserSummary,
 } from '@gameweld/domain';
 
+import { clientId } from './live.ts';
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -67,6 +69,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     // Fastify rejects an empty body that claims to be JSON, so only label real bodies.
     headers: {
+      // Names this tab, so the live event a change causes can be told from other people's.
+      'x-client-id': clientId,
       ...(init?.body && !(init.body instanceof FormData)
         ? { 'content-type': 'application/json' }
         : {}),

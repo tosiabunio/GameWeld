@@ -5,6 +5,7 @@ import { recordActivity } from '../activity.ts';
 import { can } from '@gameweld/domain';
 import { projectRoute } from '../authz.ts';
 import { coverKey, coverRendition, UnreadableImage } from '../covers.ts';
+import { emitLive } from '../live.ts';
 import { notifyOfComment } from '../services/notifications.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
@@ -208,6 +209,13 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
           `INSERT INTO comments (project_id, item_id, task_id, author_id, body) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
           [projectId, target.itemId ?? null, target.taskId ?? null, req.user!.id, parsed.data.body],
         );
+        // Comments are not in the activity history, so they announce themselves.
+        await emitLive(db, {
+          p: projectId,
+          t: target.taskId ? 'task' : 'backlog_item',
+          id: target.taskId ?? target.itemId!,
+          a: 'comment.added',
+        });
         await notifyOfComment(db, {
           projectId,
           authorId: req.user!.id,
@@ -251,6 +259,12 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
         commentId,
         parsed.data.body,
       ]);
+      await emitLive(db, {
+        p: req.access!.project.id,
+        t: row.task_id ? 'task' : 'backlog_item',
+        id: row.task_id ?? row.item_id!,
+        a: 'comment.updated',
+      });
       const comments = await fetchComments(
         db,
         row.item_id ? { itemId: row.item_id } : { taskId: row.task_id! },
@@ -267,8 +281,13 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
       const projectId = req.access!.project.id;
       if (!isUuid(commentId)) throw notFound('Comment not found');
       const row = (
-        await db.query<{ author_id: string; kind: string }>(
-          'SELECT author_id, kind FROM comments WHERE project_id = $1 AND id = $2',
+        await db.query<{
+          author_id: string;
+          kind: string;
+          task_id: string | null;
+          item_id: string | null;
+        }>(
+          'SELECT author_id, kind, task_id, item_id FROM comments WHERE project_id = $1 AND id = $2',
           [projectId, commentId],
         )
       ).rows[0];
@@ -278,6 +297,12 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
       if (row.kind === 'rejection')
         throw conflict('Rejection notes are part of the review history and cannot be deleted.');
       await db.query('DELETE FROM comments WHERE id = $1', [commentId]);
+      await emitLive(db, {
+        p: req.access!.project.id,
+        t: row.task_id ? 'task' : 'backlog_item',
+        id: row.task_id ?? row.item_id!,
+        a: 'comment.deleted',
+      });
       return reply.status(204).send();
     },
   );

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { registerAuth } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
+import { LiveHub, requestContext } from './live.ts';
 import { FilesystemStorage, type Storage } from './storage.ts';
 import { currentVersion } from './migrate.ts';
 import { acceptanceRoutes } from './routes/acceptance.ts';
@@ -13,6 +14,7 @@ import { avatarRoutes } from './routes/avatars.ts';
 import { backlogRoutes } from './routes/backlog.ts';
 import { collabRoutes } from './routes/collab.ts';
 import { boardRoutes } from './routes/board.ts';
+import { liveRoutes } from './routes/live.ts';
 import { memberRoutes } from './routes/members.ts';
 import { myTaskRoutes } from './routes/myTasks.ts';
 import { notificationRoutes } from './routes/notifications.ts';
@@ -26,10 +28,18 @@ export interface AppContext {
   config: Config;
   db: Db;
   storage: Storage;
+  live: LiveHub;
 }
 
 export function createContext(config: Config, db: Db): AppContext {
-  return { config, db, storage: new FilesystemStorage(config.attachmentsDir) };
+  return {
+    config,
+    db,
+    storage: new FilesystemStorage(config.attachmentsDir),
+    live: new LiveHub(config.databaseUrl, db, (message, error) =>
+      console.error(message, error ?? ''),
+    ),
+  };
 }
 
 declare module 'fastify' {
@@ -51,6 +61,15 @@ export async function buildApp(
   await app.register(fastifyMultipart, {
     limits: { files: 1, fileSize: ctx.config.attachmentMaxBytes },
   });
+  // Which browser tab a change came from travels with the request, so that the live event the
+  // change causes can name it and that tab need not load what it already has.
+  app.addHook('onRequest', (req, _reply, done) => {
+    const header = req.headers['x-client-id'];
+    const clientId = typeof header === 'string' && /^[\w-]{1,64}$/.test(header) ? header : null;
+    requestContext.run({ clientId }, done);
+  });
+  // Before the server waits for requests in flight: a stream is one, and never ends by itself.
+  app.addHook('preClose', () => ctx.live.stop());
   beforeRoutes?.(app);
 
   // Must precede route registration: child contexts inherit the handler that exists at that time.
@@ -75,6 +94,7 @@ export async function buildApp(
   await app.register(memberRoutes, { prefix: '/api' });
   await app.register(userRoutes, { prefix: '/api' });
   await app.register(notificationRoutes, { prefix: '/api' });
+  await app.register(liveRoutes, { prefix: '/api' });
   await app.register(avatarRoutes, { prefix: '/api' });
   await app.register(backlogRoutes, { prefix: '/api' });
   await app.register(taskRoutes, { prefix: '/api' });
