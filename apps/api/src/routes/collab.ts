@@ -6,7 +6,7 @@ import { can } from '@gameweld/domain';
 import { projectRoute } from '../authz.ts';
 import { coverKey, coverRendition, UnreadableImage } from '../covers.ts';
 import { emitLive } from '../live.ts';
-import { notifyOfComment } from '../services/notifications.ts';
+import { notifyOfComment, notifyOfMentions } from '../services/notifications.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { PayloadTooLarge, PREVIEW_IMAGE_TYPES } from '../storage.ts';
@@ -245,8 +245,9 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
           kind: string;
           item_id: string | null;
           task_id: string | null;
+          body: string;
         }>(
-          'SELECT author_id, kind, item_id, task_id FROM comments WHERE project_id = $1 AND id = $2',
+          'SELECT author_id, kind, item_id, task_id, body FROM comments WHERE project_id = $1 AND id = $2',
           [projectId, commentId],
         )
       ).rows[0];
@@ -264,6 +265,14 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
         t: row.task_id ? 'task' : 'backlog_item',
         id: row.task_id ?? row.item_id!,
         a: 'comment.updated',
+      });
+      await notifyOfMentions(db, {
+        projectId,
+        actorId: req.user!.id,
+        taskId: row.task_id,
+        itemId: row.item_id,
+        text: parsed.data.body,
+        before: row.body,
       });
       const comments = await fetchComments(
         db,

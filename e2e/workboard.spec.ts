@@ -458,3 +458,26 @@ test('the scope sits behind the pill that counts it, with each item’s state an
   );
   await expect(page.getByTestId('board-counts')).toContainText('2 out-of-scope tasks');
 });
+
+test('a column is renamed by clicking its name', async ({ page }) => {
+  await signIn(page, 'director');
+  await createProjectWithItems(page, 'Column rename project');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
+
+  const done = page.getByRole('region', { name: 'Done', exact: true });
+  await done.getByRole('button', { name: 'Done', exact: true }).click();
+  const field = page.getByRole('form', { name: 'Rename Done' }).getByLabel('Column name');
+  await expect(field).toBeFocused();
+  // Escape leaves the name as it was.
+  await field.fill('Finished');
+  await field.press('Escape');
+  await expect(done).toBeVisible();
+
+  await done.getByRole('button', { name: 'Done', exact: true }).click();
+  await field.fill('Shipped');
+  await field.press('Enter');
+  await expect(page.getByRole('region', { name: 'Shipped', exact: true })).toBeVisible();
+  // The name carries no rules: it is still the column that completes tasks.
+  await expect(page.getByRole('region', { name: 'Shipped', exact: true })).toHaveClass(/kind-done/);
+});

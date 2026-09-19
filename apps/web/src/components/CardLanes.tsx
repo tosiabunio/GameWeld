@@ -39,6 +39,8 @@ import { isCardClick } from '../taskLinks.ts';
 export interface Lane<T> {
   id: string;
   title: string;
+  /** Shown in the lane's head in place of the plain title, for a title that can be edited. */
+  titleNode?: ReactNode;
   items: T[];
   /** How many cards the lane holds when `items` are only those that pass a filter. */
   total?: number;
@@ -583,7 +585,7 @@ function LaneView<T extends { id: string }>({
         <>
           <div className="lane-head">
             <h3>
-              {lane.title}{' '}
+              {lane.titleNode ?? lane.title}{' '}
               <span className="count">
                 {lane.total === undefined || lane.total === items.length
                   ? items.length

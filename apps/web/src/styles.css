@@ -1993,6 +1993,45 @@ progress::-moz-progress-bar {
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
+/* A block of text that a click turns into its editor: the same hint as a title, around it. */
+.text-edit {
+  margin: 0 -9px;
+  padding: 4px 8px;
+  border: 1px dashed transparent;
+  border-radius: var(--r-md);
+  cursor: text;
+}
+.text-edit:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.text-edit a {
+  cursor: pointer;
+}
+/* A column's name in its lane's head: the head's own size, and room for the field. */
+.lane-title-edit {
+  margin: -3px 0 -3px -7px;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+}
+.lane-title-form {
+  display: inline-block;
+  vertical-align: middle;
+}
+.lane-title-form input {
+  width: 12em;
+  max-width: 100%;
+  min-height: 0;
+  padding: 2px 6px;
+  font: inherit;
+}
+/* A long title wraps inside its button rather than pushing the row apart. */
+h1 > .title-edit {
+  overflow-wrap: anywhere;
+}
+h1:has(> .title-edit) {
+  min-width: 0;
+}
 .title-edit .pencil {
   font-size: 0.7em;
   color: var(--muted);
@@ -2196,8 +2235,204 @@ progress::-moz-progress-bar {
   max-width: 80ch;
   color: var(--muted);
   line-height: 1.65;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+/* Markdown, in descriptions and comments: quiet, and sized for running text, so a heading
+   someone types does not outrank the page's own. */
+.rich-text {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.rich-text.plain {
+  white-space: pre-wrap;
+}
+.rich-text > :first-child {
+  margin-top: 0;
+}
+.rich-text > :last-child {
+  margin-bottom: 0;
+}
+.rich-text :is(p, ul, ol, pre, blockquote, table) {
+  margin: 0 0 0.7em;
+}
+.rich-text :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1em 0 0.4em;
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.rich-text :is(h1, h2) {
+  font-size: 1.1rem;
+}
+.rich-text :is(ul, ol) {
+  padding-left: 1.4em;
+}
+.rich-text li > :is(ul, ol) {
+  margin-bottom: 0;
+}
+/* A task list in the text is a list of ticks, not bullets. */
+.rich-text li:has(> input[type='checkbox']) {
+  list-style: none;
+  margin-left: -1.4em;
+}
+.rich-text li > input[type='checkbox'] {
+  margin: 0 0.5em 0 0;
+  vertical-align: -1px;
+}
+.rich-text code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  font-size: 0.9em;
+}
+.rich-text pre {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  overflow-x: auto;
+}
+.rich-text pre code {
+  padding: 0;
+  background: none;
+}
+.rich-text blockquote {
+  margin-left: 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--muted);
+}
+.rich-text table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.rich-text :is(th, td) {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.rich-text hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+/* A task's checklist: in its window, and as a count on its cards. */
+.checklist-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.checklist-progress.all {
+  color: var(--ok);
+}
+.checklist {
+  padding-bottom: 16px;
+}
+.checklist h2 {
+  margin: 0;
+}
+.checklist progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin: 8px 0 6px;
+}
+.checklist ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.checklist li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  border-radius: var(--r-sm);
+}
+.checklist li:hover {
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+.checklist li > input[type='checkbox'] {
+  margin: 0 0 0 4px;
+}
+.checklist-title {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+button.checklist-title {
+  cursor: text;
+}
+.checklist li.done .checklist-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.checklist li form input {
+  width: 100%;
+}
+.checklist-remove {
+  padding: 2px 8px;
+  font-size: 11px;
+  opacity: 0;
+}
+.checklist li:hover .checklist-remove,
+.checklist-remove:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .checklist-remove {
+    opacity: 1;
+  }
+}
+/* A Markdown field with its hint, and the members suggested after "@", right under it. */
+.mention-field {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  font-weight: 400;
+}
+.mention-field > .hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+.mention-suggestions {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% - 18px);
+  left: 0;
+  display: grid;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.mention-suggestions > [role='option'] {
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+.mention-suggestions > .chosen {
+  background: var(--accent-soft);
+}
+/* A member named in the text. */
+.mention {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+  white-space: nowrap;
 }
 .breakdown-tasks > h2 {
   margin: 0 0 4px;

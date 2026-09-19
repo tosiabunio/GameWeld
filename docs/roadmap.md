@@ -22,7 +22,8 @@ enforce such a process at all; Taiga and Plane only in part.
 **The board layer.** Dragging by pointer and keyboard, custom and collapsible columns, covers,
 attachments, links, comments, assignees with avatars, "My tasks" in the member's own order,
 notifications in the app with a list of what waits for the viewer's decision, live updates of
-every open page, filters and title search, the task in a window over its board, dark mode, a phone layout,
+every open page, Markdown with @mentions in descriptions and comments, checklists inside tasks,
+filters and title search, the task in a window over its board, dark mode, a phone layout,
 archive and restore instead of hard deletion, and continuous deployment.
 
 ## What is missing
@@ -40,10 +41,8 @@ Wekan, Taiga, and Plane.
 
 ### 2. Everyday comfort that even the simplest tools offer
 
-- **Markdown and @mentions** in descriptions and comments. All five have them; GameWeld shows
-  plain text.
-- **Checklists inside a task** (Trello, Planka, Wekan). Without them people multiply tiny tasks
-  or keep lists in the description.
+- **Reordering a checklist.** Items keep the order they were added in; the simple tools let
+  them be dragged.
 - **Labels, and above all a "blocked" flag** (Taiga). Today a card has only its task category
   and its item's MoSCoW category; nothing marks a bug, polish, or a platform.
 - **Dates.** The specification deliberately infers no deadlines. An optional date on an item, or
@@ -84,7 +83,7 @@ exists.
    decide, items to accept). E-mail follows real sign-in, which gives it real addresses. A
    Discord webhook is deferred (decided 19 September 2026); it stays listed under adoption.
 3. **Live updates.** Done (19 September 2026): server-sent events fed by Postgres NOTIFY.
-4. **Markdown, @mentions, and checklists.**
+4. **Markdown, @mentions, and checklists.** Done (19 September 2026).
 5. **Labels with a "blocked" flag, and optional dates.**
 6. **Swimlanes, and opening archived Workboards.**
 7. **Import from Trello, and export.**

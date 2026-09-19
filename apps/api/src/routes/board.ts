@@ -21,7 +21,7 @@ import { withTransaction, type Db, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import { placeTask, rankAtEndOfColumn, returnTask } from '../services/placement.ts';
-import { fetchTask, setTaskCompleted } from './tasks.ts';
+import { CHECKLIST_COUNTS, fetchTask, setTaskCompleted } from './tasks.ts';
 
 const uuid = z.string().uuid();
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
@@ -166,6 +166,8 @@ export async function fetchView(
     completed_at: Date | null;
     archived_at: Date | null;
     cover_attachment_id: string | null;
+    checklist_total: string;
+    checklist_done: string;
     version: number;
     created_at: Date;
     updated_at: Date;
@@ -180,6 +182,7 @@ export async function fetchView(
     `SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
             u.display_name AS assignee_name, u.avatar_id AS assignee_avatar_id, t.completed, t.completed_at, t.archived_at, t.version,
             t.created_at, t.updated_at, t.cover_attachment_id,
+            ${CHECKLIST_COUNTS},
             c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
             p.entered_as_exception, p.rank, b.title AS item_title, b.category AS item_category
        FROM task_placements p
@@ -217,6 +220,7 @@ export async function fetchView(
       completedAt: r.completed_at?.toISOString() ?? null,
       archived: r.archived_at !== null,
       coverAttachmentId: r.cover_attachment_id,
+      checklist: { total: Number(r.checklist_total), done: Number(r.checklist_done) },
       placement: {
         boardId: board.id,
         boardName: board.name,

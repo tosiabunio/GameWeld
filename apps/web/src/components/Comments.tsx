@@ -1,6 +1,8 @@
 import type { Comment } from '@gameweld/domain';
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api.ts';
+import { MentionTextarea } from './MentionTextarea.tsx';
+import { RichText } from './RichText.tsx';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { useCurrentUser } from '../session.tsx';
 
@@ -92,9 +94,9 @@ export function Comments({
                     ).then((ok) => ok && setEditing(null));
                   }}
                 >
-                  <textarea
+                  <MentionTextarea
                     value={editing.body}
-                    onChange={(e) => setEditing({ id: c.id, body: e.target.value })}
+                    onChange={(body) => setEditing({ id: c.id, body })}
                     rows={3}
                     aria-label="Comment text"
                     autoFocus
@@ -109,7 +111,7 @@ export function Comments({
                   </div>
                 </form>
               ) : (
-                <p>{c.body}</p>
+                <RichText text={c.body} />
               )}
             </li>
           ))}
@@ -128,9 +130,9 @@ export function Comments({
         >
           <label>
             Comment
-            <textarea
+            <MentionTextarea
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
               rows={2}
               placeholder="Notes for the team, review findings, build references…"
             />

@@ -8,6 +8,7 @@ import { ActionMenu } from '../components/ActionMenu.tsx';
 import { CardFilterControls, CardFilterRow } from '../components/CardFilterBar.tsx';
 import { AssigneePicker } from '../components/AssigneePicker.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
+import { ChecklistProgress } from '../components/Checklist.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { History } from '../components/History.tsx';
@@ -517,6 +518,9 @@ function Columns({
   const lanes: Lane<BoardCard>[] = board.columns.map((col) => ({
     id: col.id,
     title: col.name,
+    ...(canManage
+      ? { titleNode: <ColumnTitle column={col} board={board} onChange={onChange} /> }
+      : {}),
     items: filtering
       ? (board.cards[col.id] ?? []).filter((card) => matchesCard(card, filters))
       : (board.cards[col.id] ?? []),
@@ -591,6 +595,7 @@ function Columns({
             </div>
             <div className="card-meta">
               <span className="muted">{card.itemTitle}</span>
+              <ChecklistProgress checklist={card.checklist} />
               {card.outOfScope && <span className="badge warn">Out of scope</span>}
               {uploading === card.id && <span role="status">Uploading…</span>}
             </div>
@@ -657,6 +662,61 @@ function Columns({
         )}
       />
     </>
+  );
+}
+
+/**
+ * A column's name, renamed where it stands: a click turns it into a field, Enter saves, Escape
+ * or a click elsewhere leaves it as it was. The column's menu keeps its own "Rename".
+ */
+function ColumnTitle({
+  column,
+  board,
+  onChange,
+}: {
+  column: BoardColumn;
+  board: BoardView;
+  onChange: (action: () => Promise<BoardView | void>) => Promise<boolean>;
+}) {
+  const { project } = useProject();
+  const [name, setName] = useState<string | null>(null);
+  if (name === null)
+    return (
+      <button
+        type="button"
+        className="title-edit lane-title-edit"
+        title="Click to rename this column"
+        onClick={() => setName(column.name)}
+      >
+        {column.name}
+      </button>
+    );
+  return (
+    <form
+      className="lane-title-form"
+      aria-label={`Rename ${column.name}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const next = name.trim();
+        if (next === '' || next === column.name) return setName(null);
+        void onChange(() =>
+          api.updateColumn(project.id, board.id, column.id, {
+            version: column.version,
+            name: next,
+          }),
+        ).then(() => setName(null));
+      }}
+    >
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setName(null)}
+        onBlur={() => setName(null)}
+        aria-label="Column name"
+        maxLength={100}
+        autoFocus
+      />
+    </form>
   );
 }
 

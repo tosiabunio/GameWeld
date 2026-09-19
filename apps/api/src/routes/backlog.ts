@@ -13,6 +13,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import { notifyOfMentions } from '../services/notifications.ts';
 import { clearItemFromBoards, settleRequests } from '../services/placement.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import { fetchAcceptances, fetchItemComments } from './acceptance.ts';
@@ -290,6 +291,15 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
           archived: next.archived_at !== null,
         },
       });
+      if (next.description !== current.description)
+        await notifyOfMentions(tx, {
+          projectId,
+          actorId: req.user!.id,
+          taskId: null,
+          itemId,
+          text: next.description,
+          before: current.description,
+        });
       if (archived === true && current.archived_at === null) {
         // An archived item is nobody's work. It must not keep a place in the scope, leave its
         // finished cards on the board, or leave requests waiting for a Director to find.

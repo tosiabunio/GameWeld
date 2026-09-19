@@ -8,6 +8,7 @@ import { useCurrentUser } from '../session.tsx';
 import { isCardClick, useTaskLinks } from '../taskLinks.ts';
 import { AssigneePicker } from './AssigneePicker.tsx';
 import { useCollapsedLanes } from './CardLanes.tsx';
+import { ChecklistProgress } from './Checklist.tsx';
 import { TaskStatus } from './TaskStatus.tsx';
 
 /** The three task groups of an item (Section 7), with inline creation for members. */
@@ -202,6 +203,7 @@ export function Breakdown({
                           </div>
                           <div className="card-meta">
                             <TaskStatus task={task} />
+                            <ChecklistProgress checklist={task.checklist} />
                             {/* A task that is not on a board has no card to drag into Done. */}
                             {canComplete &&
                               !task.placement &&

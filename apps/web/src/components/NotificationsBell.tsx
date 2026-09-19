@@ -223,6 +223,11 @@ function NotificationRow({
             <strong>{who}</strong> commented on {n.task ? task : item}
           </>
         )}
+        {n.kind === 'mention' && (
+          <>
+            <strong>{who}</strong> mentioned you on {n.task ? task : item}
+          </>
+        )}
         {n.kind === 'request.created' && (
           <>
             <strong>{who}</strong> asks to place {task} on the Workboard

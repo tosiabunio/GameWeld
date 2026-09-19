@@ -1,6 +1,7 @@
 import {
   can,
   TASK_CATEGORIES,
+  type ChecklistItem,
   type Task,
   type TaskCategory,
   type TaskDetail,
@@ -13,6 +14,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
+import { notifyOfMentions } from '../services/notifications.ts';
 import { placeIfInScope, placeTask, returnTask, settleRequests } from '../services/placement.ts';
 import { avatarUrl } from '../avatars.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
@@ -52,6 +54,8 @@ export interface TaskRow {
   completed_at: Date | null;
   archived_at: Date | null;
   cover_attachment_id: string | null;
+  checklist_total: string;
+  checklist_done: string;
   version: number;
   created_at: Date;
   updated_at: Date;
@@ -67,10 +71,16 @@ export interface TaskRow {
   request_requester_id: string | null;
 }
 
+/** A task's checklist progress, for every query that lists tasks (the alias `t` is the task). */
+export const CHECKLIST_COUNTS = `
+         (SELECT count(*) FROM task_checklist_items k WHERE k.task_id = t.id) AS checklist_total,
+         (SELECT count(*) FROM task_checklist_items k WHERE k.task_id = t.id AND k.done) AS checklist_done`;
+
 export const taskSelect = `
   SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
          u.display_name AS assignee_name, u.avatar_id AS assignee_avatar_id, t.completed, t.completed_at, t.archived_at, t.version,
          t.created_at, t.updated_at, t.cover_attachment_id,
+         ${CHECKLIST_COUNTS},
          w.id AS board_id, w.name AS board_name, c.id AS column_id, c.name AS column_name, c.kind AS column_kind,
          p.entered_as_exception,
          r.id AS request_id, r.board_id AS request_board_id, rw.name AS request_board_name, r.requester_id AS request_requester_id
@@ -102,6 +112,7 @@ export function toTask(r: TaskRow): Task {
     completedAt: r.completed_at?.toISOString() ?? null,
     archived: r.archived_at !== null,
     coverAttachmentId: r.cover_attachment_id,
+    checklist: { total: Number(r.checklist_total), done: Number(r.checklist_done) },
     placement:
       r.board_id && r.board_name && r.column_id && r.column_name
         ? {
@@ -126,6 +137,14 @@ export function toTask(r: TaskRow): Task {
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
+}
+
+export async function fetchChecklist(db: Queryable, taskId: string): Promise<ChecklistItem[]> {
+  const res = await db.query<ChecklistItem>(
+    'SELECT id, title, done FROM task_checklist_items WHERE task_id = $1 ORDER BY rank, id',
+    [taskId],
+  );
+  return res.rows;
 }
 
 export async function fetchTask(
@@ -156,12 +175,13 @@ async function fetchDetail(
       state: TaskDetail['item']['state'];
     }>('SELECT id, title, category, state FROM backlog_items WHERE id = $1', [task.itemId])
   ).rows[0]!;
-  const [comments, attachments, links] = await Promise.all([
+  const [comments, attachments, links, checklistItems] = await Promise.all([
     fetchComments(db, { taskId: task.id }),
     fetchAttachments(db, { taskId: task.id }),
     fetchLinks(db, { taskId: task.id }),
+    fetchChecklist(db, task.id),
   ]);
-  return { ...task, item, comments, attachments, links };
+  return { ...task, item, comments, attachments, links, checklistItems };
 }
 
 async function assertMember(tx: Queryable, projectId: string, userId: string): Promise<void> {
@@ -520,6 +540,15 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           coverAttachmentId: next.cover_attachment_id,
         },
       });
+      if (next.description !== current.description)
+        await notifyOfMentions(tx, {
+          projectId,
+          actorId,
+          taskId,
+          itemId: next.item_id,
+          text: next.description,
+          before: current.description,
+        });
       // A task restored, or moved under another item, may now belong to an item in scope.
       if (!next.archived_at)
         await placeIfInScope(

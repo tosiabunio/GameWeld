@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { Breakdown } from '../components/Breakdown.tsx';
+import { EditableText, EditableTitle } from '../components/ClickToEdit.tsx';
+import { MentionTextarea } from '../components/MentionTextarea.tsx';
+import { RichText } from '../components/RichText.tsx';
 import { ReviewPanel } from '../components/ReviewPanel.tsx';
 import { ResourcePanel } from '../components/ResourcePanel.tsx';
 import { Attachments } from '../components/Attachments.tsx';
@@ -197,7 +200,12 @@ function ItemForm({
   const [title, setTitle] = useState(item.title);
   const [description, setDescription] = useState(item.description);
   const [saved, setSaved] = useState(false);
-  const [editing, setEditing] = useState(false);
+  // Which field the edit began in, and so which one gets the caret.
+  const [editing, setEditing] = useState<false | 'title' | 'description'>(false);
+  const startEditing = (field: 'title' | 'description') => {
+    setSaved(false);
+    setEditing(field);
+  };
 
   useEffect(() => {
     setTitle(item.title);
@@ -216,21 +224,39 @@ function ItemForm({
     return (
       <div className="item-intro">
         <div className="row between">
-          <h1>{item.title}</h1>
+          <h1>
+            {readOnly ? (
+              item.title
+            ) : (
+              <EditableTitle label="Click to edit the title" onEdit={() => startEditing('title')}>
+                {item.title}
+              </EditableTitle>
+            )}
+          </h1>
           {!readOnly && (
-            <button
-              type="button"
-              className="quiet"
-              onClick={() => {
-                setSaved(false);
-                setEditing(true);
-              }}
-            >
+            <button type="button" className="quiet" onClick={() => startEditing('title')}>
               Edit item
             </button>
           )}
         </div>
-        <p className="description-text">{item.description || 'No description yet.'}</p>
+        {readOnly ? (
+          item.description ? (
+            <RichText text={item.description} className="description-text" />
+          ) : (
+            <p className="description-text">No description yet.</p>
+          )
+        ) : (
+          <EditableText
+            label="Click to edit the description"
+            onEdit={() => startEditing('description')}
+          >
+            {item.description ? (
+              <RichText text={item.description} className="description-text" />
+            ) : (
+              <p className="description-text">No description yet. Click to add one.</p>
+            )}
+          </EditableText>
+        )}
         {saved && (
           <span className="ok" role="status">
             Saved.
@@ -252,14 +278,18 @@ function ItemForm({
           readOnly={readOnly}
           required
           maxLength={500}
+          autoFocus={editing === 'title'}
         />
       </label>
       <label>
         Description
-        <textarea
+        <MentionTextarea
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
           readOnly={readOnly}
+          autoFocus={editing === 'description'}
+          // The caret goes to the end of what is there, ready to go on writing.
+          onFocus={(e) => e.currentTarget.setSelectionRange(description.length, description.length)}
           rows={8}
           placeholder={
             readOnly

@@ -14,6 +14,8 @@ import type {
   RejectItemInput,
   ArchiveBoardInput,
   BoardSummary,
+  ChecklistItem,
+  UpdateChecklistItemInput,
   BoardView,
   CreateBoardInput,
   CreateBoardTaskInput,
@@ -178,6 +180,25 @@ export const api = {
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`),
   updateTask: (projectId: string, taskId: string, input: UpdateTaskInput) =>
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`, json('PATCH', input)),
+  addChecklistItem: (projectId: string, taskId: string, title: string) =>
+    request<ChecklistItem[]>(
+      `/api/projects/${projectId}/tasks/${taskId}/checklist`,
+      json('POST', { title }),
+    ),
+  updateChecklistItem: (
+    projectId: string,
+    taskId: string,
+    checkId: string,
+    input: UpdateChecklistItemInput,
+  ) =>
+    request<ChecklistItem[]>(
+      `/api/projects/${projectId}/tasks/${taskId}/checklist/${checkId}`,
+      json('PATCH', input),
+    ),
+  removeChecklistItem: (projectId: string, taskId: string, checkId: string) =>
+    request<ChecklistItem[]>(`/api/projects/${projectId}/tasks/${taskId}/checklist/${checkId}`, {
+      method: 'DELETE',
+    }),
   completeTask: (projectId: string, taskId: string) =>
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/complete`, { method: 'POST' }),
   reopenTask: (projectId: string, taskId: string) =>

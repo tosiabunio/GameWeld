@@ -215,6 +215,43 @@ describe('notifications and what waits for a member', () => {
     expect((await summary('developer')).notifications[0]).toMatchObject({ kind: 'item.accepted' });
   });
 
+  it('tells a member who is named in a comment or a description, once, and only a member', async () => {
+    const task = await createTask('director', inScope, 'Mentioning', { assigneeId: ids.developer });
+    await call('developer', 'POST', '/notifications/read');
+    await call('tester', 'POST', '/notifications/read');
+    const unread = async (who: Who) =>
+      (await summary(who)).notifications.filter((n) => !n.read).map((n) => n.kind);
+
+    // Named in a comment: that, rather than "there was a comment"; others still hear of the comment.
+    await project('director', 'POST', `/tasks/${task.id}/comments`, {
+      body: 'Can @tess tester check this? Not @Tess Testerson, not mail@Tess Tester.',
+    });
+    expect(await unread('tester')).toEqual(['mention']);
+    expect((await summary('tester')).notifications[0]).toMatchObject({
+      actor: { displayName: 'Dana Director' },
+      task: { title: 'Mentioning' },
+    });
+    expect(await unread('developer')).toEqual(['comment.added']);
+
+    // An edit that leaves the mention standing tells nobody again; a new name is told.
+    const comment = (await project('director', 'GET', `/tasks/${task.id}`)).json().comments[0];
+    await project('director', 'PATCH', `/comments/${comment.id}`, {
+      body: 'Can @Tess Tester and @Devin Developer check this?',
+    });
+    expect(await unread('tester')).toEqual(['mention']);
+    expect(await unread('developer')).toEqual(['mention', 'comment.added']);
+
+    // A description names people too; naming yourself, or a stranger, tells nobody.
+    await call('tester', 'POST', '/notifications/read');
+    const current = (await project('director', 'GET', `/tasks/${task.id}`)).json();
+    await project('director', 'PATCH', `/tasks/${task.id}`, {
+      version: current.version,
+      description: 'Pair with @Tess Tester. cc @Dana Director @Nobody Here',
+    });
+    expect(await unread('tester')).toEqual(['mention']);
+    expect(await unread('director')).not.toContain('mention');
+  });
+
   it('shows nothing from a project to someone who has left it', async () => {
     expect((await summary('tester')).notifications.length).toBeGreaterThan(0);
     await project('director', 'DELETE' as 'POST', `/members/${ids.tester}`);

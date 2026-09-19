@@ -132,6 +132,75 @@ export async function notifyFromActivity(db: Queryable, a: ActivityInput): Promi
   }
 }
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The project's members named in a text. A mention is kept as it reads, "@Devin Developer", so
+ * the name is what ties it to the member: whole, in any letter case, and not as part of a
+ * longer word or an e-mail address.
+ */
+export async function mentionedIn(
+  db: Queryable,
+  projectId: string,
+  text: string,
+): Promise<Set<string>> {
+  const found = new Set<string>();
+  if (!text.includes('@')) return found;
+  const members = await db.query<{ user_id: string; display_name: string }>(
+    `SELECT m.user_id, u.display_name FROM project_memberships m JOIN users u ON u.id = m.user_id
+      WHERE m.project_id = $1 ORDER BY length(u.display_name) DESC`,
+    [projectId],
+  );
+  let rest = text;
+  // Longest names first, each taken out once found, so "@Devin Developer" is not also "@Devin".
+  for (const m of members.rows) {
+    const name = new RegExp(
+      `(?<![\\p{L}\\p{N}])@${escapeRegExp(m.display_name)}(?![\\p{L}\\p{N}])`,
+      'giu',
+    );
+    if (!name.test(rest)) continue;
+    found.add(m.user_id);
+    rest = rest.replace(name, ' ');
+  }
+  return found;
+}
+
+/**
+ * Tells the members newly named in a text: those in `text` who were not in `before`. An edit
+ * that leaves a mention standing does not tell that member again.
+ */
+export async function notifyOfMentions(
+  db: Queryable,
+  m: {
+    projectId: string;
+    actorId: string;
+    taskId: string | null;
+    itemId: string | null;
+    text: string;
+    before?: string;
+  },
+): Promise<Set<string>> {
+  const named = await mentionedIn(db, m.projectId, m.text);
+  if (named.size === 0) return named;
+  const already = m.before ? await mentionedIn(db, m.projectId, m.before) : new Set<string>();
+  const fresh = [...named].filter((id) => !already.has(id));
+  let itemId = m.itemId;
+  if (!itemId && m.taskId)
+    itemId =
+      (await db.query<{ item_id: string }>('SELECT item_id FROM tasks WHERE id = $1', [m.taskId]))
+        .rows[0]?.item_id ?? null;
+  await notify(db, {
+    projectId: m.projectId,
+    actorId: m.actorId,
+    kind: 'mention',
+    taskId: m.taskId,
+    itemId,
+    recipients: fresh,
+    detail: m.text.replace(/\s+/g, ' ').trim(),
+  });
+  return new Set(fresh);
+}
+
 /**
  * A comment concerns whoever does the task and everyone already in the conversation. Comments
  * are not part of the activity history, so the comment route calls this itself.
@@ -146,6 +215,14 @@ export async function notifyOfComment(
     body: string;
   },
 ): Promise<void> {
+  // Someone named in the comment hears that, which says more than that there was a comment.
+  const named = await notifyOfMentions(db, {
+    projectId: c.projectId,
+    actorId: c.authorId,
+    taskId: c.taskId,
+    itemId: c.itemId,
+    text: c.body,
+  });
   const people = await db.query<{ user_id: string | null; item_id: string | null }>(
     c.taskId
       ? `SELECT t.assignee_id AS user_id, t.item_id FROM tasks t WHERE t.id = $1
@@ -161,7 +238,7 @@ export async function notifyOfComment(
     kind: 'comment.added',
     taskId: c.taskId,
     itemId: c.itemId ?? people.rows.find((p) => p.item_id)?.item_id ?? null,
-    recipients: people.rows.map((p) => p.user_id),
+    recipients: people.rows.map((p) => p.user_id).filter((id) => !id || !named.has(id)),
     detail: c.body.replace(/\s+/g, ' ').trim(),
   });
 }

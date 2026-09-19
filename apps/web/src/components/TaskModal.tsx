@@ -11,10 +11,14 @@ import { api, ApiError } from '../api.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import type { TaskLinkState } from '../taskLinks.ts';
 import { ResourcePanel } from './ResourcePanel.tsx';
+import { RichText } from './RichText.tsx';
 import { Attachments } from './Attachments.tsx';
+import { Checklist } from './Checklist.tsx';
+import { EditableText, EditableTitle } from './ClickToEdit.tsx';
 import { Comments } from './Comments.tsx';
 import { History } from './History.tsx';
 import { LinksList } from './LinksList.tsx';
+import { MentionTextarea } from './MentionTextarea.tsx';
 import { TaskStatus } from './TaskStatus.tsx';
 import { WritingPrompt } from './WritingPrompt.tsx';
 
@@ -204,6 +208,19 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
 
       <div className="detail-bottom">
         <div>
+          <Checklist
+            items={task.checklistItems}
+            canEdit={editable}
+            onAdd={(titles) =>
+              run(async () => {
+                for (const title of titles) await api.addChecklistItem(project.id, task.id, title);
+              })
+            }
+            onUpdate={(id, input) =>
+              run(() => api.updateChecklistItem(project.id, task.id, id, input))
+            }
+            onRemove={(id) => run(() => api.removeChecklistItem(project.id, task.id, id))}
+          />
           <section className="panel" aria-labelledby="task-comments-heading">
             <h2 id="task-comments-heading">Comments</h2>
             <Comments
@@ -391,7 +408,12 @@ function TaskForm({
   const [category, setCategory] = useState<TaskCategory>(task.category);
   const [assigneeId, setAssigneeId] = useState<string | null>(task.assignee?.id ?? null);
   const [saved, setSaved] = useState(false);
-  const [editing, setEditing] = useState(false);
+  // Which field the edit began in, and so which one gets the caret.
+  const [editing, setEditing] = useState<false | 'title' | 'description'>(false);
+  const startEditing = (field: 'title' | 'description') => {
+    setSaved(false);
+    setEditing(field);
+  };
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assigned, setAssigned] = useState<string | null>(null);
@@ -451,14 +473,19 @@ function TaskForm({
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 maxLength={500}
-                autoFocus
+                autoFocus={editing === 'title'}
               />
             </label>
             <label>
               Description
-              <textarea
+              <MentionTextarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
+                autoFocus={editing === 'description'}
+                // The caret goes to the end of what is there, ready to go on writing.
+                onFocus={(e) =>
+                  e.currentTarget.setSelectionRange(description.length, description.length)
+                }
                 rows={8}
                 placeholder="Free-form notes, links to references, anything useful."
               />
@@ -467,21 +494,42 @@ function TaskForm({
         ) : (
           <>
             <div className="row between">
-              <h1>{task.title}</h1>
+              <h1>
+                {readOnly ? (
+                  task.title
+                ) : (
+                  <EditableTitle
+                    label="Click to edit the title"
+                    onEdit={() => startEditing('title')}
+                  >
+                    {task.title}
+                  </EditableTitle>
+                )}
+              </h1>
               {!readOnly && (
-                <button
-                  type="button"
-                  className="quiet"
-                  onClick={() => {
-                    setSaved(false);
-                    setEditing(true);
-                  }}
-                >
+                <button type="button" className="quiet" onClick={() => startEditing('title')}>
                   Edit task
                 </button>
               )}
             </div>
-            <p className="description-text">{task.description || 'No description yet.'}</p>
+            {readOnly ? (
+              task.description ? (
+                <RichText text={task.description} className="description-text" />
+              ) : (
+                <p className="description-text">No description yet.</p>
+              )
+            ) : (
+              <EditableText
+                label="Click to edit the description"
+                onEdit={() => startEditing('description')}
+              >
+                {task.description ? (
+                  <RichText text={task.description} className="description-text" />
+                ) : (
+                  <p className="description-text">No description yet. Click to add one.</p>
+                )}
+              </EditableText>
+            )}
           </>
         )}
         {!readOnly && (editing || dirty) && (

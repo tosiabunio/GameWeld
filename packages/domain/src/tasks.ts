@@ -36,6 +36,8 @@ export interface Task {
   archived: boolean;
   /** Attachment id of the cover image shown on the task's Workboard card, if any. */
   coverAttachmentId: string | null;
+  /** How far the task's checklist is; cards show it when the task has one. */
+  checklist: { total: number; done: number };
   placement: TaskPlacement | null;
   /** A pending out-of-scope placement request for this task, if any (Section 9). */
   pendingRequest: { id: string; boardId: string; boardName: string; requesterId: string } | null;
@@ -44,8 +46,21 @@ export interface Task {
   updatedAt: string;
 }
 
+/** One step of a task's checklist. Ticking it decides nothing about the task's completion. */
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
+export interface UpdateChecklistItemInput {
+  title?: string;
+  done?: boolean;
+}
+
 export interface TaskDetail extends Task {
   item: { id: string; title: string; category: MoscowCategory; state: ItemState };
+  checklistItems: ChecklistItem[];
   comments: Comment[];
   attachments: Attachment[];
   links: { id: string; url: string; label: string }[];

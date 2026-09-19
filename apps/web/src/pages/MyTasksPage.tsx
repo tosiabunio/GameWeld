@@ -17,6 +17,7 @@ import { TASK_CATEGORY_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { ChecklistProgress } from '../components/Checklist.tsx';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { TaskStatus } from '../components/TaskStatus.tsx';
 import { isCardClick, useTaskLinks } from '../taskLinks.ts';
@@ -148,6 +149,7 @@ export function MyTasksPage() {
       <div className="card-meta">
         <span className="muted">{task.itemTitle}</span>
         <TaskStatus task={task} />
+        <ChecklistProgress checklist={task.checklist} />
       </div>
       <div className="card-bottom">
         <span className={`category-label cat-${task.category}`}>

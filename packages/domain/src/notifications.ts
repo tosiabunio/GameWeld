@@ -8,6 +8,7 @@ export const NOTIFICATION_KINDS = [
   'task.assigned',
   'task.unassigned',
   'comment.added',
+  'mention',
   'request.created',
   'request.approved',
   'request.rejected',

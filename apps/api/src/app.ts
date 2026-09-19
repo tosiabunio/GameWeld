@@ -12,6 +12,7 @@ import { currentVersion } from './migrate.ts';
 import { acceptanceRoutes } from './routes/acceptance.ts';
 import { avatarRoutes } from './routes/avatars.ts';
 import { backlogRoutes } from './routes/backlog.ts';
+import { checklistRoutes } from './routes/checklist.ts';
 import { collabRoutes } from './routes/collab.ts';
 import { boardRoutes } from './routes/board.ts';
 import { liveRoutes } from './routes/live.ts';
@@ -98,6 +99,7 @@ export async function buildApp(
   await app.register(avatarRoutes, { prefix: '/api' });
   await app.register(backlogRoutes, { prefix: '/api' });
   await app.register(taskRoutes, { prefix: '/api' });
+  await app.register(checklistRoutes, { prefix: '/api' });
   await app.register(myTaskRoutes, { prefix: '/api' });
   await app.register(boardRoutes, { prefix: '/api' });
   await app.register(acceptanceRoutes, { prefix: '/api' });
