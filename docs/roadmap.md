@@ -24,7 +24,7 @@ attachments, links, comments, assignees with avatars, "My tasks" in the member's
 notifications in the app with a list of what waits for the viewer's decision, live updates of
 every open page, Markdown with @mentions in descriptions and comments, checklists inside tasks,
 labels, a "blocked" flag and an optional date on tasks, an optional end date on the Workboard,
-filters and title search, the task in a window over its board, dark mode, a phone layout,
+archived Workboards that can be opened and looked at, filters and title search, the task in a window over its board, dark mode, a phone layout,
 archive and restore instead of hard deletion, and continuous deployment.
 
 ## What is missing
@@ -48,10 +48,6 @@ Wekan, Taiga, and Plane.
   asks about, has neither, and the Backlog cannot be filtered by label.
 - **Reminders of a date.** A task's date turns amber the day before and red after; nobody is
   told. That needs a scheduler, which the application does not have, and then e-mail.
-- **Swimlanes on the Workboard**, by backlog item or by person (Wekan, Taiga, Plane). With
-  several items in scope this reads better than a filter.
-- **Opening an archived Workboard.** Archived boards are a list of names; the API can return
-  one, the interface has no view for it.
 - **Global search and quick open** (Cmd+K), and keyboard shortcuts.
 - **Card operations:** copying a task, task templates, selecting several cards at once.
 - **"My tasks" across projects** (Trello's home, Plane's "Your work"). Today it is per project.
@@ -62,7 +58,33 @@ Wekan, Taiga, and Plane.
   import nobody moves an existing board over; without an export nobody trusts it with their data.
 - **Webhooks, and notifications to Discord or Slack.** Game teams live on Discord, and it is the
   cheapest notification channel to build. Deferred for now (19 September 2026).
-- **API tokens and API documentation.**
+- **API tokens and API documentation.** Today the API is reachable only with a browser session.
+  A member needs a token of their own that acts as they do, under the same permissions, named so
+  that it can be revoked, and either read-only or read-write; and the routes need a published
+  description (OpenAPI). Everything below about AI tools stands on these two.
+- **AI tools: changing a project and analysing its history with an assistant.** None of the five
+  ships this. GameWeld is well placed for it: every rule is enforced on the server, so an
+  assistant cannot leave a project in a state a person could not (scope limit, priority rule,
+  completion permission, nothing stranded), and every change is already in the activity history
+  with who made it and what it was before and after.
+  - **An MCP server**, served by the application itself (streamable HTTP, a member's token),
+    is the main way in, because one server works in every assistant that speaks MCP. Tools
+    mirror what a member does: read the Backlog, a Breakdown, the Workboard, and "waiting for
+    me"; create an item or a task, break an item down, move a card, comment, flag a block, ask
+    for out-of-scope work. Deleting, archiving, and membership stay out of the first set.
+  - **History for analysis.** The activity route pages the newest entries for the interface;
+    analysis wants a range of dates, filters by kind and person, and the placement history
+    (which column, from when to when). From those an assistant can answer what changed this
+    week, where cards wait longest, how often items come back from review, and what was
+    blocked and for how long, without the product growing a reporting module (see "Deliberately
+    outside").
+  - **A skill** on top, for assistants that load them: the vocabulary (item, task, scope,
+    out-of-scope request, acceptance) and a few worked procedures, such as "break this item
+    down into Code, Assets, and Content tasks" or "write the week's summary from the history".
+    It calls the MCP server, or the API directly where MCP is not available.
+  - **What a change made through a token says about itself.** The activity entry keeps the
+    member as its actor and adds the token's name, so the history shows which changes came
+    through an assistant, and a notification can say so.
 - **A read-only role or a public link** for a publisher or stakeholder (Trello's observers,
   Plane's guests).
 - **Translations.** The interface is English only; Planka, Wekan, and Taiga are multilingual.
@@ -77,6 +99,18 @@ but they are not the simple tools, and chasing them is not the goal. One excepti
 how long a task stayed in each column can be computed from the placement history that already
 exists.
 
+**Swimlanes on the Workboard** (Wekan, Taiga, Plane), rejected 19 September 2026. They pay off
+with a dozen streams of work on one board, which the scope limit exists to prevent: with a
+handful of items in scope, the item's name on each card and the "Backlog item" filter do the
+job. The board is already wide, with three To Do columns, the intermediate ones, and Done; rows
+would multiply that into a grid of mostly empty cells, and on a phone into something hard to
+show at all. Dragging between rows would mean nothing, since moving a task to another item is a
+Game Director's separate action. How far each item is, the one thing rows by item would add for
+this way of working, already shows in the scope popover, on the Backlog, and in the bell when an
+item is ready for review. If someone on a team misses it on the board itself, the cheap answer
+is a count per item in scope that filters the board by that item when clicked, not a second
+dimension in the lanes.
+
 ## Proposed order
 
 1. **Phase 8:** real sign-in and backups.
@@ -87,12 +121,17 @@ exists.
 4. **Markdown, @mentions, and checklists.** Done (19 September 2026).
 5. **Labels with a "blocked" flag, and optional dates.** Done for tasks and the Workboard
    (19 September 2026).
-6. **Swimlanes, and opening archived Workboards.**
+6. **Opening archived Workboards.** Done (19 September 2026). Swimlanes were part of this step
+   and are now deliberately outside; see above.
 7. **Import from Trello, and export.**
-8. **Polish translation, the touch fix on phones, and Cmd+K.**
+8. **AI tools:** API tokens and an OpenAPI description first, then the MCP server with the
+   history routes for analysis, then the skill. Tokens belong to real accounts, so this follows
+   step 1.
+9. **Polish translation, the touch fix on phones, and Cmd+K.**
 
 Steps 2 to 4 do the most to make daily use feel like Trello. Steps 1 and 7 decide whether anyone
-other than the author really starts using it.
+other than the author really starts using it. Step 8 is the one thing here that the simple tools
+do not have.
 
 ## Keeping this current
 

@@ -2043,6 +2043,19 @@ h1:has(> .title-edit) {
 .title-edit:focus-visible .pencil {
   opacity: 1;
 }
+/* Past Workboards, under everything else on the page: they are looked up, not watched. */
+.archived-boards {
+  margin-top: 20px;
+  padding: 0 4px;
+}
+.archived-boards h3 {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .panel.requests,
 .panel.history-panel {
   padding: 12px 20px;

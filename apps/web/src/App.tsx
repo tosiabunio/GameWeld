@@ -35,6 +35,7 @@ export function App() {
         <Route path="breakdown/:itemId" element={<BreakdownPage />} />
         <Route path="tasks/:taskId" element={<TaskHome />} />
         <Route path="board" element={<WorkboardPage />} />
+        <Route path="board/:boardId" element={<WorkboardPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

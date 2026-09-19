@@ -1,7 +1,7 @@
 import type { BoardCard, BoardColumn, BoardView, ScopeItem, TaskCategory } from '@gameweld/domain';
 import { CATEGORY_LABELS, STATE_LABELS, TASK_CATEGORY_LABELS, todoKindFor } from '@gameweld/domain';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { boardFiltersOn, boardItemsOf, matchesCard, useCardFilters } from '../cardFilters.ts';
 import { ActionMenu } from '../components/ActionMenu.tsx';
@@ -17,8 +17,14 @@ import { daysUntil, formatDay, LabelChips, TaskFlags } from '../components/TaskB
 import { useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
 
+/**
+ * The project's active Workboard, or, under its own address, one that was archived. An archived
+ * board is history: the same page shows it, and nothing on it can be changed, which the page
+ * already holds to wherever it asks whether the board is active.
+ */
 export function WorkboardPage() {
   const { project, reload: reloadProject, refreshMyTasks, dataVersion } = useProject();
+  const { boardId } = useParams<{ boardId?: string }>();
   const canManage = project.permissions['board.manage'];
   const [board, setBoard] = useState<BoardView | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +34,17 @@ export function WorkboardPage() {
   } | null>(null);
 
   const reload = useCallback(async () => {
-    setBoard(await api.activeBoard(project.id));
-  }, [project.id]);
+    try {
+      setBoard(boardId ? await api.board(project.id, boardId) : await api.activeBoard(project.id));
+    } catch (e) {
+      setBoard(null);
+      setError(
+        e instanceof ApiError && e.status === 404
+          ? 'That Workboard does not exist.'
+          : 'Could not load the Workboard',
+      );
+    }
+  }, [project.id, boardId]);
 
   // Also after a task's window, open over the board, changed something.
   useEffect(() => {
@@ -57,6 +72,14 @@ export function WorkboardPage() {
 
   if (board === undefined) return <p>Loading…</p>;
 
+  if (board === null && boardId) {
+    return (
+      <div className="panel">
+        <p className="error">{error}</p>
+        <Link to={`/projects/${project.id}/board`}>← The active Workboard</Link>
+      </div>
+    );
+  }
   if (board === null) {
     return (
       <div className="panel">
@@ -78,7 +101,23 @@ export function WorkboardPage() {
 
   return (
     <div data-testid="workboard">
-      <BoardHeader board={board} onSaved={run} onArchived={() => reloadProject()} />
+      {board.state === 'archived' && (
+        <p className="notice info" data-testid="archived-notice">
+          This Workboard was archived
+          {board.archivedAt ? ` on ${new Date(board.archivedAt).toLocaleDateString()}` : ''}. It is
+          history: it shows the cards as they stood, and nothing on it can be changed.{' '}
+          <Link to={`/projects/${project.id}/board`}>The active Workboard</Link>
+        </p>
+      )}
+      <BoardHeader
+        board={board}
+        onSaved={run}
+        onArchived={async () => {
+          // Under the active board's address there is now no board; the archived one is a link.
+          await reloadProject();
+          await reload();
+        }}
+      />
       {error && (
         <p className="error" role="alert">
           {error}
@@ -100,6 +139,7 @@ export function WorkboardPage() {
       <Columns board={board} onChange={run} onNotice={setNotice} />
       <RequestsPanel board={board} onBoardChanged={reload} />
       <History query={{ entityType: 'workboard', entityId: board.id }} />
+      <ArchivedBoards projectId={project.id} except={board.id} />
     </div>
   );
 }
@@ -145,28 +185,32 @@ function CreateBoardForm({
   );
 }
 
-function ArchivedBoards({ projectId }: { projectId: string }) {
+/** The project's past Workboards, each a way into how it stood when it was archived. */
+function ArchivedBoards({ projectId, except }: { projectId: string; except?: string }) {
+  const { dataVersion } = useProject();
   const [boards, setBoards] = useState<{ id: string; name: string; archivedAt: string | null }[]>(
     [],
   );
   useEffect(() => {
-    api.boards(projectId).then((all) => setBoards(all.filter((b) => b.state === 'archived')));
-  }, [projectId]);
+    void api
+      .boards(projectId)
+      .then((all) => setBoards(all.filter((b) => b.state === 'archived' && b.id !== except)));
+  }, [projectId, except, dataVersion]);
   if (boards.length === 0) return null;
   return (
-    <>
-      <h3>Archived Workboards</h3>
+    <section className="archived-boards" aria-labelledby="archived-boards-heading">
+      <h3 id="archived-boards-heading">Archived Workboards</h3>
       <ul className="links">
         {boards.map((b) => (
           <li key={b.id}>
-            {b.name}{' '}
+            <Link to={`/projects/${projectId}/board/${b.id}`}>{b.name}</Link>{' '}
             <span className="muted">
               archived {b.archivedAt ? new Date(b.archivedAt).toLocaleDateString() : ''}
             </span>
           </li>
         ))}
       </ul>
-    </>
+    </section>
   );
 }
 
@@ -269,7 +313,7 @@ function BoardHeader({
           labels={project.labels}
         />
         <DisplayMenu />
-        {canManage && !archiving && (
+        {canManage && !archiving && board.state === 'active' && (
           <ActionMenu label="Workboard actions">
             {!renaming && board.state === 'active' && (
               <button

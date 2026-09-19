@@ -481,3 +481,65 @@ test('a column is renamed by clicking its name', async ({ page }) => {
   // The name carries no rules: it is still the column that completes tasks.
   await expect(page.getByRole('region', { name: 'Shipped', exact: true })).toHaveClass(/kind-done/);
 });
+
+test('an archived Workboard can be opened and looked at, and nothing on it changes', async ({
+  page,
+}) => {
+  await signIn(page, 'director');
+  await createProjectWithItems(page, 'Archive project');
+  await page.getByRole('link', { name: 'Workboard' }).click();
+  await createWorkboard(page, 'Sprint 1');
+  await activateFromBacklog(page, 'Ranged enemy');
+  // Finish one task, so the archived board has something in Done and something returned.
+  await page
+    .getByTestId('item-card')
+    .filter({ hasText: 'Targeting' })
+    .click({ position: { x: 6, y: 6 } });
+  await taskModal(page).getByRole('button', { name: 'Mark complete' }).click();
+  await closeTask(page);
+  await expect(page.getByRole('region', { name: 'Done' }).getByTestId('item-card')).toHaveText([
+    /Targeting/,
+  ]);
+
+  await page.getByRole('button', { name: 'Workboard actions', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive Workboard' }).click();
+  await page.getByRole('button', { name: 'Return tasks and archive' }).click();
+  // Under the active board's address there is no board now; the archived one is a link.
+  await expect(page.getByRole('heading', { name: 'No active Workboard' })).toBeVisible();
+  await page
+    .getByRole('region', { name: 'Archived Workboards' })
+    .getByRole('link', { name: 'Sprint 1' })
+    .click();
+  await expect(page).toHaveURL(/\/board\/[0-9a-f-]+$/);
+
+  // It shows the cards as they stood: the finished task in Done, the returned one gone.
+  await expect(page.getByTestId('archived-notice')).toContainText('This Workboard was archived');
+  await expect(page.getByRole('heading', { name: 'Sprint 1' })).toBeVisible();
+  const cards = page.getByTestId('workboard').getByTestId('item-card');
+  await expect(cards).toHaveText([/Targeting/]);
+  // Nothing on it can be changed: no renaming, no actions, no new cards, no dragging.
+  await expect(page.getByRole('button', { name: 'Workboard actions', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Sprint 1/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /New .* task/ })).toHaveCount(0);
+  await expect(cards.first()).not.toHaveClass(/draggable/);
+  await expect(
+    page.getByRole('region', { name: 'Done' }).getByRole('button', { name: 'Done', exact: true }),
+  ).toHaveCount(0);
+  // A card still opens its task.
+  await cards.first().click({ position: { x: 6, y: 6 } });
+  await expect(taskModal(page).getByRole('heading', { name: 'Targeting' })).toBeVisible();
+  await closeTask(page);
+  await expect(page).toHaveURL(/\/board\/[0-9a-f-]+$/);
+
+  // A new board does not take the old one away; it is listed under it.
+  await page
+    .getByTestId('archived-notice')
+    .getByRole('link', { name: 'The active Workboard' })
+    .click();
+  await createWorkboard(page, 'Sprint 2');
+  await expect(
+    page
+      .getByRole('region', { name: 'Archived Workboards' })
+      .getByRole('link', { name: 'Sprint 1' }),
+  ).toBeVisible();
+});
