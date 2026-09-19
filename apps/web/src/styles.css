@@ -1518,6 +1518,9 @@ ul.project-grid {
   box-shadow: var(--shadow-sm);
   padding: 10px 12px;
   display: grid;
+  /* One column no wider than the card: an "auto" column grows to fit a badge that does not wrap,
+     and takes the cover and the footer past the card's edge with it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   transition:
     box-shadow 0.12s,

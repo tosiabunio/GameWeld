@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { closeTask, pressAndSettle, signIn, taskModal } from './helpers.ts';
+import {
+  activateFromBacklog,
+  closeTask,
+  createWorkboard,
+  pressAndSettle,
+  signIn,
+  taskModal,
+} from './helpers.ts';
 
 async function assign(page: Page, title: string, person: string) {
   await page
@@ -117,6 +124,16 @@ test('My tasks is always first in the navigation, and its cards take the viewerâ
   await closeTask(page);
   await expect(page).toHaveURL(/\/my-tasks$/);
   await expect(cards).toHaveCount(4);
+
+  // A status too long for its card is cut short; it does not push the cover, or anything else,
+  // past the card's edge.
+  await tabs.getByRole('link', { name: 'Workboard' }).click();
+  await createWorkboard(page, 'A production cycle with a name longer than any card is wide');
+  await activateFromBacklog(page, 'Ranged enemy');
+  await tabs.getByRole('link', { name: 'My tasks' }).click();
+  await expect(cards.first()).toContainText('A production cycle');
+  for (const card of await cards.all())
+    expect(await card.evaluate((li) => li.scrollWidth - li.clientWidth)).toBe(0);
 
   // Handing the last tasks away empties the section; the tab stays.
   await tabs.getByRole('link', { name: 'Breakdown' }).click();
