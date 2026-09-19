@@ -1,12 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   activateFromBacklog,
+  closeTask,
   createWorkboard,
   dropFile,
   expectCoverFrame,
   pressAndSettle,
   signIn,
   switchPersona,
+  taskModal,
   TINY_PNG,
 } from './helpers.ts';
 
@@ -68,10 +70,43 @@ test('Director creates a board, activates the next item, hits the limit, renames
   await expect(page.getByRole('region', { name: 'In progress' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Done' })).toBeVisible();
 
-  // Opening a card from the board leads back to the board.
-  await page.getByRole('link', { name: 'Targeting' }).click();
-  await expect(page.getByRole('heading', { name: 'Targeting', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: '← Workboard' }).click();
+  // A click anywhere on a card opens its task in a window over the board, under the task's own
+  // address. The close button, Escape, and a click outside the window all lead back to the board.
+  const targeting = page.getByTestId('item-card').filter({ hasText: 'Targeting' });
+  const task = taskModal(page);
+  await targeting.locator('.card-meta').click();
+  await expect(task.getByRole('heading', { name: 'Targeting', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/[0-9a-f-]+$/);
+  await expect(page.getByTestId('workboard')).toBeVisible();
+  await closeTask(page);
+  await expect(page).toHaveURL(/\/board$/);
+  await targeting.getByRole('link', { name: 'Targeting' }).click();
+  await expect(task).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(task).toHaveCount(0);
+  await targeting.locator('.card-bottom').click({ position: { x: 100, y: 4 } });
+  await expect(task).toBeVisible();
+  await page.mouse.click(8, 300);
+  await expect(task).toHaveCount(0);
+  await expect(page).toHaveURL(/\/board$/);
+
+  // Unsaved text is not thrown away by closing: the window asks first.
+  await targeting.click({ position: { x: 6, y: 6 } });
+  await task.getByRole('button', { name: 'Edit task' }).click();
+  await task.getByLabel('Description').fill('Half a thought');
+  await page.keyboard.press('Escape');
+  const unsaved = task.getByRole('group', { name: 'Unsaved changes' });
+  await unsaved.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(task.getByLabel('Description')).toHaveValue('Half a thought');
+  await task.getByRole('button', { name: 'Close task' }).click();
+  await unsaved.getByRole('button', { name: 'Discard and close' }).click();
+  await expect(task).toHaveCount(0);
+
+  // The controls on a card keep their own clicks.
+  await targeting.getByTestId('card-assignee').click();
+  await expect(page.getByRole('menu', { name: 'Assign Targeting' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(task).toHaveCount(0);
   await expect(page.getByTestId('workboard')).toBeVisible();
 
   // The Director can rename the board; the name carries no rules.
@@ -104,12 +139,16 @@ test('Director creates a board, activates the next item, hits the limit, renames
   );
   await expect(page.getByTestId('board-counts')).toContainText('0/1 tasks done');
   await page.getByTestId('board-notice').getByRole('link', { name: 'View deleted task' }).click();
-  await expect(page.getByText('Deleted', { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: '← Ranged enemy' }).click();
+  await expect(task.getByText('Deleted', { exact: true })).toBeVisible();
+  await task.getByRole('link', { name: 'Ranged enemy' }).click();
+  await expect(task).toHaveCount(0);
   await expect(page.getByTestId('tasks-assets').getByTestId('task-row')).toHaveCount(0);
   await page.getByRole('button', { name: 'Show 1 deleted task', exact: true }).click();
   await page.getByRole('link', { name: 'Attack animation', exact: true }).click();
-  await page.getByRole('button', { name: 'Restore task' }).click();
+  await task.getByRole('button', { name: 'Restore task' }).click();
+  // The Breakdown under the window shows the task restored as soon as the window closes.
+  await closeTask(page);
+  await expect(page.getByTestId('tasks-assets').getByTestId('task-row')).toHaveCount(1);
   await page.getByRole('link', { name: 'Workboard', exact: true }).click();
   await expect(page.getByTestId('item-card').filter({ hasText: 'Attack animation' })).toHaveCount(
     1,
@@ -202,6 +241,8 @@ test('dragging a card into Done completes its task and the item becomes Ready fo
     await page.mouse.move(to.x + to.width / 2, to.y + 80, { steps: 12 });
     await page.mouse.up();
     await expect(done.getByTestId('item-card').filter({ hasText: title })).toBeVisible();
+    // The press that carried the card was a drag, not a click: no task window opens.
+    await expect(taskModal(page)).toHaveCount(0);
   }
   await expect(page.getByTestId('board-counts')).toContainText('2/2 tasks done');
   await expect(page.getByTestId('scope-item').first()).toContainText('Ready for Review');
@@ -230,11 +271,13 @@ test('an image dropped on a Workboard card becomes the task cover', async ({ pag
 
   // On the task the image is an attachment marked as the cover, and its editor can clear it.
   await card.getByRole('link', { name: 'Targeting', exact: true }).click();
-  await expect(page.getByTestId('attachment')).toContainText('reticle.png');
-  await expect(page.getByTestId('attachment')).toContainText('cover');
-  await page.getByRole('button', { name: 'Remove cover' }).click();
-  await expect(page.getByRole('button', { name: 'Use as cover' })).toBeVisible();
-  await page.getByRole('link', { name: '← Workboard' }).click();
+  const task = taskModal(page);
+  await expect(task.getByTestId('attachment')).toContainText('reticle.png');
+  await expect(task.getByTestId('attachment')).toContainText('cover');
+  await task.getByRole('button', { name: 'Remove cover' }).click();
+  await expect(task.getByRole('button', { name: 'Use as cover' })).toBeVisible();
+  // The board under the window catches up with it when the window closes.
+  await closeTask(page);
   await expect(card).toBeVisible();
   await expect(card.locator('img.cover')).toHaveCount(0);
 });
@@ -311,20 +354,35 @@ test('every Workboard card shows its assignee, and the avatar picks a new one', 
   await menu.getByRole('menuitemradio', { name: 'Unassigned' }).click();
   await expect(avatar).toHaveAccessibleName('Assignee of Targeting: nobody');
 
-  // The task page assigns the moment a person is picked, and keeps unsaved text.
+  // The task's window assigns the moment a person is picked, and keeps unsaved text.
   await card.getByRole('link', { name: 'Targeting', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit task' }).click();
-  await page.getByLabel('Description').fill('Lead the target by its speed.');
-  await page.getByLabel('Assignee').selectOption({ label: 'Dana Director' });
-  await expect(page.getByRole('status')).toHaveText('Assigned to Dana Director.');
-  await expect(page.getByLabel('Description')).toHaveValue('Lead the target by its speed.');
-  await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
+  const task = taskModal(page);
+  await task.getByRole('button', { name: 'Edit task' }).click();
+  await task.getByLabel('Description').fill('Lead the target by its speed.');
+  await task.getByLabel('Assignee').selectOption({ label: 'Dana Director' });
+  await expect(task.getByRole('status')).toHaveText('Assigned to Dana Director.');
+  await expect(task.getByLabel('Description')).toHaveValue('Lead the target by its speed.');
+  await expect(task.getByRole('button', { name: 'Save' })).toBeEnabled();
+  // A reload keeps the window and the board under it.
   await page.reload();
-  await expect(page.getByLabel('Assignee').locator('option:checked')).toHaveText('Dana Director');
-  await page.getByRole('button', { name: 'Edit task' }).click();
-  await expect(page.getByLabel('Description')).toHaveValue('');
-  await page.getByRole('link', { name: '← Workboard' }).click();
+  await expect(task.getByLabel('Assignee').locator('option:checked')).toHaveText('Dana Director');
+  await expect(page.getByTestId('workboard')).toBeVisible();
+  await task.getByRole('button', { name: 'Edit task' }).click();
+  await expect(task.getByLabel('Description')).toHaveValue('');
+  await closeTask(page);
   await expect(avatar).toHaveAccessibleName('Assignee of Targeting: Dana Director');
+
+  // The task's address opened on its own shows the window over the board the task is on.
+  await card.getByRole('link', { name: 'Targeting', exact: true }).click();
+  const address = page.url();
+  await closeTask(page);
+  const fresh = await page.context().newPage();
+  await fresh.goto(address);
+  await expect(taskModal(fresh).getByRole('heading', { name: 'Targeting' })).toBeVisible();
+  await expect(fresh.getByTestId('workboard')).toBeVisible();
+  await closeTask(fresh);
+  await expect(fresh).toHaveURL(/\/board$/);
+  await fresh.close();
 });
 
 test('a card moves across the board by keyboard, skipping columns it cannot enter', async ({

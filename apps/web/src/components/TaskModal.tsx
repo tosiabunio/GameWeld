@@ -5,24 +5,70 @@ import {
   TASK_CATEGORIES,
   TASK_CATEGORY_LABELS,
 } from '@gameweld/domain';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
-import { ResourcePanel } from '../components/ResourcePanel.tsx';
-import { Attachments } from '../components/Attachments.tsx';
-import { Comments } from '../components/Comments.tsx';
-import { History } from '../components/History.tsx';
-import { LinksList } from '../components/LinksList.tsx';
-import { TaskStatus } from '../components/TaskStatus.tsx';
-import { WritingPrompt } from '../components/WritingPrompt.tsx';
-import { useProject } from './ProjectPage.tsx';
+import { useProject } from '../pages/ProjectPage.tsx';
+import type { TaskLinkState } from '../taskLinks.ts';
+import { ResourcePanel } from './ResourcePanel.tsx';
+import { Attachments } from './Attachments.tsx';
+import { Comments } from './Comments.tsx';
+import { History } from './History.tsx';
+import { LinksList } from './LinksList.tsx';
+import { TaskStatus } from './TaskStatus.tsx';
+import { WritingPrompt } from './WritingPrompt.tsx';
 
-export function TaskPage() {
-  const { project, refreshMyTasks } = useProject();
+/** The task whose window is open, and the page showing under it. */
+export interface OpenTask extends TaskLinkState {
+  taskId: string;
+}
+
+/**
+ * A task's address opened directly: from a bookmark, a new tab, or a link someone sent. There is
+ * no page to show under the window, so this picks the task's own, the Workboard for a task that
+ * is on one and its item's Breakdown otherwise, and opens the window over it.
+ */
+export function TaskHome() {
+  const { project } = useProject();
   const { taskId } = useParams<{ taskId: string }>();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
-  const from = (useLocation().state as { from?: string } | null)?.from;
-  const fromBoard = from === 'board';
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    api.task(project.id, taskId!).then(
+      (task) => {
+        if (!current) return;
+        const home = task.placement ? 'board' : `breakdown/${task.item.id}`;
+        const state: TaskLinkState = {
+          background: { pathname: `/projects/${project.id}/${home}`, search: '', hash: '' },
+          direct: true,
+        };
+        void navigate(pathname, { replace: true, state });
+      },
+      (e: unknown) =>
+        current && setError(e instanceof ApiError ? e.message : 'Could not load the task'),
+    );
+    return () => {
+      current = false;
+    };
+  }, [project.id, taskId, pathname, navigate]);
+  return error ? <p className="error">{error}</p> : <p>Loading…</p>;
+}
+
+/**
+ * The task's window: a modal dialog over the page the task was opened from. Closing it, by its
+ * close button, Escape, or a click outside, returns to that page, which then reloads what the
+ * window changed. Unsaved text is not thrown away without asking.
+ */
+export function TaskModal({ taskId, background, direct }: OpenTask) {
+  const { project, refreshMyTasks, notifyTasksChanged } = useProject();
+  const navigate = useNavigate();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const changed = useRef(false);
+  // A ref, not state: Escape right after a keystroke must already see the text as unsaved.
+  const dirty = useRef(false);
+  const [discarding, setDiscarding] = useState(false);
   const canWork = project.permissions['task.work'];
   const canDirect = project.permissions['backlog.manage'];
   const canComplete = project.permissions['task.complete'];
@@ -32,7 +78,7 @@ export function TaskPage() {
 
   const reload = useCallback(async () => {
     try {
-      setTask(await api.task(project.id, taskId!));
+      setTask(await api.task(project.id, taskId));
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not load the task');
@@ -44,8 +90,39 @@ export function TaskPage() {
     void reload();
   }, [reload]);
 
+  // A modal dialog keeps focus inside, makes the page under it inert, and sits above everything.
+  useEffect(() => {
+    const element = dialog.current!;
+    element.showModal();
+    document.documentElement.classList.add('modal-open');
+    return () => {
+      document.documentElement.classList.remove('modal-open');
+      element.close();
+      // The page under the window was loaded before the window changed anything.
+      if (changed.current) notifyTasksChanged();
+    };
+  }, [notifyTasksChanged]);
+
+  /** Back to the page underneath: a step back when a link led here, otherwise straight to it. */
+  const close = useCallback(() => {
+    if (direct) void navigate(background, { replace: true });
+    else void navigate(-1);
+  }, [navigate, background, direct]);
+
+  function requestClose() {
+    if (dirty.current && !discarding) setDiscarding(true);
+    else close();
+  }
+
+  /** Comments, attachments, and links save themselves; the page underneath shows some of them. */
+  const reloadChanged = useCallback(async () => {
+    changed.current = true;
+    await reload();
+  }, [reload]);
+
   async function run(action: () => Promise<unknown>): Promise<boolean> {
     setError(null);
+    changed.current = true;
     try {
       await action();
       await reload();
@@ -60,31 +137,10 @@ export function TaskPage() {
     }
   }
 
-  if (error && !task) return <p className="error">{error}</p>;
-  if (!task) return <p>Loading…</p>;
-  const editable = canWork && !task.archived;
+  const editable = canWork && !(task?.archived ?? true);
 
-  return (
-    <article className="item-page task-page">
-      <p>
-        {fromBoard || from === 'my-tasks' ? (
-          <>
-            {fromBoard ? (
-              <Link to={`/projects/${project.id}/board`}>← Workboard</Link>
-            ) : (
-              <Link to={`/projects/${project.id}/my-tasks`}>← My tasks</Link>
-            )}
-            <span className="muted"> · </span>
-            <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>{task.item.title}</Link>
-          </>
-        ) : (
-          <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>← {task.item.title}</Link>
-        )}
-        <span className="muted">
-          {' '}
-          · {CATEGORY_LABELS[task.item.category]} · {STATE_LABELS[task.item.state]}
-        </span>
-      </p>
+  const body = task && (
+    <>
       <div className="item-status">
         <span className="badge neutral">{TASK_CATEGORY_LABELS[task.category]} task</span>
         <TaskStatus task={task} />
@@ -109,6 +165,10 @@ export function TaskPage() {
         onAssign={(assigneeId) =>
           run(() => api.updateTask(project.id, task.id, { version: task.version, assigneeId }))
         }
+        onDirty={(is) => {
+          dirty.current = is;
+          if (!is) setDiscarding(false);
+        }}
       />
 
       <div className="detail-bottom">
@@ -119,7 +179,7 @@ export function TaskPage() {
               owner={{ taskId: task.id }}
               comments={task.comments}
               canComment={canWork}
-              onChanged={reload}
+              onChanged={reloadChanged}
             />
           </section>
 
@@ -138,7 +198,7 @@ export function TaskPage() {
                   api.updateTask(project.id, task.id, { version: task.version, coverAttachmentId }),
                 )
               }
-              onChanged={reload}
+              onChanged={reloadChanged}
             />
           </ResourcePanel>
 
@@ -195,12 +255,7 @@ export function TaskPage() {
                   version: task.version,
                   archived: !task.archived,
                 }),
-              ).then(
-                (ok) =>
-                  ok &&
-                  !task.archived &&
-                  navigate(`/projects/${project.id}/breakdown/${task.item.id}`),
-              );
+              ).then((ok) => ok && !task.archived && close());
             }}
           >
             {task.archived ? 'Restore task' : deleting ? 'Confirm deletion' : 'Delete task'}
@@ -212,7 +267,70 @@ export function TaskPage() {
           )}
         </section>
       )}
-    </article>
+    </>
+  );
+
+  return (
+    <dialog
+      ref={dialog}
+      className="task-modal"
+      aria-label={task ? `Task: ${task.title}` : 'Task'}
+      data-testid="task-modal"
+      // Escape asks to close, like the button, so it cannot throw unsaved text away either.
+      onCancel={(e) => {
+        e.preventDefault();
+        requestClose();
+      }}
+      // The dialog element itself is only ever hit on its backdrop; its content covers the rest.
+      onClick={(e) => e.target === e.currentTarget && requestClose()}
+    >
+      <article className="item-page task-page">
+        <header className="task-modal-head">
+          <p>
+            {task && (
+              <>
+                <Link to={`/projects/${project.id}/breakdown/${task.item.id}`}>
+                  {task.item.title}
+                </Link>
+                <span className="muted">
+                  {' '}
+                  · {CATEGORY_LABELS[task.item.category]} · {STATE_LABELS[task.item.state]}
+                </span>
+              </>
+            )}
+          </p>
+          <button
+            type="button"
+            className="quiet modal-close"
+            aria-label="Close task"
+            title="Close"
+            onClick={requestClose}
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+              <path
+                d="m3.5 3.5 9 9m0-9-9 9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </header>
+        {discarding && (
+          <div className="confirm small" role="group" aria-label="Unsaved changes">
+            <p>The title or description has changes that are not saved.</p>
+            <button type="button" className="primary" onClick={close}>
+              Discard and close
+            </button>
+            <button type="button" onClick={() => setDiscarding(false)}>
+              Keep editing
+            </button>
+          </div>
+        )}
+        {!task ? error ? <p className="error">{error}</p> : <p>Loading…</p> : body}
+      </article>
+    </dialog>
   );
 }
 
@@ -222,6 +340,7 @@ function TaskForm({
   members,
   onSave,
   onAssign,
+  onDirty,
 }: {
   task: TaskDetail;
   readOnly: boolean;
@@ -233,6 +352,8 @@ function TaskForm({
   }) => Promise<boolean>;
   /** Assignment applies on its own, the moment a person is picked. */
   onAssign: (assigneeId: string | null) => Promise<boolean>;
+  /** Whether the title, description, or category differ from what is saved. */
+  onDirty: (dirty: boolean) => void;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
@@ -253,6 +374,11 @@ function TaskForm({
 
   const dirty =
     title !== task.title || description !== task.description || category !== task.category;
+  const reportDirty = useRef(onDirty);
+  useEffect(() => {
+    reportDirty.current = onDirty;
+  });
+  useEffect(() => reportDirty.current(dirty), [dirty]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();

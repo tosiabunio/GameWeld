@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openResource, signIn } from './helpers.ts';
+import { openResource, signIn, taskModal } from './helpers.ts';
 
 test('attachments, comments, dependencies, and history on items and tasks', async ({ page }) => {
   await signIn(page, 'director');
@@ -66,19 +66,20 @@ test('attachments, comments, dependencies, and history on items and tasks', asyn
     .click();
   await expect(page.getByRole('heading', { name: 'Ranged enemy', exact: true })).toBeVisible();
   await page.getByTestId('tasks-code').getByRole('link', { name: 'Targeting' }).click();
-  await expect(page.getByRole('heading', { name: 'Targeting', exact: true })).toBeVisible();
-  const add = page.getByRole('form', { name: 'Add comment' });
+  const task = taskModal(page);
+  await expect(task.getByRole('heading', { name: 'Targeting', exact: true })).toBeVisible();
+  const add = task.getByRole('form', { name: 'Add comment' });
   await add.getByLabel('Comment').fill('Lock-on feels sticky.');
   await add.getByRole('button', { name: 'Add comment' }).click();
-  await expect(page.getByTestId('comments')).toContainText('Lock-on feels sticky.');
-  await page.getByRole('button', { name: 'Edit comment' }).click();
-  await page.getByLabel('Comment text').fill('Lock-on feels sticky at range.');
-  await page
+  await expect(task.getByTestId('comments')).toContainText('Lock-on feels sticky.');
+  await task.getByRole('button', { name: 'Edit comment' }).click();
+  await task.getByLabel('Comment text').fill('Lock-on feels sticky at range.');
+  await task
     .getByRole('form', { name: 'Edit comment' })
     .getByRole('button', { name: 'Save' })
     .click();
-  await expect(page.getByTestId('comments')).toContainText('Lock-on feels sticky at range.');
-  await expect(page.getByTestId('comments')).toContainText('edited');
-  await page.getByRole('button', { name: 'Delete comment' }).click();
-  await expect(page.getByTestId('comments-block')).toContainText('No comments yet.');
+  await expect(task.getByTestId('comments')).toContainText('Lock-on feels sticky at range.');
+  await expect(task.getByTestId('comments')).toContainText('edited');
+  await task.getByRole('button', { name: 'Delete comment' }).click();
+  await expect(task.getByTestId('comments-block')).toContainText('No comments yet.');
 });

@@ -3,7 +3,9 @@ import { TASK_CATEGORIES, TASK_CATEGORY_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { useProject } from '../pages/ProjectPage.tsx';
 import { useCurrentUser } from '../session.tsx';
+import { isCardClick, useTaskLinks } from '../taskLinks.ts';
 import { AssigneePicker } from './AssigneePicker.tsx';
 import { useCollapsedLanes } from './CardLanes.tsx';
 import { TaskStatus } from './TaskStatus.tsx';
@@ -41,9 +43,12 @@ export function Breakdown({
     setTasks(await api.tasks(projectId, itemId));
   }, [projectId, itemId]);
 
+  // Also after a task's window, open over this page, changed something.
+  const { tasksVersion } = useProject();
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, tasksVersion]);
+  const taskLinks = useTaskLinks(projectId);
 
   const me = useCurrentUser();
   const [boardId, setBoardId] = useState<string | null>(null);
@@ -155,8 +160,9 @@ export function Breakdown({
                       {group.map((task) => (
                         <li
                           key={task.id}
-                          className={`card${task.archived ? ' archived' : ''}`}
+                          className={`card clickable${task.archived ? ' archived' : ''}`}
                           data-testid="task-row"
+                          onClick={(e) => isCardClick(e) && void taskLinks.open(task.id)}
                         >
                           {task.coverAttachmentId && (
                             <img
@@ -171,10 +177,7 @@ export function Breakdown({
                           )}
                           {/* The column already says what kind of task this is; the head holds who does it. */}
                           <div className="card-head">
-                            <Link
-                              to={`/projects/${projectId}/tasks/${task.id}`}
-                              className="task-title"
-                            >
+                            <Link {...taskLinks.link(task.id)} className="task-title">
                               {task.title}
                             </Link>
                             <AssigneePicker

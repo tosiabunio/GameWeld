@@ -20,7 +20,7 @@ export function ItemBreakdown({
   itemId: string;
   onChanged: () => Promise<void>;
 }) {
-  const { project, refreshMyTasks } = useProject();
+  const { project, refreshMyTasks, tasksVersion } = useProject();
   const navigate = useNavigate();
   const canManage = project.permissions['backlog.manage'];
   const [item, setItem] = useState<BacklogItemDetail | null>(null);
@@ -41,9 +41,11 @@ export function ItemBreakdown({
     void refreshMyTasks();
   }, [reload, onChanged, refreshMyTasks]);
 
+  // A task's window, open over this page, may have finished the item's last task or renamed it
+  // in the list beside it.
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void (tasksVersion === 0 ? reload() : changed());
+  }, [reload, changed, tasksVersion]);
 
   async function run(action: () => Promise<unknown>) {
     setError(null);

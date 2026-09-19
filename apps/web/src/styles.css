@@ -1245,9 +1245,16 @@ ul.project-grid {
 .card.dragging {
   opacity: 0.35;
 }
+/* A card that opens on a click says so; pressed, a draggable one shows that it is held. */
+.card.clickable {
+  cursor: pointer;
+}
 .card.draggable {
   cursor: grab;
   touch-action: none;
+}
+.card.draggable.clickable {
+  cursor: pointer;
 }
 .card.draggable:active {
   cursor: grabbing;
@@ -2041,6 +2048,83 @@ progress::-moz-progress-bar {
 .task-list li.archived {
   opacity: 0.6;
   box-shadow: none;
+}
+
+/* A task's window: a modal dialog over the page the task was opened from. The dialog is the
+   scrolling box, so its head, with the close button, stays in view. */
+html.modal-open {
+  overflow: hidden;
+}
+.task-modal {
+  width: min(1040px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 48px);
+  margin: 24px auto auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.task-modal::backdrop {
+  background: rgb(12 14 22 / 0.5);
+}
+.task-modal > .task-page {
+  padding: 0 28px 28px;
+}
+.task-modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 -28px 16px;
+  padding: 14px 16px 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.task-modal-head p {
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+}
+.modal-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+}
+.modal-close:hover {
+  color: var(--fg);
+}
+.task-modal .task-editor {
+  margin-top: 16px;
+}
+@media (max-width: 760px) {
+  .task-modal {
+    width: 100vw;
+    max-height: 100dvh;
+    height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  .task-modal > .task-page {
+    padding: 0 16px 24px;
+  }
+  .task-modal-head {
+    margin: 0 -16px 12px;
+    padding: 10px 8px 10px 16px;
+  }
 }
 
 /* Item and task pages: the text on the left, properties and resources in a side column. */

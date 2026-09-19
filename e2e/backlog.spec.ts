@@ -83,6 +83,14 @@ test('a Developer browses the Backlog without editing controls', async ({ page }
   expect(uploads).toEqual([]);
   await expect(card.locator('img.cover')).toHaveCount(0);
 
+  // A click anywhere on a card opens the item's Breakdown, as a click on a task's card opens the
+  // task.
+  await card.locator('.card-meta').click();
+  await expect(page).toHaveURL(/\/breakdown\/[0-9a-f-]+$/);
+  await expect(page.getByRole('heading', { name: 'Ranged enemy', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/backlog$/);
+
   // Besides its title, every card has an explicit way into the item's Breakdown.
   await must.getByRole('link', { name: 'Open Ranged enemy in the Breakdown', exact: true }).click();
   await expect(page).toHaveURL(/\/breakdown\/[0-9a-f-]+$/);
@@ -266,6 +274,8 @@ test('buttons inside a draggable card answer Enter and Space', async ({ page }) 
   await page.getByRole('button', { name: 'Move Alpha up' }).focus();
   await page.keyboard.press('Space');
   await expect(must.getByTestId('item-card').nth(0)).toContainText('Alpha');
+  // The menu and its buttons kept their clicks: none of them opened the card's item.
+  await expect(page).toHaveURL(/\/backlog$/);
 });
 
 test('a Director activates an item straight from its Backlog card', async ({ page }) => {

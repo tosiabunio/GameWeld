@@ -2,6 +2,7 @@ import type { ProjectDetail } from '@gameweld/domain';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { TaskModal, type OpenTask } from '../components/TaskModal.tsx';
 import { Shell } from './Shell.tsx';
 
 interface ProjectContextValue {
@@ -9,6 +10,9 @@ interface ProjectContextValue {
   reload: () => Promise<void>;
   /** Call after a change that may assign, finish, or delete a task: "My tasks" comes and goes. */
   refreshMyTasks: () => Promise<void>;
+  /** Counts changes made in a task's window; pages that show tasks load again when it moves. */
+  tasksVersion: number;
+  notifyTasksChanged: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -19,8 +23,11 @@ export function useProject(): ProjectContextValue {
   return value;
 }
 
-/** Layout for everything under /projects/:projectId: loads the project and offers section navigation. */
-export function ProjectPage() {
+/**
+ * Layout for everything under /projects/:projectId: loads the project and offers section
+ * navigation. A task opens in a window over whichever section is showing.
+ */
+export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +63,9 @@ export function ProjectPage() {
   useEffect(() => {
     void refreshMyTasks();
   }, [refreshMyTasks, pathname]);
+
+  const [tasksVersion, setTasksVersion] = useState(0);
+  const notifyTasksChanged = useCallback(() => setTasksVersion((version) => version + 1), []);
 
   if (error) {
     return (
@@ -117,8 +127,11 @@ export function ProjectPage() {
         </nav>
       }
     >
-      <ProjectContext.Provider value={{ project, reload, refreshMyTasks }}>
+      <ProjectContext.Provider
+        value={{ project, reload, refreshMyTasks, tasksVersion, notifyTasksChanged }}
+      >
         <Outlet />
+        {openTask && <TaskModal key={openTask.taskId} {...openTask} />}
       </ProjectContext.Provider>
     </Shell>
   );

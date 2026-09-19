@@ -26,6 +26,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useDisplayOptions } from '../displayOptions.ts';
+import { isCardClick } from '../taskLinks.ts';
 
 /**
  * Generic lanes of draggable cards, shared by the Backlog (items) and later the Workboard (tasks).
@@ -63,6 +64,11 @@ export interface CardLanesProps<T extends { id: string }> {
   renderCard: (item: T, ctx: CardRenderContext) => ReactNode;
   /** Files dragged in from outside the page and dropped on a card. Omit to ignore them. */
   onFilesDrop?: ((item: T, files: File[]) => void) | undefined;
+  /**
+   * A click anywhere on a card that is not on a control inside it. A press that moves is a drag
+   * instead: the pointer sensor waits for six pixels, and dnd-kit swallows the click that ends it.
+   */
+  onCardClick?: ((item: T) => void) | undefined;
   onMove: (
     item: T,
     laneId: string,
@@ -113,6 +119,7 @@ export function CardLanes<T extends { id: string }>({
   canDrop,
   renderCard,
   onFilesDrop,
+  onCardClick,
   onMove,
   testIdPrefix = 'lane',
   collapseKey,
@@ -490,6 +497,7 @@ export function CardLanes<T extends { id: string }>({
                 id={item.id}
                 disabled={!canDrag || !lane.droppable || (isDraggable ? !isDraggable(item) : false)}
                 onFiles={onFilesDrop && ((files) => onFilesDrop(item, files))}
+                onOpen={onCardClick && (() => onCardClick(item))}
               >
                 {renderCard(item, { index, count: all.length, isDragging: item.id === activeId })}
               </Card>
@@ -598,11 +606,13 @@ function Card({
   id,
   disabled,
   onFiles,
+  onOpen,
   children,
 }: {
   id: string;
   disabled: boolean;
   onFiles?: ((files: File[]) => void) | undefined;
+  onOpen?: (() => void) | undefined;
   children: ReactNode;
 }) {
   const {
@@ -653,8 +663,9 @@ function Card({
     <li
       ref={ref}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`card${isDragging ? ' dragging' : ''}${disabled ? '' : ' draggable'}${fileOver ? ' file-over' : ''}`}
+      className={`card${isDragging ? ' dragging' : ''}${disabled ? '' : ' draggable'}${onOpen ? ' clickable' : ''}${fileOver ? ' file-over' : ''}`}
       data-testid="item-card"
+      onClick={onOpen && ((e) => isCardClick(e) && onOpen())}
       {...(disabled ? {} : { ...attributes, ...listeners })}
       {...fileDrop}
     >

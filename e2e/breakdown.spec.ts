@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.ts';
+import { closeTask, signIn, taskModal } from './helpers.ts';
 
 test('a Developer breaks an item down into tasks and edits one', async ({ page }) => {
   await signIn(page, 'developer');
@@ -23,18 +23,21 @@ test('a Developer breaks an item down into tasks and edits one', async ({ page }
 
   // Open the task, dismiss the prompt, assign and describe it.
   await code.getByRole('link', { name: 'Arena gate logic' }).click();
-  await page.getByRole('button', { name: 'Edit task' }).click();
-  await expect(page.getByTestId('prompt-task-description')).toBeVisible();
-  await page.getByRole('button', { name: 'Dismiss writing prompt' }).click();
-  await expect(page.getByTestId('prompt-task-description')).toHaveCount(0);
-  await page.getByLabel('Assignee').selectOption({ label: 'Devin Developer' });
-  await page.getByLabel('Description').fill('Gate closes when the boss wakes up.');
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Saved.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Game Director actions' })).toHaveCount(0);
+  const task = taskModal(page);
+  await task.getByRole('button', { name: 'Edit task' }).click();
+  await expect(task.getByTestId('prompt-task-description')).toBeVisible();
+  await task.getByRole('button', { name: 'Dismiss writing prompt' }).click();
+  await expect(task.getByTestId('prompt-task-description')).toHaveCount(0);
+  await task.getByLabel('Assignee').selectOption({ label: 'Devin Developer' });
+  await task.getByLabel('Description').fill('Gate closes when the boss wakes up.');
+  await task.getByRole('button', { name: 'Save' }).click();
+  await expect(task.getByText('Saved.')).toBeVisible();
+  await expect(task.getByRole('heading', { name: 'Game Director actions' })).toHaveCount(0);
 
-  // Back on the item, the assignee shows on the task row and the prompt stays dismissed.
-  await page.getByRole('link', { name: '← Boss arena' }).click();
+  // The window closes onto the item it was opened over; the assignee shows on the task row
+  // without a reload.
+  await closeTask(page);
+  await expect(page).toHaveURL(/\/breakdown\/[0-9a-f-]+$/);
   await expect(page.getByTestId('item-nav').getByRole('link', { name: /Boss arena/ })).toHaveClass(
     /active/,
   );
@@ -54,8 +57,10 @@ test('a placed task shows its board and column; a Director sees delete and repar
     .click();
   const row = page.getByTestId('tasks-code').getByTestId('task-row').first();
   await expect(row).toContainText('On September production · To Do · Code');
-  await row.getByRole('link', { name: 'Targeting' }).click();
-  await expect(page.getByLabel('Category')).toBeDisabled();
-  await expect(page.getByRole('heading', { name: 'Game Director actions' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Delete task' })).toBeVisible();
+  // A click anywhere on the row opens the task, not only one on its title.
+  await row.locator('.card-meta').click({ position: { x: 2, y: 2 } });
+  const task = taskModal(page);
+  await expect(task.getByLabel('Category')).toBeDisabled();
+  await expect(task.getByRole('heading', { name: 'Game Director actions' })).toBeVisible();
+  await expect(task.getByRole('button', { name: 'Delete task' })).toBeVisible();
 });

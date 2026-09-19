@@ -35,6 +35,17 @@ export async function activateFromBacklog(page: Page, title: string) {
   await page.getByRole('link', { name: 'Workboard' }).click();
 }
 
+/**
+ * A task opens in a modal window over the page it was opened from. That page stays in the
+ * document underneath, inert, so what a test does to the task is looked up inside the window.
+ */
+export const taskModal = (page: Page) => page.getByTestId('task-modal');
+
+export async function closeTask(page: Page) {
+  await taskModal(page).getByRole('button', { name: 'Close task' }).click();
+  await expect(taskModal(page)).toHaveCount(0);
+}
+
 /** Links, Attachments, and Dependencies start closed while they are empty. */
 export async function openResource(page: Page, title: 'Links' | 'Attachments' | 'Dependencies') {
   const panel = page.getByTestId(`resource-${title.toLowerCase()}`);

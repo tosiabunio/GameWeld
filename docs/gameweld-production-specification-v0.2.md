@@ -309,7 +309,7 @@ Defer task-level dependency graphs and automatic scheduling. A shared task has o
 | Backlog | Define, prioritize, inspect, review, and accept backlog items. |
 | Breakdown | Inspect one item's description and its three task categories. |
 | Workboard | Execute tasks, view current item scope, and identify out-of-scope work. |
-| Task detail | Edit task content, assignment, comments, links, and attachments. Show parent and current placement. |
+| Task detail | Edit task content, assignment, comments, links, and attachments. Show parent and current placement. It opens as a window over the screen the task was opened from, by a click anywhere on the task's card, and closes back onto that screen with its close button, Escape, or a click outside; unsaved text is not discarded without asking. The task keeps an address of its own, which opened directly shows the window over the Workboard the task is on, or over its item's Breakdown. |
 | Requests | Lightweight list or panel for pending out-of-scope work requests. |
 | Project settings | Membership, role assignments, completion policy, board scope limit, and board management. |
 

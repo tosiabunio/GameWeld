@@ -10,25 +10,27 @@ import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { History } from '../components/History.tsx';
 import { RequestsPanel } from '../components/RequestsPanel.tsx';
+import { useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
 
 export function WorkboardPage() {
-  const { project, reload: reloadProject, refreshMyTasks } = useProject();
+  const { project, reload: reloadProject, refreshMyTasks, tasksVersion } = useProject();
   const canManage = project.permissions['board.manage'];
   const [board, setBoard] = useState<BoardView | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{
     text: string;
-    link?: { to: string; label: string };
+    link?: { to: string; state?: unknown; label: string };
   } | null>(null);
 
   const reload = useCallback(async () => {
     setBoard(await api.activeBoard(project.id));
   }, [project.id]);
 
+  // Also after a task's window, open over the board, changed something.
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, tasksVersion]);
 
   /** Runs a board mutation; every endpoint returns the fresh view, and conflicts reload. */
   async function run(action: () => Promise<BoardView | void>): Promise<boolean> {
@@ -84,7 +86,9 @@ export function WorkboardPage() {
           {notice.link && (
             <>
               {' '}
-              <Link to={notice.link.to}>{notice.link.label}</Link>
+              <Link to={notice.link.to} state={notice.link.state}>
+                {notice.link.label}
+              </Link>
             </>
           )}
         </p>
@@ -473,9 +477,12 @@ function Columns({
 }: {
   board: BoardView;
   onChange: (action: () => Promise<BoardView | void>) => Promise<boolean>;
-  onNotice: (notice: { text: string; link?: { to: string; label: string } } | null) => void;
+  onNotice: (
+    notice: { text: string; link?: { to: string; state?: unknown; label: string } } | null,
+  ) => void;
 }) {
   const { project } = useProject();
+  const tasks = useTaskLinks(project.id);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const canWork = project.permissions['task.work'] && board.state === 'active';
@@ -530,6 +537,7 @@ function Columns({
       canDrag={canWork}
       canDrop={canDrop}
       onFilesDrop={canWork ? (card, files) => void attachImages(card, files) : undefined}
+      onCardClick={(card) => void tasks.open(card.id)}
       testIdPrefix="column"
       onMove={(card, columnId, afterId, beforeId) =>
         onChange(() =>
@@ -550,11 +558,7 @@ function Columns({
             />
           )}
           <div className="card-head">
-            <Link
-              to={`/projects/${project.id}/tasks/${card.id}`}
-              state={{ from: 'board' }}
-              className="card-title"
-            >
+            <Link {...tasks.link(card.id)} className="card-title">
               {card.title}
             </Link>
             {canDelete && deleting !== card.id && (
@@ -620,10 +624,7 @@ function Columns({
                       setDeleting(null);
                       onNotice({
                         text: `“${card.title}” deleted from “${card.itemTitle}”.`,
-                        link: {
-                          to: `/projects/${project.id}/tasks/${card.id}`,
-                          label: 'View deleted task',
-                        },
+                        link: { ...tasks.link(card.id), label: 'View deleted task' },
                       });
                     }
                   })

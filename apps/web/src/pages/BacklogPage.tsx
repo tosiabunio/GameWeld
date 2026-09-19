@@ -7,7 +7,7 @@ import {
   MOSCOW_CATEGORIES,
 } from '@gameweld/domain';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { ActionMenu } from '../components/ActionMenu.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
@@ -20,6 +20,7 @@ const isCategory = (lane: string): lane is MoscowCategory =>
 
 export function BacklogPage() {
   const { project } = useProject();
+  const navigate = useNavigate();
   const canManage = project.permissions['backlog.manage'];
   const [items, setItems] = useState<BacklogItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -144,6 +145,8 @@ export function BacklogPage() {
         canDrag={canManage}
         isDraggable={(item) => item.state === 'open'}
         onFilesDrop={canSetCover ? (item, files) => void attachImages(item, files) : undefined}
+        // A click anywhere on a card opens the item, as a click on a task's card opens the task.
+        onCardClick={(item) => void navigate(`/projects/${project.id}/breakdown/${item.id}`)}
         onMove={(item, laneId, afterId, beforeId) =>
           move(item, laneId as MoscowCategory, afterId, beforeId)
         }

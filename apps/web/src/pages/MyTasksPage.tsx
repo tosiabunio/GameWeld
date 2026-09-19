@@ -19,6 +19,7 @@ import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { TaskStatus } from '../components/TaskStatus.tsx';
+import { isCardClick, useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
 
 /**
@@ -27,7 +28,8 @@ import { useProject } from './ProjectPage.tsx';
  * no task on the Workboard and nobody else sees it.
  */
 export function MyTasksPage() {
-  const { project, refreshMyTasks } = useProject();
+  const { project, refreshMyTasks, tasksVersion } = useProject();
+  const taskLinks = useTaskLinks(project.id);
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -40,9 +42,10 @@ export function MyTasksPage() {
     }
   }, [project.id]);
 
+  // Also after a task's window, open over the board, changed something.
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, tasksVersion]);
 
   // The keyboard sensor keeps the options it had when the drag began, so the coordinate getter
   // reads the order through a ref rather than from a stale closure.
@@ -138,11 +141,7 @@ export function MyTasksPage() {
         />
       )}
       <div className="card-head">
-        <Link
-          to={`/projects/${project.id}/tasks/${task.id}`}
-          state={{ from: 'my-tasks' }}
-          className="card-title"
-        >
+        <Link {...taskLinks.link(task.id)} className="card-title">
           {task.title}
         </Link>
       </div>
@@ -196,7 +195,12 @@ export function MyTasksPage() {
         <SortableContext items={tasks.map((t) => t.id)} strategy={rectSortingStrategy}>
           <ol className="free-board" aria-label="My tasks, in my order">
             {tasks.map((task, index) => (
-              <SortableCard key={task.id} id={task.id} disabled={tasks.length < 2}>
+              <SortableCard
+                key={task.id}
+                id={task.id}
+                disabled={tasks.length < 2}
+                onOpen={() => void taskLinks.open(task.id)}
+              >
                 {card(task, index)}
               </SortableCard>
             ))}
@@ -215,10 +219,12 @@ export function MyTasksPage() {
 function SortableCard({
   id,
   disabled,
+  onOpen,
   children,
 }: {
   id: string;
   disabled: boolean;
+  onOpen: () => void;
   children: ReactNode;
 }) {
   const {
@@ -240,8 +246,9 @@ function SortableCard({
     <li
       ref={ref}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`card${isDragging ? ' dragging' : ''}${disabled ? '' : ' draggable'}`}
+      className={`card clickable${isDragging ? ' dragging' : ''}${disabled ? '' : ' draggable'}`}
       data-testid="my-task-card"
+      onClick={(e) => isCardClick(e) && onOpen()}
       {...(disabled ? {} : { ...attributes, ...listeners })}
     >
       {children}

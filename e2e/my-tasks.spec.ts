@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { pressAndSettle, signIn } from './helpers.ts';
+import { closeTask, pressAndSettle, signIn, taskModal } from './helpers.ts';
 
 async function assign(page: Page, title: string, person: string) {
   await page
@@ -97,6 +97,8 @@ test('My tasks appears with the first assigned task, and its cards take the view
   await page.mouse.move(alpha.x + alpha.width / 2, alpha.y + alpha.height / 2, { steps: 12 });
   await page.mouse.up();
   await expect(cards).toHaveText([/Gamma/, /Alpha/, /Beta/, /Delta/]);
+  // The press that carried the card was a drag, not a click: no task window opens.
+  await expect(taskModal(page)).toHaveCount(0);
   await expect(cards.first().getByLabel('Priority 1 of 4')).toHaveText('1');
 
   // So does the keyboard: right is the next card, down is the next row.
@@ -107,11 +109,14 @@ test('My tasks appears with the first assigned task, and its cards take the view
   for (const key of ['Space', 'ArrowDown', 'Space']) await pressAndSettle(page, key);
   await expect(cards).toHaveText([/Gamma/, /Beta/, /Alpha/, /Delta/]);
 
-  // The order is kept on the server, and the task page knows the way back.
+  // The order is kept on the server. A click on a card opens its task over the board; a task
+  // handed on in that window is gone from the board when the window closes.
   await page.reload();
   await expect(cards).toHaveText([/Gamma/, /Beta/, /Alpha/, /Delta/]);
-  await cards.getByRole('link', { name: 'Alpha' }).click();
-  await page.getByRole('link', { name: '← My tasks' }).click();
+  await cards.filter({ hasText: 'Alpha' }).locator('.card-meta').click();
+  await expect(taskModal(page).getByRole('heading', { name: 'Alpha' })).toBeVisible();
+  await closeTask(page);
+  await expect(page).toHaveURL(/\/my-tasks$/);
   await expect(cards).toHaveCount(4);
 
   // Handing the last tasks away takes the tab away again.
