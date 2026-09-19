@@ -28,7 +28,7 @@ import { useProject } from './ProjectPage.tsx';
  * no task on the Workboard and nobody else sees it.
  */
 export function MyTasksPage() {
-  const { project, refreshMyTasks, dataVersion } = useProject();
+  const { project, dataVersion } = useProject();
   const taskLinks = useTaskLinks(project.id);
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -118,8 +118,6 @@ export function MyTasksPage() {
       setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       await reload();
     }
-    // A neighbour that vanished mid-drag may have been this viewer's last other task.
-    void refreshMyTasks();
   }
 
   if (tasks === null) return error ? <p className="error">{error}</p> : <p>{t('Loading…')}</p>;

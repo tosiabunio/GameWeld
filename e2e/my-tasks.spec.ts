@@ -16,7 +16,7 @@ async function assign(page: Page, title: string, person: string) {
   ).toHaveAccessibleName(`Assignee of ${title}: ${person === 'Unassigned' ? 'nobody' : person}`);
 }
 
-test('My tasks appears with the first assigned task, and its cards take the viewer’s order', async ({
+test('My tasks is always first in the navigation, and its cards take the viewer’s order', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -37,16 +37,15 @@ test('My tasks appears with the first assigned task, and its cards take the view
     await expect(code.getByTestId('task-row')).toHaveCount(i + 1);
   }
 
-  // Nothing is assigned to the viewer, so there is no tab; the first assignment brings it, first.
-  await expect(tabs.getByRole('link')).toHaveText(['Backlog', 'Breakdown', 'Workboard']);
-  for (const title of ['Alpha', 'Beta', 'Gamma', 'Delta'])
-    await assign(page, title, 'Dana Director');
+  // The tab is there, first, before anything is assigned to the viewer; the section says so.
   await expect(tabs.getByRole('link')).toHaveText([
     'My tasks',
     'Backlog',
     'Breakdown',
     'Workboard',
   ]);
+  for (const title of ['Alpha', 'Beta', 'Gamma', 'Delta'])
+    await assign(page, title, 'Dana Director');
 
   await tabs.getByRole('link', { name: 'My tasks' }).click();
   const board = page.getByTestId('my-tasks');
@@ -119,9 +118,11 @@ test('My tasks appears with the first assigned task, and its cards take the view
   await expect(page).toHaveURL(/\/my-tasks$/);
   await expect(cards).toHaveCount(4);
 
-  // Handing the last tasks away takes the tab away again.
+  // Handing the last tasks away empties the section; the tab stays.
   await tabs.getByRole('link', { name: 'Breakdown' }).click();
   await page.getByRole('link', { name: /^Ranged enemy/ }).click();
   for (const title of ['Alpha', 'Beta', 'Gamma', 'Delta']) await assign(page, title, 'Unassigned');
-  await expect(tabs.getByRole('link')).toHaveText(['Backlog', 'Breakdown', 'Workboard']);
+  await tabs.getByRole('link', { name: 'My tasks' }).click();
+  await expect(cards).toHaveCount(0);
+  await expect(board).toContainText('No unfinished tasks are assigned to you in this project.');
 });

@@ -68,13 +68,6 @@ test('what one member does shows up for another without a reload', async ({ brow
     await expect(count).toHaveText(String(before + 1));
     await taskModal(developer).getByRole('button', { name: 'Close task' }).click();
     await expect(theirCards.filter({ hasText: 'Phase two, enraged' })).toBeVisible();
-    // "My tasks" appears with it.
-    await expect(
-      developer
-        .getByRole('navigation', { name: 'Project sections' })
-        .getByRole('link', { name: 'My tasks' }),
-    ).toBeVisible();
-
     // None of it took a reload of the Developer's page.
     expect(await developer.evaluate(() => performance.timeOrigin)).toBe(watching);
   } finally {

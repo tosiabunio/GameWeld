@@ -69,7 +69,7 @@ export function TaskHome() {
  * window changed. Unsaved text is not thrown away without asking.
  */
 export function TaskModal({ taskId, background, direct }: OpenTask) {
-  const { project, refreshMyTasks, notifyChanged, dataVersion } = useProject();
+  const { project, notifyChanged, dataVersion } = useProject();
   const navigate = useNavigate();
   const dialog = useRef<HTMLDialogElement>(null);
   const changed = useRef(false);
@@ -143,9 +143,6 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
       if (e instanceof ApiError && e.status === 409) await reload();
       setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       return false;
-    } finally {
-      // Assigning, finishing, or deleting the task changes whose "My tasks" it is on.
-      void refreshMyTasks();
     }
   }
 

@@ -24,7 +24,7 @@ import { useProject } from './ProjectPage.tsx';
  * already holds to wherever it asks whether the board is active.
  */
 export function WorkboardPage() {
-  const { project, reload: reloadProject, refreshMyTasks, dataVersion } = useProject();
+  const { project, reload: reloadProject, dataVersion } = useProject();
   const { boardId } = useParams<{ boardId?: string }>();
   const canManage = project.permissions['board.manage'];
   const [board, setBoard] = useState<BoardView | null | undefined>(undefined);
@@ -65,9 +65,6 @@ export function WorkboardPage() {
       setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       await reload();
       return false;
-    } finally {
-      // Assigning, finishing, or deleting a card changes whose "My tasks" it is on.
-      void refreshMyTasks();
     }
   }
 

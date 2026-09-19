@@ -1,6 +1,6 @@
 import type { ProjectDetail } from '@gameweld/domain';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useParams } from 'react-router';
+import { NavLink, Outlet, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { TaskModal, type OpenTask } from '../components/TaskModal.tsx';
 import { t } from '../i18n/index.ts';
@@ -10,8 +10,6 @@ import { Shell } from './Shell.tsx';
 interface ProjectContextValue {
   project: ProjectDetail;
   reload: () => Promise<void>;
-  /** Call after a change that may assign, finish, or delete a task: "My tasks" comes and goes. */
-  refreshMyTasks: () => Promise<void>;
   /**
    * Counts changes to the project's data that a page may not have seen: made in a task's window
    * open over it, or by someone else (live updates). Pages load again when it moves.
@@ -54,21 +52,6 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
     void reload();
   }, [reload]);
 
-  // The "My tasks" tab exists only while the viewer has tasks. Other people assign work too, so
-  // every move between sections looks again.
-  const [hasMyTasks, setHasMyTasks] = useState(false);
-  const { pathname } = useLocation();
-  const refreshMyTasks = useCallback(async () => {
-    try {
-      setHasMyTasks((await api.myTasks(projectId!)).length > 0);
-    } catch {
-      // The tab keeps its last known state; the project's own load reports real trouble.
-    }
-  }, [projectId]);
-  useEffect(() => {
-    void refreshMyTasks();
-  }, [refreshMyTasks, pathname]);
-
   const [dataVersion, setDataVersion] = useState(0);
   const notifyChanged = useCallback(() => setDataVersion((version) => version + 1), []);
 
@@ -87,14 +70,13 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
         if (projectToo) void reload();
         projectToo = false;
         notifyChanged();
-        void refreshMyTasks();
       }, 200);
     });
     return () => {
       window.clearTimeout(timer);
       unsubscribe();
     };
-  }, [projectId, reload, notifyChanged, refreshMyTasks]);
+  }, [projectId, reload, notifyChanged]);
 
   if (error) {
     return (
@@ -139,11 +121,9 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
       }
       nav={
         <nav className="tabs" aria-label={t('Project sections')}>
-          {hasMyTasks && (
-            <NavLink to="my-tasks" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-              {t('My tasks')}
-            </NavLink>
-          )}
+          <NavLink to="my-tasks" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+            {t('My tasks')}
+          </NavLink>
           <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
             {t('Backlog')}
           </NavLink>
@@ -156,9 +136,7 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
         </nav>
       }
     >
-      <ProjectContext.Provider
-        value={{ project, reload, refreshMyTasks, dataVersion, notifyChanged }}
-      >
+      <ProjectContext.Provider value={{ project, reload, dataVersion, notifyChanged }}>
         <Outlet />
         {openTask && <TaskModal key={openTask.taskId} {...openTask} />}
       </ProjectContext.Provider>

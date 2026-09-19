@@ -24,7 +24,7 @@ export function ItemBreakdown({
   itemId: string;
   onChanged: () => Promise<void>;
 }) {
-  const { project, refreshMyTasks, dataVersion } = useProject();
+  const { project, dataVersion } = useProject();
   const navigate = useNavigate();
   const canManage = project.permissions['backlog.manage'];
   const [item, setItem] = useState<BacklogItemDetail | null>(null);
@@ -42,8 +42,7 @@ export function ItemBreakdown({
   const changed = useCallback(async () => {
     await reload();
     await onChanged();
-    void refreshMyTasks();
-  }, [reload, onChanged, refreshMyTasks]);
+  }, [reload, onChanged]);
 
   // A task's window, open over this page, may have finished the item's last task or renamed it
   // in the list beside it.
