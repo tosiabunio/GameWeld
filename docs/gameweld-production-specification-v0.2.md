@@ -108,6 +108,8 @@ This table is the source of truth for permissions. Other sections describe behav
 
 **Confirmed:** when this restriction is off, task editors can complete tasks. When it is on, Done requires the task-completion permission. Director status alone does not silently bypass the restriction; a Director can also hold the Tester role or the relevant permission. Moving a task out of the Done column requires the same permission as moving it in.
 
+A task is completed by moving its card into Done, or with **Mark complete** in the task's window, which moves a placed card into Done as well. A task that waits in the Breakdown has no card to move, so its row offers **Mark complete** too. All three ways need the same permission, and none is shown to a member who lacks it.
+
 Backlog acceptance is a separate permission. Its default holder is the Game Director. Granting it to a lead tester should not require a new role in the MVP.
 
 ## 5. Core data model

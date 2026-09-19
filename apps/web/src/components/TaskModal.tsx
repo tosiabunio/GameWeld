@@ -152,6 +152,32 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
         {task.completedAt && (
           <span className="muted">completed {new Date(task.completedAt).toLocaleString()}</span>
         )}
+        {/* Dragging a card into Done is one way to finish a task; a task that waits in the
+            Breakdown has no card to drag, and this works for both. */}
+        {!task.completed && !task.archived && canComplete && (
+          <button
+            type="button"
+            className="complete-task"
+            title={
+              task.placement
+                ? `Marks the task complete and moves its card to Done on ${task.placement.boardName}`
+                : 'Marks the task complete'
+            }
+            onClick={() => void run(() => api.completeTask(project.id, task.id))}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path
+                d="m3.5 8.5 3 3 6-7"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Mark complete
+          </button>
+        )}
       </div>
       {error && (
         <p className="error" role="alert">

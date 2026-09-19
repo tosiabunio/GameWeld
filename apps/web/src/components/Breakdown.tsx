@@ -44,7 +44,8 @@ export function Breakdown({
   }, [projectId, itemId]);
 
   // Also after a task's window, open over this page, changed something.
-  const { dataVersion } = useProject();
+  const { project, dataVersion } = useProject();
+  const canComplete = project.permissions['task.complete'];
   useEffect(() => {
     void reload();
   }, [reload, dataVersion]);
@@ -201,6 +202,26 @@ export function Breakdown({
                           </div>
                           <div className="card-meta">
                             <TaskStatus task={task} />
+                            {/* A task that is not on a board has no card to drag into Done. */}
+                            {canComplete &&
+                              !task.placement &&
+                              !task.completed &&
+                              !task.archived &&
+                              !itemArchived && (
+                                <button
+                                  type="button"
+                                  className="link"
+                                  onClick={() =>
+                                    void act(
+                                      () => api.completeTask(projectId, task.id),
+                                      'Could not complete the task',
+                                    )
+                                  }
+                                  aria-label={`Mark ${task.title} complete`}
+                                >
+                                  Mark complete
+                                </button>
+                              )}
 
                             {canWork &&
                               boardId &&

@@ -42,15 +42,14 @@ test('the bell tells a member what concerns them and shows a Director what waits
   await assigned.click();
   await expect(taskModal(page).getByRole('heading', { name: 'Phase two' })).toBeVisible();
   await expect(panel).toBeHidden();
-  const taskUrl = new URL(page.url()).pathname;
+  // Finishing the item's only task, from its window, makes the item ready for review.
+  await taskModal(page).getByRole('button', { name: 'Mark complete' }).click();
+  await expect(taskModal(page).getByText('Complete', { exact: true })).toBeVisible();
+  await expect(taskModal(page).getByRole('button', { name: 'Mark complete' })).toHaveCount(0);
   await closeTask(page);
   await bell.click();
   await expect(panel.locator('li.unread').filter({ hasText: 'Bell project' })).toHaveCount(0);
   await page.keyboard.press('Escape');
-
-  // Finishing the item's only task makes the item ready for review. Tasks are finished on a
-  // Workboard, which this project does not have, so the request is made directly.
-  expect((await page.request.post(`/api${taskUrl}/complete`)).ok()).toBe(true);
 
   // The Director finds it waiting, above the notification that says the same once.
   await switchPersona(page, 'director');

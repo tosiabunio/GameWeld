@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { closeTask, signIn, taskModal } from './helpers.ts';
+import { closeTask, signIn, switchPersona, taskModal } from './helpers.ts';
 
 test('a Developer breaks an item down into tasks and edits one', async ({ page }) => {
   await signIn(page, 'developer');
@@ -63,4 +63,63 @@ test('a placed task shows its board and column; a Director sees delete and repar
   await expect(task.getByLabel('Category')).toBeDisabled();
   await expect(task.getByRole('heading', { name: 'Game Director actions' })).toBeVisible();
   await expect(task.getByRole('button', { name: 'Delete task' })).toBeVisible();
+});
+
+test('a task is finished without a Workboard, from its row or its window, by whoever may', async ({
+  page,
+}) => {
+  await signIn(page, 'director');
+  await page.getByRole('link', { name: 'New project' }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Finishing project');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  const member = page.getByRole('form', { name: 'Add member' });
+  await member.getByLabel('Email').fill('developer@gameweld.local');
+  await member.getByRole('button', { name: 'Add member' }).click();
+  await expect(page.getByTestId('member-developer@gameweld.local')).toBeVisible();
+  await page.getByRole('link', { name: 'Backlog', exact: true }).click();
+  const must = page.getByTestId('lane-must');
+  await must.getByLabel('New item in Must Have').fill('Credits');
+  await must.getByRole('button', { name: 'Add', exact: true }).click();
+  await must.getByRole('link', { name: 'Credits', exact: true }).click();
+  const code = page.getByTestId('tasks-code');
+  for (const [i, title] of ['Scroll text', 'Music cue'].entries()) {
+    await code.getByLabel('New Code task').fill(title);
+    await code.getByRole('button', { name: 'Add' }).click();
+    await expect(code.getByTestId('task-row')).toHaveCount(i + 1);
+  }
+  const breakdown = page.url();
+
+  // From the row: no board, no card to drag, one click.
+  const first = code.getByTestId('task-row').filter({ hasText: 'Scroll text' });
+  await first.getByRole('button', { name: 'Mark Scroll text complete' }).click();
+  await expect(first).toContainText('Complete');
+  await expect(first.getByRole('button', { name: 'Mark Scroll text complete' })).toHaveCount(0);
+  await expect(page.getByText('1/2 tasks complete')).toBeVisible();
+
+  // From the task's window; finishing the last task makes the item ready for review, and the
+  // window offers the way back.
+  await code.getByRole('link', { name: 'Music cue' }).click();
+  const task = taskModal(page);
+  await task.getByRole('button', { name: 'Mark complete' }).click();
+  await expect(task.getByText('Complete', { exact: true })).toBeVisible();
+  await expect(task.getByRole('button', { name: 'Reopen task' })).toBeVisible();
+  await closeTask(page);
+  await expect(page.getByText('Ready for Review.', { exact: true })).toBeVisible();
+
+  // With Done restricted to Testers, a Developer is offered neither.
+  await page.getByRole('link', { name: 'Project settings' }).click();
+  await page.getByTestId('done-restricted').check();
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await expect(page.getByText('Settings saved.')).toBeVisible();
+  await page.goto(breakdown);
+  await page.getByTestId('tasks-code').getByLabel('New Code task').fill('Outro');
+  await page.getByTestId('tasks-code').getByRole('button', { name: 'Add' }).click();
+  await switchPersona(page, 'developer');
+  await page.goto(breakdown);
+  const outro = page.getByTestId('task-row').filter({ hasText: 'Outro' });
+  await expect(outro).toBeVisible();
+  await expect(outro.getByRole('button', { name: 'Mark Outro complete' })).toHaveCount(0);
+  await outro.getByRole('link', { name: 'Outro' }).click();
+  await expect(taskModal(page).getByRole('heading', { name: 'Outro' })).toBeVisible();
+  await expect(taskModal(page).getByRole('button', { name: 'Mark complete' })).toHaveCount(0);
 });

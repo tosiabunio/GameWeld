@@ -40,9 +40,6 @@ Wekan, Taiga, and Plane.
 
 ### 2. Everyday comfort that even the simplest tools offer
 
-- **Finishing a task that is not on a Workboard.** The only way to complete a task in the
-  interface is to drag its card into Done; a task that waits in the Breakdown has no such
-  control, though the API can complete it. Found while building notifications.
 - **Markdown and @mentions** in descriptions and comments. All five have them; GameWeld shows
   plain text.
 - **Checklists inside a task** (Trello, Planka, Wekan). Without them people multiply tiny tasks

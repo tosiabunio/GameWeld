@@ -2179,6 +2179,16 @@ progress::-moz-progress-bar {
   margin-bottom: 12px;
   font-size: 12px;
 }
+/* The one action among the status badges keeps to the row's end. */
+.complete-task {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
 .item-intro {
   margin-bottom: 24px;
 }
