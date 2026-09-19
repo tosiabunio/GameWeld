@@ -2323,6 +2323,20 @@ html.modal-open {
   margin: 4px 0 0;
   white-space: pre-wrap;
 }
+/* Asking from the Workboard: a new task's title and category share a row. */
+.new-request {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.new-request > p {
+  margin: 0;
+}
+.new-request-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 12px;
+}
 .request-list {
   margin: 8px 0;
 }

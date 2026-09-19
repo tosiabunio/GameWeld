@@ -1,4 +1,4 @@
-import type { RequestStatus, WorkRequest } from '@gameweld/domain';
+import { TASK_CATEGORIES, type RequestStatus, type WorkRequest } from '@gameweld/domain';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
@@ -6,11 +6,26 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { placeTask } from '../services/placement.ts';
+import { recalculateItemState } from '../services/readiness.ts';
 import { activeBoardFor } from './board.ts';
 import { fetchTask } from './tasks.ts';
 
 const uuid = z.string().uuid();
-const createSchema = z.object({ taskId: uuid, reason: z.string().max(5000).default('') });
+const createSchema = z
+  .object({
+    taskId: uuid.optional(),
+    newTask: z
+      .object({
+        itemId: uuid,
+        category: z.enum(TASK_CATEGORIES),
+        title: z.string().trim().min(1).max(500),
+      })
+      .optional(),
+    reason: z.string().max(5000).default(''),
+  })
+  .refine((input) => (input.taskId === undefined) !== (input.newTask === undefined), {
+    message: 'Name an existing task or describe a new one, not both.',
+  });
 const decideSchema = z.object({ note: z.string().max(5000).default('') });
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 
@@ -107,7 +122,11 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     return res.rows.map(toRequest);
   });
 
-  /** Section 9 step 2: a member asks for an unplaced task of an out-of-scope item to be placed. */
+  /**
+   * Section 9 step 2: a member asks for an unplaced task of an out-of-scope item to be placed.
+   * Asking from the Workboard may be the moment the work is first written down, so the task can
+   * be created with the request; both happen or neither does.
+   */
   app.post(base, projectRoute('task.work'), async (req, reply) => {
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
@@ -117,8 +136,40 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
 
     const requestId = await withTransaction(db, async (tx) => {
       await activeBoardFor(tx, projectId, boardId);
-      await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [parsed.data.taskId]);
-      const task = await fetchTask(tx, projectId, parsed.data.taskId);
+      let taskId = parsed.data.taskId;
+      const { newTask } = parsed.data;
+      if (newTask) {
+        const item = (
+          await tx.query<{ archived_at: Date | null }>(
+            'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
+            [projectId, newTask.itemId],
+          )
+        ).rows[0];
+        if (!item) throw notFound('Backlog item not found');
+        if (item.archived_at) throw conflict('That backlog item is archived.');
+        const scoped = await tx.query(
+          'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
+          [boardId, newTask.itemId],
+        );
+        if (scoped.rowCount)
+          throw conflict('That item is in scope: create the task on the Workboard directly.');
+        const created = await tx.query<{ id: string }>(
+          'INSERT INTO tasks (project_id, item_id, category, title) VALUES ($1, $2, $3, $4) RETURNING id',
+          [projectId, newTask.itemId, newTask.category, newTask.title],
+        );
+        taskId = created.rows[0]!.id;
+        await recordActivity(tx, {
+          projectId,
+          actorId,
+          action: 'task.created',
+          entityType: 'task',
+          entityId: taskId,
+          next: { ...newTask, requestedFor: boardId },
+        });
+        await recalculateItemState(tx, newTask.itemId, actorId, 'task created with a request');
+      }
+      await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
+      const task = await fetchTask(tx, projectId, taskId!);
       if (!task) throw notFound('Task not found');
       if (task.archived) throw conflict('Restore the task before requesting placement.');
       if (task.completed) throw conflict('The task is already complete.');

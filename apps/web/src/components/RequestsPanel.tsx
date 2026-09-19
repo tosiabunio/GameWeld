@@ -1,5 +1,12 @@
-import type { BoardView, WorkRequest } from '@gameweld/domain';
-import { TASK_CATEGORY_LABELS } from '@gameweld/domain';
+import type {
+  BacklogItem,
+  BoardView,
+  CreateRequestInput,
+  Task,
+  TaskCategory,
+  WorkRequest,
+} from '@gameweld/domain';
+import { CATEGORY_LABELS, TASK_CATEGORIES, TASK_CATEGORY_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
@@ -7,8 +14,9 @@ import { useProject } from '../pages/ProjectPage.tsx';
 import { useCurrentUser } from '../session.tsx';
 
 /**
- * Section 9: the lightweight list of out-of-scope placement requests. Directors approve or
- * reject with a note; requesters can withdraw; everyone sees the history.
+ * Section 9: the lightweight list of out-of-scope placement requests. Members ask here or from a
+ * task's row in the Breakdown; Directors approve or reject with a note; requesters can withdraw;
+ * everyone sees the history.
  */
 export function RequestsPanel({
   board,
@@ -20,6 +28,9 @@ export function RequestsPanel({
   const { project } = useProject();
   const me = useCurrentUser();
   const canDecide = project.permissions['out_of_scope.approve'] && board.state === 'active';
+  // A Director has no one to ask: "+ New task" on a To Do column places outside work directly.
+  const canRequest = project.permissions['task.work'] && board.state === 'active' && !canDecide;
+  const [asking, setAsking] = useState(false);
   const [requests, setRequests] = useState<WorkRequest[] | null>(null);
   const [open, setOpen] = useState(board.counts.pendingRequests > 0);
   const [showDecided, setShowDecided] = useState(false);
@@ -38,21 +49,24 @@ export function RequestsPanel({
     void reload();
   }, [reload, board.counts.pendingRequests]);
 
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>): Promise<boolean> {
     setError(null);
+    let ok = true;
     try {
       await action();
     } catch (e) {
+      ok = false;
       setError(e instanceof ApiError ? e.message : 'Something went wrong');
     }
     setDeciding(null);
     await reload();
     await onBoardChanged();
+    return ok;
   }
 
   const pending = (requests ?? []).filter((r) => r.status === 'pending');
   const decided = (requests ?? []).filter((r) => r.status !== 'pending');
-  if (requests !== null && requests.length === 0 && !canDecide) return null;
+  if (requests !== null && requests.length === 0 && !canDecide && !canRequest) return null;
 
   return (
     <section className="panel requests" aria-labelledby="requests-heading" data-testid="requests">
@@ -68,6 +82,18 @@ export function RequestsPanel({
             <span className={pending.length > 0 ? 'badge warn' : 'count'}>{pending.length}</span>
           </button>
         </h3>
+        {canRequest && !asking && (
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              setOpen(true);
+              setAsking(true);
+            }}
+          >
+            + Request out-of-scope work
+          </button>
+        )}
       </div>
       {error && (
         <p className="error" role="alert">
@@ -76,10 +102,17 @@ export function RequestsPanel({
       )}
       {open && (
         <>
+          {asking && (
+            <NewRequestForm
+              board={board}
+              onSend={(input) => run(() => api.createRequest(project.id, board.id, input))}
+              onClose={() => setAsking(false)}
+            />
+          )}
           {pending.length === 0 ? (
             <p className="muted small">
-              No pending requests. Members ask from a task's row in the Breakdown when its item is
-              outside the scope.
+              No pending requests. Members ask here, or from a task’s row in the Breakdown, when the
+              task's item is outside the scope.
             </p>
           ) : (
             <ul className="request-list">
@@ -191,5 +224,146 @@ export function RequestsPanel({
         </>
       )}
     </section>
+  );
+}
+
+const NEW_TASK = 'new';
+
+/**
+ * Asking from the Workboard: the item outside the scope, then one of its tasks that wait unplaced
+ * or a new one, which is created with the request, and optionally why now.
+ */
+function NewRequestForm({
+  board,
+  onSend,
+  onClose,
+}: {
+  board: BoardView;
+  onSend: (input: CreateRequestInput) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const { project } = useProject();
+  const [items, setItems] = useState<BacklogItem[] | null>(null);
+  const [itemId, setItemId] = useState('');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskId, setTaskId] = useState(NEW_TASK);
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState<TaskCategory>('code');
+  const [reason, setReason] = useState('');
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    void api
+      .backlog(project.id)
+      .then((all) =>
+        setItems(all.filter((i) => i.state === 'open' && !board.scope.some((s) => s.id === i.id))),
+      );
+  }, [project.id, board.scope]);
+
+  // The chosen item's tasks that a request can name: unfinished, unplaced, and not asked for yet.
+  useEffect(() => {
+    setTasks([]);
+    setTaskId(NEW_TASK);
+    if (!itemId) return;
+    let current = true;
+    void api.tasks(project.id, itemId).then((all) => {
+      if (!current) return;
+      setTasks(all.filter((t) => !t.archived && !t.completed && !t.placement && !t.pendingRequest));
+    });
+    return () => {
+      current = false;
+    };
+  }, [project.id, itemId]);
+
+  const isNew = taskId === NEW_TASK;
+  const ready = itemId !== '' && (!isNew || title.trim() !== '') && !sending;
+
+  return (
+    <form
+      className="form new-request"
+      aria-label="Request out-of-scope work"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setSending(true);
+        void onSend({
+          ...(isNew ? { newTask: { itemId, category, title: title.trim() } } : { taskId }),
+          reason: reason.trim(),
+        }).then((ok) => {
+          setSending(false);
+          if (ok) onClose();
+        });
+      }}
+    >
+      <p className="muted small">
+        Asks a Game Director to place one task on this Workboard although its backlog item is
+        outside the scope. The task waits in the Breakdown until the request is approved.
+      </p>
+      {items !== null && items.length === 0 ? (
+        <p className="muted small">Every open backlog item is already in scope.</p>
+      ) : (
+        <>
+          <label>
+            Backlog item
+            <select value={itemId} onChange={(e) => setItemId(e.target.value)} required autoFocus>
+              <option value="">Choose an item outside the scope…</option>
+              {(items ?? []).map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.title} ({CATEGORY_LABELS[i.category]})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Task
+            <select value={taskId} onChange={(e) => setTaskId(e.target.value)} disabled={!itemId}>
+              <option value={NEW_TASK}>New task…</option>
+              {tasks.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title} ({TASK_CATEGORY_LABELS[t.category]})
+                </option>
+              ))}
+            </select>
+          </label>
+          {isNew && (
+            <div className="new-request-task">
+              <label>
+                New task’s title
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  maxLength={500}
+                  required
+                />
+              </label>
+              <label>
+                Category
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as TaskCategory)}
+                >
+                  {TASK_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {TASK_CATEGORY_LABELS[c]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+          <label>
+            Why now? (optional)
+            <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={5000} />
+          </label>
+        </>
+      )}
+      <div className="row">
+        <button type="submit" className="primary" disabled={!ready}>
+          Send request
+        </button>
+        <button type="button" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }

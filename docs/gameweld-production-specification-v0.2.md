@@ -235,6 +235,8 @@ The badge is relative to the receiving Workboard. If the parent later enters its
 4. The Director approves or rejects it, optionally recording a note.
 5. Approval places the existing task in the matching To Do column. Rejection leaves its placement unchanged.
 
+The request can also be made from the Workboard itself, in the pending-request list: the member chooses a backlog item outside the scope and either one of its unfinished, unplaced tasks or a new task, given a title and a category. A new task is created under the item together with the request, or not at all, and waits unplaced like any other until the request is approved.
+
 The requester can withdraw a pending request. The Director can add an out-of-scope task directly; that action is recorded as an approved exception.
 
 Archiving a Workboard rejects its pending placement requests with the note “Workboard archived”, preserving the requester and decision history. The task can then be requested on a later Workboard.

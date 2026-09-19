@@ -329,4 +329,51 @@ describe('out-of-scope work requests (Section 9)', () => {
     });
     expect((await task(taskId)).pendingRequest).toBeNull();
   });
+  it('creates the task with the request when the work is first written down on the Workboard', async () => {
+    const item = (
+      await t.app.inject({
+        method: 'POST',
+        url: `/api/projects/${projectId}/backlog`,
+        headers: { cookie: director },
+        payload: { title: 'Photo mode', category: 'could' },
+      })
+    ).json().id;
+    const newTask = { itemId: item, category: 'code', title: 'Free camera' };
+    const res = await post(url(), { newTask, reason: 'A streamer asked for it.' }, developer);
+    expect(res.statusCode).toBe(201);
+    const request: WorkRequest = res.json();
+    expect(request).toMatchObject({
+      status: 'pending',
+      task: { title: 'Free camera', category: 'code', placed: false },
+      item: { title: 'Photo mode' },
+      reason: 'A streamer asked for it.',
+    });
+    const created = await task(request.task.id);
+    expect(created).toMatchObject({ placement: null, pendingRequest: { id: request.id } });
+
+    // Approval places that task as any other request's.
+    const approved = await post(url(`/${request.id}/approve`), { note: '' }, director);
+    expect(approved.statusCode).toBe(200);
+    expect((await task(request.task.id)).placement).toMatchObject({ enteredAsException: true });
+
+    // One or the other, never both or neither; and nothing is created when the request cannot be.
+    expect((await post(url(), { reason: 'nothing named' }, developer)).statusCode).toBe(400);
+    expect((await post(url(), { taskId: request.task.id, newTask }, developer)).statusCode).toBe(
+      400,
+    );
+    const inScope = (await board()).scope[0]!;
+    const before = (
+      await t.db.query('SELECT count(*) AS n FROM tasks WHERE project_id = $1', [projectId])
+    ).rows[0];
+    const refused = await post(
+      url(),
+      { newTask: { itemId: inScope.id, category: 'code', title: 'Should not exist' } },
+      developer,
+    );
+    expect(refused.statusCode).toBe(409);
+    const after = (
+      await t.db.query('SELECT count(*) AS n FROM tasks WHERE project_id = $1', [projectId])
+    ).rows[0];
+    expect(after).toEqual(before);
+  });
 });

@@ -20,8 +20,13 @@ export interface WorkRequest {
   createdAt: string;
 }
 
+/**
+ * Asks for one task of an out-of-scope item to be placed: an unplaced task that exists, or a new
+ * one, created under the item together with the request. Exactly one of the two.
+ */
 export interface CreateRequestInput {
-  taskId: string;
+  taskId?: string;
+  newTask?: { itemId: string; category: TaskCategory; title: string };
   reason?: string;
 }
 
