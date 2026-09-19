@@ -528,6 +528,97 @@ input[type='file']::file-selector-button:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The bell, and what it opens: what waits for the viewer, then what they have not read. */
+.user .bell {
+  margin-right: -8px;
+}
+.action-popover.notifications-popover {
+  width: min(380px, calc(100vw - 16px));
+  max-width: none;
+  max-height: min(70dvh, 560px);
+  padding: 6px 0;
+}
+.notifications section + section {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.notifications h3 {
+  margin: 0;
+  padding: 8px 14px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.notifications .row.between {
+  padding-right: 14px;
+}
+.notifications .row.between .link {
+  font-size: 12px;
+}
+.notifications > section > p {
+  margin: 0;
+  padding: 4px 14px 10px;
+}
+.notifications ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.notification {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 2px 10px;
+  padding: 8px 14px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.notification:hover {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+.notification > :not(.avatar, .notification-system) {
+  grid-column: 2;
+}
+.notification-system {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+/* Something that waits: a ring in the accent colour where an event shows who did it. */
+.notification-system.waiting {
+  background: none;
+  border: 2px solid var(--accent-solid);
+  scale: 0.55;
+}
+.notification strong {
+  font-weight: 600;
+}
+.notification-detail {
+  display: block;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notification-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+/* Unread: a mark at the edge, and text that carries its full weight. */
+.notifications li.unread {
+  box-shadow: inset 3px 0 0 var(--accent-solid);
+  background: var(--accent-soft);
+}
+.notifications li:not(.unread) .notification-text {
+  color: var(--muted);
+}
+
 /* The project's settings: a cog right after the project's name. `.brand a` lays links out as a
    row, so these rules name the brand too. */
 .brand .settings-link {

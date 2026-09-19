@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Avatar, Logo } from '../components/Brand.tsx';
+import { NotificationsBell } from '../components/NotificationsBell.tsx';
 import { useCurrentUser, useSession } from '../session.tsx';
 
 /**
@@ -33,6 +34,7 @@ export function Shell({
         </div>
         {nav}
         <div className="user">
+          <NotificationsBell />
           <Link to="/profile" className="me" title="Your profile and picture">
             <Avatar name={user.displayName} url={user.avatarUrl} />
             <span data-testid="current-user">{user.displayName}</span>

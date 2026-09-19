@@ -320,7 +320,12 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           action: 'task.created',
           entityType: 'task',
           entityId: id,
-          next: { itemId, category: input.category, title: input.title },
+          next: {
+            itemId,
+            category: input.category,
+            title: input.title,
+            assigneeId: input.assigneeId ?? null,
+          },
         });
         const scoped = await tx.query<{ board_id: string }>(
           `SELECT s.board_id FROM workboard_scope s JOIN workboards w ON w.id = s.board_id

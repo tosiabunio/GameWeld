@@ -21,7 +21,8 @@ enforce such a process at all; Taiga and Plane only in part.
 
 **The board layer.** Dragging by pointer and keyboard, custom and collapsible columns, covers,
 attachments, links, comments, assignees with avatars, "My tasks" in the member's own order,
-filters and title search, the task in a window over its board, dark mode, a phone layout,
+notifications in the app with a list of what waits for the viewer's decision, filters and title
+search, the task in a window over its board, dark mode, a phone layout,
 archive and restore instead of hard deletion, and continuous deployment.
 
 ## What is missing
@@ -35,11 +36,14 @@ Wekan, Taiga, and Plane.
 | --- | --- | --- |
 | Real sign-in and invitations | All five | Planned as Phase 8 (Google OIDC). Today anyone who reaches the instance can sign in as a Game Director. |
 | Backups | n/a | [backup-plan.md](backup-plan.md) describes them; nothing is set up. |
-| Notifications, in the app and by e-mail | All five | They matter more here than in Trello because the process has gates: a request waits for a Director, an item waits for acceptance. Today someone has to go and look. |
+| Notifications by e-mail | All five | The app has a bell (since 19 September 2026): events that concern the viewer, and what waits for their decision. It reaches only someone who has the app open. E-mail needs real addresses, so it follows real sign-in. |
 | Live updates | Trello, Planka, Wekan, Plane | A board refreshes only after the viewer's own action. Two people see different states until one of them hits an edit conflict. |
 
 ### 2. Everyday comfort that even the simplest tools offer
 
+- **Finishing a task that is not on a Workboard.** The only way to complete a task in the
+  interface is to drag its card into Done; a task that waits in the Breakdown has no such
+  control, though the API can complete it. Found while building notifications.
 - **Markdown and @mentions** in descriptions and comments. All five have them; GameWeld shows
   plain text.
 - **Checklists inside a task** (Trello, Planka, Wekan). Without them people multiply tiny tasks
@@ -80,8 +84,9 @@ exists.
 ## Proposed order
 
 1. **Phase 8:** real sign-in and backups.
-2. **Notifications**, with a "waiting for me" screen for the Game Director (requests, items to
-   accept), and a Discord webhook.
+2. **Notifications.** Done in the app: the bell, with what waits for the viewer (requests to
+   decide, items to accept). Still to do: a Discord webhook per project, then e-mail once
+   sign-in is real.
 3. **Live updates** (server-sent events).
 4. **Markdown, @mentions, and checklists.**
 5. **Labels with a "blocked" flag, and optional dates.**

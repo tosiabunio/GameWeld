@@ -1,4 +1,5 @@
 import type { Queryable } from './db.ts';
+import { notifyFromActivity } from './services/notifications.ts';
 
 export interface ActivityInput {
   projectId: string;
@@ -10,7 +11,11 @@ export interface ActivityInput {
   next?: unknown;
 }
 
-/** Appends one activity record (Section 14). Call inside the transaction that made the change. */
+/**
+ * Appends one activity record (Section 14). Call inside the transaction that made the change.
+ * The record is also where notifications come from, so whoever a change concerns hears of it
+ * whichever route made it.
+ */
 export async function recordActivity(db: Queryable, a: ActivityInput): Promise<void> {
   await db.query(
     `INSERT INTO activity (project_id, actor_id, action, entity_type, entity_id, previous, next)
@@ -25,4 +30,5 @@ export async function recordActivity(db: Queryable, a: ActivityInput): Promise<v
       a.next === undefined ? null : JSON.stringify(a.next),
     ],
   );
+  await notifyFromActivity(db, a);
 }

@@ -20,9 +20,11 @@ describe('schema-level invariants', () => {
       await db.query<{ id: string }>(`SELECT id FROM workboards WHERE project_id = $1`, [projectId])
     ).rows[0]!.id;
     taskId = (
-      await db.query<{ id: string }>(`SELECT id FROM tasks WHERE project_id = $1 LIMIT 1`, [
-        projectId,
-      ])
+      await db.query<{ id: string }>(
+        // An unfinished one: the completion check below needs a task that is not complete yet.
+        `SELECT id FROM tasks WHERE project_id = $1 AND NOT completed LIMIT 1`,
+        [projectId],
+      )
     ).rows[0]!.id;
     columnId = (
       await db.query<{ id: string }>(

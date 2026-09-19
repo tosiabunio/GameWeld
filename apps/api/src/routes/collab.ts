@@ -5,6 +5,7 @@ import { recordActivity } from '../activity.ts';
 import { can } from '@gameweld/domain';
 import { projectRoute } from '../authz.ts';
 import { coverKey, coverRendition, UnreadableImage } from '../covers.ts';
+import { notifyOfComment } from '../services/notifications.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { PayloadTooLarge, PREVIEW_IMAGE_TYPES } from '../storage.ts';
@@ -207,6 +208,13 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
           `INSERT INTO comments (project_id, item_id, task_id, author_id, body) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
           [projectId, target.itemId ?? null, target.taskId ?? null, req.user!.id, parsed.data.body],
         );
+        await notifyOfComment(db, {
+          projectId,
+          authorId: req.user!.id,
+          taskId: target.taskId ?? null,
+          itemId: target.itemId ?? null,
+          body: parsed.data.body,
+        });
         const comments = await fetchComments(db, target);
         return reply.status(201).send(comments.find((c) => c.id === created.rows[0]!.id));
       },

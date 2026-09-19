@@ -8,6 +8,7 @@ export function ActionMenu({
   triggerClassName = 'action-trigger',
   popoverClassName,
   align = 'end',
+  onOpen,
 }: {
   label: string;
   children: ReactNode;
@@ -18,6 +19,8 @@ export function ActionMenu({
   popoverClassName?: string;
   /** Which edge of the trigger the menu lines up with; a trigger on the left wants 'start'. */
   align?: 'start' | 'end';
+  /** For a menu whose contents may have gone stale while it was shut. */
+  onOpen?: () => void;
 }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -49,6 +52,7 @@ export function ActionMenu({
       return;
     }
     panel.showPopover();
+    onOpen?.();
     // `toggle` is queued by the browser; subscribe before an immediate scroll or resize.
     setOpen(true);
     const rect = button.getBoundingClientRect();

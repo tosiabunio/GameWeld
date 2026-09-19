@@ -22,6 +22,8 @@ import type {
   DecideRequestInput,
   WorkRequest,
   MovePlacementInput,
+  NotificationSummary,
+  MarkNotificationsReadInput,
   MoveMyTaskInput,
   MyTask,
   RemoveScopeInput,
@@ -110,6 +112,10 @@ export const api = {
   mockSignIn: (persona: string) =>
     request<void>('/api/auth/mock/sign-in', json('POST', { persona })),
   signOut: () => request<void>('/api/auth/sign-out', { method: 'POST' }),
+
+  notifications: () => request<NotificationSummary>('/api/notifications'),
+  markNotificationsRead: (input: MarkNotificationsReadInput = {}) =>
+    request<void>('/api/notifications/read', json('POST', input)),
 
   projects: (archived = false) =>
     request<ProjectSummary[]>(`/api/projects${archived ? '?archived=true' : ''}`),
