@@ -49,6 +49,8 @@ export class LiveHub {
   private heartbeat: NodeJS.Timeout | null = null;
   private stopped = false;
   private listenedBefore = false;
+  /** Settles once the listening connection is up, or has failed and will be retried. */
+  private ready: Promise<void> | null = null;
 
   constructor(
     private databaseUrl: string,
@@ -64,9 +66,16 @@ export class LiveHub {
     return new Set(res.rows.map((r) => r.project_id));
   }
 
-  /** Starts streaming to one browser. The listening connection opens with the first viewer. */
+  /**
+   * Starts streaming to one browser. The listening connection opens with the first viewer, and
+   * the response starts only once it is up: a browser that has its headers is subscribed, so a
+   * change made right after cannot slip through the gap.
+   */
   async add(userId: string, res: ServerResponse): Promise<void> {
     const viewer: Viewer = { userId, projects: await this.projectsOf(userId), res };
+    this.ready ??= this.listen();
+    await this.ready;
+    if (this.stopped || res.destroyed) return void res.end();
     res.writeHead(200, {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache, no-transform',
@@ -77,7 +86,6 @@ export class LiveHub {
     res.write('retry: 3000\n\n');
     this.viewers.add(viewer);
     res.on('close', () => this.viewers.delete(viewer));
-    if (!this.listener) await this.listen();
     this.heartbeat ??= setInterval(() => {
       for (const v of this.viewers) v.res.write(': ping\n\n');
     }, HEARTBEAT_MS);
@@ -92,7 +100,7 @@ export class LiveHub {
       this.listener = null;
       this.log('live updates: lost the listening connection, reconnecting', error);
       client.end().catch(() => undefined);
-      if (!this.stopped) setTimeout(() => void this.listen(), RECONNECT_MS);
+      if (!this.stopped) setTimeout(() => (this.ready = this.listen()), RECONNECT_MS);
     };
     client.on('error', retry);
     client.on('end', () => retry());
