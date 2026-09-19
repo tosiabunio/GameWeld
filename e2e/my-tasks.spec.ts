@@ -54,6 +54,30 @@ test('My tasks appears with the first assigned task, and its cards take the view
   await expect(cards).toHaveText([/Alpha/, /Beta/, /Gamma/, /Delta/]);
   await expect(cards.first()).toContainText('Ranged enemy');
 
+  // Four cards do not stretch across a wide window: a card keeps to its range of widths.
+  await page.setViewportSize({ width: 2400, height: 900 });
+  for (const card of await cards.all()) {
+    const { width } = (await card.boundingBox())!;
+    expect(width).toBeGreaterThanOrEqual(248);
+    expect(width).toBeLessThanOrEqual(340);
+  }
+
+  // "Center cards" moves them from the left of that window to its middle, for this viewer.
+  const sides = async () => {
+    const all = await Promise.all((await cards.all()).map(async (c) => (await c.boundingBox())!));
+    return { left: all[0]!.x, right: 2400 - (all[3]!.x + all[3]!.width) };
+  };
+  expect((await sides()).left).toBeLessThan(40);
+  await page.getByRole('button', { name: 'Display options' }).click();
+  await expect(page.getByLabel('Collapse empty columns')).toHaveCount(0);
+  await page.getByLabel('Center cards').check();
+  await page.keyboard.press('Escape');
+  expect((await sides()).left).toBeGreaterThan(300);
+  expect(Math.abs((await sides()).left - (await sides()).right)).toBeLessThan(2);
+  await page.getByRole('button', { name: 'Display options' }).click();
+  await page.getByLabel('Center cards').uncheck();
+  await page.keyboard.press('Escape');
+
   // A free board: the cards fill a row from the left before they start the next one.
   await page.setViewportSize({ width: 700, height: 900 });
   const boxes = async () =>

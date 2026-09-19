@@ -49,6 +49,14 @@ export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
         />
         Small cover images
       </label>
+      <label className="menu-check">
+        <input
+          type="checkbox"
+          checked={options.centered}
+          onChange={(event) => setDisplayOption('centered', event.target.checked)}
+        />
+        {lanes ? 'Center columns' : 'Center cards'}
+      </label>
       <p className="menu-note">Only for you, in this browser.</p>
     </ActionMenu>
   );

@@ -42,6 +42,10 @@
   --r-md: 9px;
   --r-lg: 14px;
   --topbar-h: 65px;
+  /* A card, and so the lane that holds it, is never narrower or wider than this, whatever the
+     window. A phone is the exception: there one lane or card takes the screen. */
+  --card-min: 248px;
+  --card-max: 340px;
 
   font-family:
     Inter,
@@ -969,7 +973,8 @@ ul.project-grid {
 /* ---------------------------------------------------------------------------------------------
    Lanes and cards (Backlog and Workboard)
    --------------------------------------------------------------------------------------------- */
-/* A row of lanes sharing the width equally; a collapsed lane shrinks to a stub. */
+/* A row of lanes sharing the width equally, up to the widest a lane may be: on a large window
+   the lanes keep to the left and leave the rest empty. A collapsed lane shrinks to a stub. */
 .lanes {
   display: flex;
   gap: 12px;
@@ -978,8 +983,9 @@ ul.project-grid {
   align-items: flex-start;
 }
 .lanes > .lane {
-  flex: 1 0 248px;
-  min-width: 248px;
+  flex: 1 0 var(--card-min);
+  min-width: var(--card-min);
+  max-width: var(--card-max);
 }
 /* Lanes that do not fit scroll sideways; these buttons say so and do the scrolling. */
 .lane-scroll {
@@ -995,6 +1001,17 @@ ul.project-grid {
 }
 .lane-scroll button.link:hover {
   color: var(--accent);
+}
+/* "Center columns": lanes that have stopped growing stand in the middle of the window. Auto
+   margins take only the width that is left over, where justify-content would push the first
+   lanes of a strip that overflows out of reach of its scrolling. */
+@media (min-width: 561px) {
+  [data-centered] .lanes > .lane:first-child {
+    margin-left: auto;
+  }
+  [data-centered] .lanes > .lane:last-child {
+    margin-right: auto;
+  }
 }
 .lanes > .lane.collapsed {
   flex: 0 0 44px;
@@ -1013,6 +1030,7 @@ ul.project-grid {
   }
   .lanes > .lane:not(.collapsed) {
     flex: 0 0 calc(100vw - 40px);
+    max-width: none;
   }
   .lane-scroll {
     display: none;
@@ -1671,10 +1689,25 @@ progress::-moz-progress-bar {
   margin: 0;
   padding: 2px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  /* As many columns as fit at the narrowest card; with few cards the empty columns stay, so a
+     card never stretches to fill the row. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min)), 1fr));
   gap: 12px;
   /* Each card keeps its own height, so a cover on one does not stretch its row's neighbours. */
   align-items: start;
+}
+@media (min-width: 561px) {
+  .free-board > .card {
+    max-width: var(--card-max);
+  }
+}
+/* "Center cards": the columns that hold cards are as wide as a card may be and stand in the
+   middle; without it they share the whole width and the cards start at the left. */
+@media (min-width: 561px) {
+  [data-centered] .free-board {
+    grid-template-columns: repeat(auto-fit, minmax(var(--card-min), var(--card-max)));
+    justify-content: center;
+  }
 }
 /* The card's place in the order, where the lanes' cards show who does the work. */
 .my-task-order {
@@ -1948,7 +1981,8 @@ progress::-moz-progress-bar {
   align-items: flex-start;
 }
 .task-groups > .task-group {
-  flex: 1 0 248px;
+  flex: 1 0 var(--card-min);
+  max-width: var(--card-max);
 }
 .task-groups > .task-group.collapsed {
   flex: 0 0 44px;
@@ -1971,6 +2005,7 @@ progress::-moz-progress-bar {
   .task-groups > .task-group.collapsed {
     flex: none;
     width: 100%;
+    max-width: none;
   }
   .task-groups > .task-group.collapsed {
     min-height: 44px;

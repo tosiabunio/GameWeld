@@ -25,6 +25,17 @@ test('production views use the window width and only collapse columns on request
   expect(layout.width).toBe(1920);
   expect(layout.rows).toBe(1);
 
+  // Lanes, and so their cards, keep to a range of widths: on a very wide window they stop
+  // growing, stay on the left, and leave the rest of the row empty.
+  const laneWidths = () =>
+    lanes.evaluateAll((all) => all.map((lane) => lane.getBoundingClientRect().width));
+  for (const width of await laneWidths()) expect(width).toBeGreaterThan(248);
+  await page.setViewportSize({ width: 2800, height: 1080 });
+  for (const width of await laneWidths()) expect(width).toBeCloseTo(340, 0);
+  const lastLane = (await lanes.last().boundingBox())!;
+  expect(lastLane.x + lastLane.width).toBeLessThan(2200);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+
   const must = page.getByTestId('lane-must');
   await must.getByLabel('New item in Must Have').fill('Flight behavior');
   await must.getByRole('button', { name: 'Add', exact: true }).click();

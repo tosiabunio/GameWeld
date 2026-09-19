@@ -61,3 +61,46 @@ test('display options collapse empty columns and shrink covers, for this viewer 
   await expect(page.locator('.lane.collapsed')).toHaveCount(0);
   expect((await cover.boundingBox())!.width).toBeGreaterThan(200);
 });
+
+test('"Center columns" puts lanes that do not fill the window in its middle', async ({ page }) => {
+  await page.setViewportSize({ width: 2800, height: 900 });
+  await signIn(page, 'director');
+  await page.getByRole('link', { name: 'New project' }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Centered lanes');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: 'Backlog', exact: true }).click();
+  const lanes = page.locator('.lanes > .lane');
+  await expect(lanes).toHaveCount(6);
+  const margins = async () => {
+    const [first, last] = [
+      (await lanes.first().boundingBox())!,
+      (await lanes.last().boundingBox())!,
+    ];
+    return { left: first.x, right: 2800 - (last.x + last.width) };
+  };
+
+  // Off by default: the lanes are as wide as they get and keep to the left.
+  expect((await margins()).left).toBeLessThan(40);
+  expect((await margins()).right).toBeGreaterThan(600);
+  await page.getByRole('button', { name: 'Display options' }).click();
+  await page.getByLabel('Center columns').check();
+  await page.keyboard.press('Escape');
+  const centered = await margins();
+  expect(centered.left).toBeGreaterThan(300);
+  expect(Math.abs(centered.left - centered.right)).toBeLessThan(2);
+
+  // Lanes that fill the window, or overflow it, start at its left edge as before.
+  await page.setViewportSize({ width: 1200, height: 900 });
+  expect((await margins()).left).toBeLessThan(40);
+  await expect(page.getByRole('button', { name: /^Show later columns/ })).toBeVisible();
+
+  // The option survives a reload, and switches off again.
+  await page.setViewportSize({ width: 2800, height: 900 });
+  await page.reload();
+  await expect(lanes).toHaveCount(6);
+  expect((await margins()).left).toBeGreaterThan(300);
+  await page.getByRole('button', { name: 'Display options' }).click();
+  await page.getByLabel('Center columns').uncheck();
+  await page.keyboard.press('Escape');
+  expect((await margins()).left).toBeLessThan(40);
+});

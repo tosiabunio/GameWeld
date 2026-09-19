@@ -10,10 +10,12 @@ export interface DisplayOptions {
   collapseEmpty: boolean;
   /** Covers show as a small picture beside the title instead of a banner across the card. */
   smallCovers: boolean;
+  /** Lanes, or My tasks' cards, that do not fill the window's width stand in its middle. */
+  centered: boolean;
 }
 
 const KEY = 'gameweld:display';
-const DEFAULTS: DisplayOptions = { collapseEmpty: false, smallCovers: false };
+const DEFAULTS: DisplayOptions = { collapseEmpty: false, smallCovers: false, centered: false };
 
 function read(): DisplayOptions {
   try {
@@ -22,15 +24,20 @@ function read(): DisplayOptions {
     return {
       collapseEmpty: options.collapseEmpty === true,
       smallCovers: options.smallCovers === true,
+      centered: options.centered === true,
     };
   } catch {
     return DEFAULTS;
   }
 }
 
-/** Covers are plain images in three views; one attribute on the root restyles them all. */
+/**
+ * Covers are plain images in three views; one attribute on the root restyles them all. Centering
+ * is layout alone, so it is an attribute too.
+ */
 function apply(options: DisplayOptions) {
   document.documentElement.toggleAttribute('data-small-covers', options.smallCovers);
+  document.documentElement.toggleAttribute('data-centered', options.centered);
 }
 
 let current = read();
