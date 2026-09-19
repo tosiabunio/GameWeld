@@ -3,6 +3,7 @@ import { CATEGORY_LABELS, STATE_LABELS } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { t } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 
 /** D9: informational item-to-item dependencies with the referenced item's state. Never blocking. */
@@ -33,7 +34,7 @@ export function Dependencies({
       await action();
       await onChanged();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
     }
   }
 
@@ -41,11 +42,11 @@ export function Dependencies({
   const Row = ({ d }: { d: Dependency }) => (
     <>
       <Link to={`/projects/${project.id}/breakdown/${d.id}`}>{d.title}</Link>
-      <span className="muted small">{CATEGORY_LABELS[d.category]}</span>
+      <span className="muted small">{t(CATEGORY_LABELS[d.category])}</span>
       <span
         className={`badge ${d.state === 'done' ? 'done' : d.state === 'ready_for_review' ? '' : 'neutral'}`}
       >
-        {STATE_LABELS[d.state]}
+        {t(STATE_LABELS[d.state])}
       </span>
     </>
   );
@@ -57,10 +58,10 @@ export function Dependencies({
           {error}
         </p>
       )}
-      <h4>Depends on</h4>
+      <h4>{t('Depends on')}</h4>
       {dependsOn.length === 0 ? (
         <p className="muted small">
-          Nothing. Dependencies are informational: they never block work.
+          {t('Nothing. Dependencies are informational: they never block work.')}
         </p>
       ) : (
         <ul className="dep-list">
@@ -72,9 +73,9 @@ export function Dependencies({
                   type="button"
                   className="link"
                   onClick={() => void run(() => api.removeDependency(project.id, itemId, d.id))}
-                  aria-label={`Remove dependency on ${d.title}`}
+                  aria-label={t('Remove dependency on {title}', { title: d.title })}
                 >
-                  Remove
+                  {t('Remove')}
                 </button>
               )}
             </li>
@@ -84,7 +85,7 @@ export function Dependencies({
       {canDirect && (
         <form
           className="add-item"
-          aria-label="Add dependency"
+          aria-label={t('Add dependency')}
           onSubmit={(e) => {
             e.preventDefault();
             if (target)
@@ -96,23 +97,23 @@ export function Dependencies({
           <select
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            aria-label="Item this one depends on"
+            aria-label={t('Item this one depends on')}
           >
-            <option value="">Add a dependency…</option>
+            <option value="">{t('Add a dependency…')}</option>
             {candidates.map((i) => (
               <option key={i.id} value={i.id}>
-                {i.title} ({CATEGORY_LABELS[i.category]})
+                {i.title} ({t(CATEGORY_LABELS[i.category])})
               </option>
             ))}
           </select>
           <button type="submit" disabled={!target}>
-            Add
+            {t('Add')}
           </button>
         </form>
       )}
       {dependents.length > 0 && (
         <>
-          <h4>Needed by</h4>
+          <h4>{t('Needed by')}</h4>
           <ul className="dep-list">
             {dependents.map((d) => (
               <li key={d.id}>

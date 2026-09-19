@@ -1,11 +1,7 @@
 import {
   DndContext,
   DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
   closestCenter,
-  useSensor,
-  useSensors,
   type CollisionDetection,
   type DragEndEvent,
   type KeyboardCoordinateGetter,
@@ -21,6 +17,8 @@ import { ChecklistProgress } from '../components/Checklist.tsx';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { LabelChips, TaskFlags } from '../components/TaskBadges.tsx';
 import { TaskStatus } from '../components/TaskStatus.tsx';
+import { useCardSensors } from '../dragSensors.ts';
+import { t, tp } from '../i18n/index.ts';
 import { isCardClick, useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
 
@@ -40,7 +38,7 @@ export function MyTasksPage() {
     try {
       setTasks(await api.myTasks(project.id));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load your tasks');
+      setError(e instanceof ApiError ? e.message : t('Could not load your tasks'));
     }
   }, [project.id]);
 
@@ -96,10 +94,7 @@ export function MyTasksPage() {
       : closestCenter(args);
   }, []);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: gridKeyboardCoordinates }),
-  );
+  const sensors = useCardSensors(gridKeyboardCoordinates);
 
   async function onDragEnd({ active, over }: DragEndEvent) {
     keyboardTarget.current = null;
@@ -120,14 +115,14 @@ export function MyTasksPage() {
         }),
       );
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       await reload();
     }
     // A neighbour that vanished mid-drag may have been this viewer's last other task.
     void refreshMyTasks();
   }
 
-  if (tasks === null) return error ? <p className="error">{error}</p> : <p>Loading…</p>;
+  if (tasks === null) return error ? <p className="error">{error}</p> : <p>{t('Loading…')}</p>;
 
   const active = activeId ? tasks.find((t) => t.id === activeId) : undefined;
   const card = (task: MyTask, index: number) => (
@@ -156,9 +151,12 @@ export function MyTasksPage() {
       </div>
       <div className="card-bottom">
         <span className={`category-label cat-${task.category}`}>
-          {TASK_CATEGORY_LABELS[task.category]}
+          {t(TASK_CATEGORY_LABELS[task.category])}
         </span>
-        <span className="my-task-order" aria-label={`Priority ${index + 1} of ${tasks.length}`}>
+        <span
+          className="my-task-order"
+          aria-label={t('Priority {place} of {total}', { place: index + 1, total: tasks.length })}
+        >
           {index + 1}
         </span>
       </div>
@@ -169,12 +167,15 @@ export function MyTasksPage() {
     <div data-testid="my-tasks">
       <header className="page-head row between">
         <div>
-          <p className="eyebrow">Assigned to you</p>
-          <h1>My tasks</h1>
+          <p className="eyebrow">{t('Assigned to you')}</p>
+          <h1>{t('My tasks')}</h1>
           <p className="muted small">
             {tasks.length === 0
-              ? 'No unfinished tasks are assigned to you in this project.'
-              : `${tasks.length} unfinished task${tasks.length === 1 ? '' : 's'}. Drag the cards into the order you mean to work in; the order is yours alone.`}
+              ? t('No unfinished tasks are assigned to you in this project.')
+              : t(
+                  '{count} {tasks}. Drag the cards into the order you mean to work in; the order is yours alone.',
+                  { count: tasks.length, tasks: tp(tasks.length, 'unfinished task') },
+                )}
           </p>
         </div>
         <DisplayMenu lanes={false} />
@@ -198,7 +199,7 @@ export function MyTasksPage() {
         }}
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={rectSortingStrategy}>
-          <ol className="free-board" aria-label="My tasks, in my order">
+          <ol className="free-board" aria-label={t('My tasks, in my order')}>
             {tasks.map((task, index) => (
               <SortableCard
                 key={task.id}

@@ -24,7 +24,8 @@ attachments, links, comments, assignees with avatars, "My tasks" in the member's
 notifications in the app with a list of what waits for the viewer's decision, live updates of
 every open page, Markdown with @mentions in descriptions and comments, checklists inside tasks,
 labels, a "blocked" flag and an optional date on tasks, an optional end date on the Workboard,
-archived Workboards that can be opened and looked at, filters and title search, the task in a window over its board, dark mode, a phone layout,
+archived Workboards that can be opened and looked at, import from Trello and export of the whole
+project, quick open on Cmd+K, a Polish interface, filters and title search, the task in a window over its board, dark mode, a phone layout,
 archive and restore instead of hard deletion, and continuous deployment.
 
 ## What is missing
@@ -48,14 +49,18 @@ Wekan, Taiga, and Plane.
   asks about, has neither, and the Backlog cannot be filtered by label.
 - **Reminders of a date.** A task's date turns amber the day before and red after; nobody is
   told. That needs a scheduler, which the application does not have, and then e-mail.
-- **Global search and quick open** (Cmd+K), and keyboard shortcuts.
+- **Keyboard shortcuts** beyond quick open (Cmd+K), such as moving between sections or
+  assigning a card to oneself.
 - **Card operations:** copying a task, task templates, selecting several cards at once.
 - **"My tasks" across projects** (Trello's home, Plane's "Your work"). Today it is per project.
 
 ### 3. Adoption and surroundings
 
-- **Import from Trello** (Planka, Wekan, and Taiga have one) and **JSON/CSV export**. Without an
-  import nobody moves an existing board over; without an export nobody trusts it with their data.
+- **Import of card members and attachments from Trello.** The import brings lists, cards,
+  labels, dates, checklists, comments, and links; Trello's members have no accounts here to
+  map onto, and its attachments are files behind Trello's sign-in.
+- **Import of an exported project.** The JSON export is complete enough to restore from, but
+  nothing reads it back yet; it is a copy to keep and to analyse.
 - **Webhooks, and notifications to Discord or Slack.** Game teams live on Discord, and it is the
   cheapest notification channel to build. Deferred for now (19 September 2026).
 - **API tokens and API documentation.** Today the API is reachable only with a browser session.
@@ -87,9 +92,8 @@ Wekan, Taiga, and Plane.
     through an assistant, and a notification can say so.
 - **A read-only role or a public link** for a publisher or stakeholder (Trello's observers,
   Plane's guests).
-- **Translations.** The interface is English only; Planka, Wekan, and Taiga are multilingual.
-- **Touch on a phone.** A draggable card takes the touch (`touch-action: none`), so a finger on a
-  card cannot scroll the page. This is a defect rather than a missing feature.
+- **Translated server messages.** The interface is in English and Polish; what the server says
+  when it refuses something (a conflict, a rule) is still English in both.
 
 ### 4. Deliberately outside
 
@@ -123,11 +127,11 @@ dimension in the lanes.
    (19 September 2026).
 6. **Opening archived Workboards.** Done (19 September 2026). Swimlanes were part of this step
    and are now deliberately outside; see above.
-7. **Import from Trello, and export.**
+7. **Import from Trello, and export.** Done (20 September 2026).
 8. **AI tools:** API tokens and an OpenAPI description first, then the MCP server with the
    history routes for analysis, then the skill. Tokens belong to real accounts, so this follows
    step 1.
-9. **Polish translation, the touch fix on phones, and Cmd+K.**
+9. **Polish translation, the touch fix on phones, and Cmd+K.** Done (20 September 2026).
 
 Steps 2 to 4 do the most to make daily use feel like Trello. Steps 1 and 7 decide whether anyone
 other than the author really starts using it. Step 8 is the one thing here that the simple tools

@@ -1,6 +1,7 @@
 import type { Comment } from '@gameweld/domain';
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api.ts';
+import { t } from '../i18n/index.ts';
 import { MentionTextarea } from './MentionTextarea.tsx';
 import { RichText } from './RichText.tsx';
 import { useProject } from '../pages/ProjectPage.tsx';
@@ -32,7 +33,7 @@ export function Comments({
       await onChanged();
       return true;
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       return false;
     }
   }
@@ -47,16 +48,16 @@ export function Comments({
         </p>
       )}
       {comments.length === 0 ? (
-        <p className="muted small">No comments yet.</p>
+        <p className="muted small">{t('No comments yet.')}</p>
       ) : (
         <ul className="comments" data-testid="comments">
           {comments.map((c) => (
             <li key={c.id} className={c.kind === 'rejection' ? 'rejection' : ''}>
               <div className="muted small row between">
                 <span>
-                  {c.kind === 'rejection' && <span className="badge warn">Rejected</span>}{' '}
+                  {c.kind === 'rejection' && <span className="badge warn">{t('Rejected')}</span>}{' '}
                   {c.author.displayName} · {fmt(c.createdAt)}
-                  {c.updatedAt !== c.createdAt && ' · edited'}
+                  {c.updatedAt !== c.createdAt && ` · ${t('edited')}`}
                 </span>
                 {c.kind === 'comment' && editing?.id !== c.id && (
                   <span className="row">
@@ -65,9 +66,9 @@ export function Comments({
                         type="button"
                         className="link"
                         onClick={() => setEditing({ id: c.id, body: c.body })}
-                        aria-label="Edit comment"
+                        aria-label={t('Edit comment')}
                       >
-                        Edit
+                        {t('Edit')}
                       </button>
                     )}
                     {(c.author.id === me.id || canDirect) && (
@@ -75,9 +76,9 @@ export function Comments({
                         type="button"
                         className="link"
                         onClick={() => void run(() => api.deleteComment(project.id, c.id))}
-                        aria-label="Delete comment"
+                        aria-label={t('Delete comment')}
                       >
-                        Delete
+                        {t('Delete')}
                       </button>
                     )}
                   </span>
@@ -86,7 +87,7 @@ export function Comments({
               {editing?.id === c.id ? (
                 <form
                   className="form"
-                  aria-label="Edit comment"
+                  aria-label={t('Edit comment')}
                   onSubmit={(e: FormEvent) => {
                     e.preventDefault();
                     void run(() =>
@@ -98,15 +99,15 @@ export function Comments({
                     value={editing.body}
                     onChange={(body) => setEditing({ id: c.id, body })}
                     rows={3}
-                    aria-label="Comment text"
+                    aria-label={t('Comment text')}
                     autoFocus
                   />
                   <div className="row">
                     <button type="submit" className="primary" disabled={editing.body.trim() === ''}>
-                      Save
+                      {t('Save')}
                     </button>
                     <button type="button" onClick={() => setEditing(null)}>
-                      Cancel
+                      {t('Cancel')}
                     </button>
                   </div>
                 </form>
@@ -120,7 +121,7 @@ export function Comments({
       {canComment && (
         <form
           className="form"
-          aria-label="Add comment"
+          aria-label={t('Add comment')}
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             void run(() => api.addComment(project.id, owner, draft.trim())).then(
@@ -129,17 +130,17 @@ export function Comments({
           }}
         >
           <label>
-            Comment
+            {t('Comment')}
             <MentionTextarea
               value={draft}
               onChange={setDraft}
               rows={2}
-              placeholder="Notes for the team, review findings, build references…"
+              placeholder={t('Notes for the team, review findings, build references…')}
             />
           </label>
           <div>
             <button type="submit" disabled={draft.trim() === ''}>
-              Add comment
+              {t('Add comment')}
             </button>
           </div>
         </form>

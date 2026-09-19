@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { notADrag } from '../dragSensors.ts';
+import { t } from '../i18n/index.ts';
 import { Avatar, NobodyAvatar } from './Brand.tsx';
 
 const MENU_WIDTH = 240;
@@ -38,7 +40,9 @@ export function AssigneePicker({
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const open = position !== null;
-  const label = assignee ? `Assigned to ${assignee.displayName}` : 'Unassigned';
+  const label = assignee
+    ? t('Assigned to {name}', { name: assignee.displayName })
+    : t('Unassigned');
   const face = assignee ? (
     <Avatar name={assignee.displayName} url={assignee.avatarUrl} size={24} />
   ) : (
@@ -156,15 +160,18 @@ export function AssigneePicker({
         ref={trigger}
         type="button"
         className={`assignee${busy ? ' busy' : ''}`}
-        aria-label={`Assignee of ${taskTitle}: ${assignee?.displayName ?? 'nobody'}`}
+        aria-label={t('Assignee of {task}: {name}', {
+          task: taskTitle,
+          name: assignee?.displayName ?? t('nobody'),
+        })}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={`${label}. Click to change.`}
+        title={t('{label}. Click to change.', { label })}
         data-testid="card-assignee"
         disabled={busy}
         onClick={toggle}
         // Pressing the avatar picks a person; it never starts dragging the card.
-        onPointerDown={(e) => e.stopPropagation()}
+        {...notADrag}
       >
         {face}
       </button>
@@ -173,13 +180,13 @@ export function AssigneePicker({
           <div
             ref={menu}
             role="menu"
-            aria-label={`Assign ${taskTitle}`}
+            aria-label={t('Assign {task}', { task: taskTitle })}
             className="assignee-menu"
             style={{ top: position.top, left: position.left, width: MENU_WIDTH }}
             onKeyDown={onMenuKey}
-            onPointerDown={(e) => e.stopPropagation()}
+            {...notADrag}
           >
-            {choice(null, 'Unassigned', <NobodyAvatar size={22} />)}
+            {choice(null, t('Unassigned'), <NobodyAvatar size={22} />)}
             {people.map((p) =>
               choice(
                 p.userId,

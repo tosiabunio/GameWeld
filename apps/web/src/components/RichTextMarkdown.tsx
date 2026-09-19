@@ -1,6 +1,7 @@
 import Markdown, { defaultUrlTransform } from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
+import { t } from '../i18n/index.ts';
 import { MENTION_PREFIX } from './RichText.tsx';
 
 /**
@@ -39,7 +40,7 @@ export default function RichTextMarkdown({
               target="_blank"
               rel="noopener noreferrer"
             >
-              {alt || 'image'}
+              {alt || t('image')}
             </a>
           ),
         }}

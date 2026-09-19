@@ -42,6 +42,7 @@ import type {
   MoveItemInput,
   UpdateItemInput,
   Task,
+  TaskCategory,
   TaskDetail,
   UpdateTaskInput,
   AuthProviders,
@@ -50,12 +51,23 @@ import type {
   ProjectDetail,
   ProjectMember,
   ProjectSummary,
+  SearchResults,
   UpdateMemberInput,
   UpdateProjectInput,
   UserSummary,
 } from '@gameweld/domain';
 
 import { clientId } from './live.ts';
+
+export type TrelloImportMode = 'cards_as_tasks' | 'cards_as_items';
+export interface TrelloImportResult {
+  items: number;
+  tasks: number;
+  labels: number;
+  checklistItems: number;
+  comments: number;
+  links: number;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -121,6 +133,8 @@ export const api = {
     request<void>('/api/auth/mock/sign-in', json('POST', { persona })),
   signOut: () => request<void>('/api/auth/sign-out', { method: 'POST' }),
 
+  search: (projectId: string, q: string) =>
+    request<SearchResults>(`/api/projects/${projectId}/search?q=${encodeURIComponent(q)}`),
   notifications: () => request<NotificationSummary>('/api/notifications'),
   markNotificationsRead: (input: MarkNotificationsReadInput = {}) =>
     request<void>('/api/notifications/read', json('POST', input)),
@@ -182,6 +196,13 @@ export const api = {
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`),
   updateTask: (projectId: string, taskId: string, input: UpdateTaskInput) =>
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`, json('PATCH', input)),
+  /** A download: the whole project as JSON, or its tasks as CSV. */
+  exportUrl: (projectId: string, format: 'json' | 'csv') =>
+    `/api/projects/${projectId}/${format === 'json' ? 'export.json' : 'export/tasks.csv'}`,
+  importTrello: (
+    projectId: string,
+    input: { mode: TrelloImportMode; category: TaskCategory; board: unknown },
+  ) => request<TrelloImportResult>(`/api/projects/${projectId}/import/trello`, json('POST', input)),
   createLabel: (projectId: string, input: LabelInput) =>
     request<Label[]>(`/api/projects/${projectId}/labels`, json('POST', input)),
   updateLabel: (projectId: string, labelId: string, input: LabelInput) =>

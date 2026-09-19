@@ -1,7 +1,8 @@
 import type { Notification, NotificationSummary, WaitingEntry } from '@gameweld/domain';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { api } from '../api.ts';
+import { t, tj } from '../i18n/index.ts';
 import { subscribeLive } from '../live.ts';
 import { ActionMenu } from './ActionMenu.tsx';
 import { Avatar } from './Brand.tsx';
@@ -78,8 +79,11 @@ export function NotificationsBell() {
   const count = waiting.length + (summary?.unread ?? 0);
   const label =
     count === 0
-      ? 'Notifications'
-      : `Notifications: ${waiting.length} waiting for you, ${summary?.unread ?? 0} unread`;
+      ? t('Notifications')
+      : t('Notifications: {waiting} waiting for you, {unread} unread', {
+          waiting: waiting.length,
+          unread: summary?.unread ?? 0,
+        });
 
   return (
     <ActionMenu
@@ -114,7 +118,7 @@ export function NotificationsBell() {
       <div className="notifications" data-testid="notifications">
         {waiting.length > 0 && (
           <section aria-labelledby="waiting-heading">
-            <h3 id="waiting-heading">Waiting for you</h3>
+            <h3 id="waiting-heading">{t('Waiting for you')}</h3>
             <ul>
               {waiting.map((entry) => (
                 <li key={`${entry.kind}:${entry.task?.id ?? entry.item.id}`}>
@@ -126,17 +130,18 @@ export function NotificationsBell() {
         )}
         <section aria-labelledby="notifications-heading">
           <div className="row between">
-            <h3 id="notifications-heading">Notifications</h3>
+            <h3 id="notifications-heading">{t('Notifications')}</h3>
             {(summary?.unread ?? 0) > 0 && (
               <button type="button" className="link" onClick={() => void markRead()}>
-                Mark all read
+                {t('Mark all read')}
               </button>
             )}
           </div>
           {notifications.length === 0 ? (
             <p className="muted small">
-              Nothing yet. You will hear when a task is given to you, someone comments on your work,
-              or a decision you asked for is made.
+              {t(
+                'Nothing yet. You will hear when a task is given to you, someone comments on your work, or a decision you asked for is made.',
+              )}
             </p>
           ) : (
             <ul>
@@ -153,14 +158,26 @@ export function NotificationsBell() {
   );
 }
 
+/**
+ * A notification's sentence: <1> is who did it, <2> the task or item it is about. A translation
+ * puts them where its grammar wants them. The names in the text only mark the places: the
+ * elements bring the real ones, so what people typed is never read as part of the sentence.
+ */
+function sentence(text: string, who: ReactNode, subject: ReactNode): ReactNode {
+  return tj(text, undefined, { 1: () => <strong>{who}</strong>, 2: () => subject });
+}
+
 function WaitingRow({ entry }: { entry: WaitingEntry }) {
   const project = `/projects/${entry.project.id}`;
   return entry.kind === 'request' ? (
     <Link to={`${project}/board`} data-close-menu className="notification">
       <span className="notification-system waiting" aria-hidden="true" />
       <span className="notification-text">
-        <strong>{entry.requester?.displayName}</strong> asks to place{' '}
-        <strong>{entry.task?.title}</strong> on the Workboard
+        {sentence(
+          '<1>{who}</1> asks to place <2>{task}</2> on the Workboard',
+          entry.requester?.displayName,
+          <strong>{entry.task?.title}</strong>,
+        )}
       </span>
       <span className="notification-meta">
         {entry.item.title} · {entry.project.name} · {ago(entry.since)}
@@ -170,7 +187,7 @@ function WaitingRow({ entry }: { entry: WaitingEntry }) {
     <Link to={`${project}/breakdown/${entry.item.id}`} data-close-menu className="notification">
       <span className="notification-system waiting" aria-hidden="true" />
       <span className="notification-text">
-        <strong>{entry.item.title}</strong> is ready for review
+        {sentence('<2>{item}</2> is ready for review', null, <strong>{entry.item.title}</strong>)}
       </span>
       <span className="notification-meta">
         {entry.project.name} · {ago(entry.since)}
@@ -198,8 +215,8 @@ function NotificationRow({
         ? `${project}/breakdown/${n.item.id}`
         : project;
   const who = n.actor?.displayName ?? 'GameWeld';
-  const task = <strong>{n.task?.title ?? 'a task'}</strong>;
-  const item = <strong>{n.item?.title ?? 'an item'}</strong>;
+  const task = <strong>{n.task?.title ?? t('a task')}</strong>;
+  const item = <strong>{n.item?.title ?? t('an item')}</strong>;
   return (
     <Link to={to} data-close-menu className="notification" onClick={onOpen}>
       {n.actor ? (
@@ -208,54 +225,34 @@ function NotificationRow({
         <span className="notification-system" aria-hidden="true" />
       )}
       <span className="notification-text">
-        {n.kind === 'task.assigned' && (
-          <>
-            <strong>{who}</strong> assigned {task} to you
-          </>
+        {n.kind === 'task.assigned' &&
+          sentence('<1>{who}</1> assigned <2>{task}</2> to you', who, task)}
+        {n.kind === 'task.unassigned' &&
+          sentence('<1>{who}</1> took <2>{task}</2> off your hands', who, task)}
+        {n.kind === 'comment.added' &&
+          sentence('<1>{who}</1> commented on <2>{subject}</2>', who, n.task ? task : item)}
+        {n.kind === 'task.blocked' &&
+          sentence('<1>{who}</1> flagged <2>{task}</2> as blocked', who, task)}
+        {n.kind === 'mention' &&
+          sentence('<1>{who}</1> mentioned you on <2>{subject}</2>', who, n.task ? task : item)}
+        {n.kind === 'request.created' &&
+          sentence('<1>{who}</1> asks to place <2>{task}</2> on the Workboard', who, task)}
+        {n.kind === 'request.approved' &&
+          sentence('Your request to place <2>{task}</2> was approved', who, task)}
+        {n.kind === 'request.rejected' &&
+          sentence('Your request to place <2>{task}</2> was rejected', who, task)}
+        {n.kind === 'item.ready_for_review' &&
+          sentence('<2>{item}</2> is ready for review', who, item)}
+        {n.kind === 'item.accepted' && sentence('<1>{who}</1> accepted <2>{item}</2>', who, item)}
+        {n.kind === 'item.rejected' &&
+          sentence('<1>{who}</1> sent <2>{item}</2> back from review', who, item)}
+        {n.detail && (
+          <span className="notification-detail">{t('“{detail}”', { detail: n.detail })}</span>
         )}
-        {n.kind === 'task.unassigned' && (
-          <>
-            <strong>{who}</strong> took {task} off your hands
-          </>
-        )}
-        {n.kind === 'comment.added' && (
-          <>
-            <strong>{who}</strong> commented on {n.task ? task : item}
-          </>
-        )}
-        {n.kind === 'task.blocked' && (
-          <>
-            <strong>{who}</strong> flagged {task} as blocked
-          </>
-        )}
-        {n.kind === 'mention' && (
-          <>
-            <strong>{who}</strong> mentioned you on {n.task ? task : item}
-          </>
-        )}
-        {n.kind === 'request.created' && (
-          <>
-            <strong>{who}</strong> asks to place {task} on the Workboard
-          </>
-        )}
-        {n.kind === 'request.approved' && <>Your request to place {task} was approved</>}
-        {n.kind === 'request.rejected' && <>Your request to place {task} was rejected</>}
-        {n.kind === 'item.ready_for_review' && <>{item} is ready for review</>}
-        {n.kind === 'item.accepted' && (
-          <>
-            <strong>{who}</strong> accepted {item}
-          </>
-        )}
-        {n.kind === 'item.rejected' && (
-          <>
-            <strong>{who}</strong> sent {item} back from review
-          </>
-        )}
-        {n.detail && <span className="notification-detail">“{n.detail}”</span>}
       </span>
       <span className="notification-meta">
         {n.project.name} · {ago(n.createdAt)}
-        {!n.read && <span className="sr-only"> · unread</span>}
+        {!n.read && <span className="sr-only">{` · ${t('unread')}`}</span>}
       </span>
     </Link>
   );
@@ -264,8 +261,8 @@ function NotificationRow({
 /** "5 min ago", "3 h ago", then the date. */
 function ago(iso: string): string {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  if (minutes < 60 * 24) return `${Math.round(minutes / 60)} h ago`;
+  if (minutes < 1) return t('just now');
+  if (minutes < 60) return t('{n} min ago', { n: minutes });
+  if (minutes < 60 * 24) return t('{n} h ago', { n: Math.round(minutes / 60) });
   return new Date(iso).toLocaleDateString();
 }

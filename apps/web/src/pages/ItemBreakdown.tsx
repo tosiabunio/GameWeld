@@ -14,6 +14,7 @@ import { Dependencies } from '../components/Dependencies.tsx';
 import { History } from '../components/History.tsx';
 import { LinksList } from '../components/LinksList.tsx';
 import { WritingPrompt } from '../components/WritingPrompt.tsx';
+import { t } from '../i18n/index.ts';
 import { useProject } from './ProjectPage.tsx';
 
 export function ItemBreakdown({
@@ -34,7 +35,7 @@ export function ItemBreakdown({
       setItem(await api.item(project.id, itemId));
       setError(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load the item');
+      setError(e instanceof ApiError ? e.message : t('Could not load the item'));
     }
   }, [project.id, itemId]);
 
@@ -58,23 +59,28 @@ export function ItemBreakdown({
       return true;
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) await reload();
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       return false;
     }
   }
 
   if (error && !item) return <p className="error">{error}</p>;
-  if (!item) return <p>Loading…</p>;
+  if (!item) return <p>{t('Loading…')}</p>;
 
   return (
     <article className="item-page">
       <div className="item-status">
-        <span className="badge">{CATEGORY_LABELS[item.category]}</span>
-        <span className="badge">{STATE_LABELS[item.state]}</span>
-        {item.activeBoard && <span className="badge">On {item.activeBoard.name}</span>}
-        {item.archived && <span className="badge warn">Archived</span>}
+        <span className="badge">{t(CATEGORY_LABELS[item.category])}</span>
+        <span className="badge">{t(STATE_LABELS[item.state])}</span>
+        {item.activeBoard && (
+          <span className="badge">{t('On {name}', { name: item.activeBoard.name })}</span>
+        )}
+        {item.archived && <span className="badge warn">{t('Archived')}</span>}
         <span className="muted">
-          {item.taskCounts.completed}/{item.taskCounts.total} tasks complete
+          {t('{completed}/{total} tasks complete', {
+            completed: item.taskCounts.completed,
+            total: item.taskCounts.total,
+          })}
         </span>
       </div>
       {error && (
@@ -93,14 +99,15 @@ export function ItemBreakdown({
 
       <section className="breakdown-tasks" aria-labelledby="tasks-heading">
         <h2 id="tasks-heading">
-          Tasks{' '}
+          {t('Tasks')}{' '}
           <span className="muted small">
             {item.taskCounts.completed} / {item.taskCounts.total}
           </span>
         </h2>
         <p className="muted small">
-          Grouped by nature; any combination is fine and no category is required. While the item is
-          on the Workboard, new tasks go straight to its To Do columns.
+          {t(
+            'Grouped by nature; any combination is fine and no category is required. While the item is on the Workboard, new tasks go straight to its To Do columns.',
+          )}
         </p>
         <Breakdown
           projectId={project.id}
@@ -120,7 +127,7 @@ export function ItemBreakdown({
           <ReviewPanel item={item} onChanged={changed} />
           <History query={{ entityType: 'backlog_item', entityId: item.id }} />
         </div>
-        <aside className="detail-resources" aria-label="Item resources">
+        <aside className="detail-resources" aria-label={t('Item resources')}>
           <ResourcePanel title="Links" count={item.links.length}>
             <LinksList
               links={item.links}
@@ -162,12 +169,14 @@ export function ItemBreakdown({
 
       {canManage && (
         <details className="panel resource-disclosure">
-          <summary>{item.archived ? 'Restore item' : 'Archive item'}</summary>
-          <h2 id="archive-item-heading">{item.archived ? 'Archived item' : 'Archive'}</h2>
+          <summary>{item.archived ? t('Restore item') : t('Archive item')}</summary>
+          <h2 id="archive-item-heading">{item.archived ? t('Archived item') : t('Archive')}</h2>
           <p className="muted">
             {item.archived
-              ? 'This item is hidden from the Backlog. Restore it to plan it again.'
-              : 'Archiving hides the item from the Backlog. Tasks placed on a Workboard must be returned or finished first.'}
+              ? t('This item is hidden from the Backlog. Restore it to plan it again.')
+              : t(
+                  'Archiving hides the item from the Backlog. Tasks placed on a Workboard must be returned or finished first.',
+                )}
           </p>
           <button
             type="button"
@@ -180,7 +189,7 @@ export function ItemBreakdown({
               ).then((ok) => ok && !item.archived && navigate(`/projects/${project.id}/backlog`))
             }
           >
-            {item.archived ? 'Restore item' : 'Archive item'}
+            {item.archived ? t('Restore item') : t('Archive item')}
           </button>
         </details>
       )}
@@ -228,14 +237,17 @@ function ItemForm({
             {readOnly ? (
               item.title
             ) : (
-              <EditableTitle label="Click to edit the title" onEdit={() => startEditing('title')}>
+              <EditableTitle
+                label={t('Click to edit the title')}
+                onEdit={() => startEditing('title')}
+              >
                 {item.title}
               </EditableTitle>
             )}
           </h1>
           {!readOnly && (
             <button type="button" className="quiet" onClick={() => startEditing('title')}>
-              Edit item
+              {t('Edit item')}
             </button>
           )}
         </div>
@@ -243,23 +255,23 @@ function ItemForm({
           item.description ? (
             <RichText text={item.description} className="description-text" />
           ) : (
-            <p className="description-text">No description yet.</p>
+            <p className="description-text">{t('No description yet.')}</p>
           )
         ) : (
           <EditableText
-            label="Click to edit the description"
+            label={t('Click to edit the description')}
             onEdit={() => startEditing('description')}
           >
             {item.description ? (
               <RichText text={item.description} className="description-text" />
             ) : (
-              <p className="description-text">No description yet. Click to add one.</p>
+              <p className="description-text">{t('No description yet. Click to add one.')}</p>
             )}
           </EditableText>
         )}
         {saved && (
           <span className="ok" role="status">
-            Saved.
+            {t('Saved.')}
           </span>
         )}
       </div>
@@ -268,10 +280,10 @@ function ItemForm({
   return (
     <form className="form wide" onSubmit={submit}>
       <WritingPrompt id="item-description">
-        What should players experience? How will the team know this is ready?
+        {t('What should players experience? How will the team know this is ready?')}
       </WritingPrompt>
       <label>
-        Title
+        {t('Title')}
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -282,7 +294,7 @@ function ItemForm({
         />
       </label>
       <label>
-        Description
+        {t('Description')}
         <MentionTextarea
           value={description}
           onChange={setDescription}
@@ -293,15 +305,17 @@ function ItemForm({
           rows={8}
           placeholder={
             readOnly
-              ? 'No description.'
-              : 'Free-form. Describe the intended result however suits the team; nothing here is required.'
+              ? t('No description.')
+              : t(
+                  'Free-form. Describe the intended result however suits the team; nothing here is required.',
+                )
           }
         />
       </label>
       {!readOnly && (
         <div className="row">
           <button type="submit" className="primary" disabled={!dirty || title.trim() === ''}>
-            Save
+            {t('Save')}
           </button>
           <button
             type="button"
@@ -311,7 +325,7 @@ function ItemForm({
               setEditing(false);
             }}
           >
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       )}

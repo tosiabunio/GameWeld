@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type TextareaHTMLAttributes } from 'react';
+import { t } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 
 /** "@" at the start or after a space, then the letters typed so far, up to the caret. */
@@ -94,7 +95,7 @@ export function MentionTextarea({
         aria-expanded={matches.length > 0}
       />
       {matches.length > 0 && (
-        <span className="mention-suggestions" role="listbox" aria-label="Mention a member">
+        <span className="mention-suggestions" role="listbox" aria-label={t('Mention a member')}>
           {matches.map((m, index) => (
             <span
               key={m.userId}
@@ -114,7 +115,7 @@ export function MentionTextarea({
       )}
       {!rest.readOnly && (
         <span className="hint">
-          Markdown works here: **bold**, lists, links. Type @ to mention someone.
+          {t('Markdown works here: **bold**, lists, links. Type @ to mention someone.')}
         </span>
       )}
     </span>

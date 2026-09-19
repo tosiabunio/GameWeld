@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { NavLink, Outlet, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { TaskModal, type OpenTask } from '../components/TaskModal.tsx';
+import { t } from '../i18n/index.ts';
 import { isForeignChange, subscribeLive } from '../live.ts';
 import { Shell } from './Shell.tsx';
 
@@ -43,8 +44,8 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 404
-          ? 'Project not found, or you are not a member.'
-          : 'Could not load the project',
+          ? t('Project not found, or you are not a member.')
+          : t('Could not load the project'),
       );
     }
   }, [projectId]);
@@ -105,7 +106,7 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
   if (!project) {
     return (
       <Shell>
-        <p>Loading…</p>
+        <p>{t('Loading…')}</p>
       </Shell>
     );
   }
@@ -117,8 +118,8 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
         <NavLink
           to="settings"
           className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}
-          aria-label="Project settings"
-          title="Project settings"
+          aria-label={t('Project settings')}
+          title={t('Project settings')}
         >
           <svg
             viewBox="0 0 24 24"
@@ -137,20 +138,20 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
         </NavLink>
       }
       nav={
-        <nav className="tabs" aria-label="Project sections">
+        <nav className="tabs" aria-label={t('Project sections')}>
           {hasMyTasks && (
             <NavLink to="my-tasks" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-              My tasks
+              {t('My tasks')}
             </NavLink>
           )}
           <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-            Backlog
+            {t('Backlog')}
           </NavLink>
           <NavLink to="breakdown" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-            Breakdown
+            {t('Breakdown')}
           </NavLink>
           <NavLink to="board" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-            Workboard
+            {t('Workboard')}
           </NavLink>
         </nav>
       }

@@ -3,6 +3,7 @@ import { TASK_CATEGORIES, TASK_CATEGORY_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { t, tp } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { useCurrentUser } from '../session.tsx';
 import { isCardClick, useTaskLinks } from '../taskLinks.ts';
@@ -82,7 +83,7 @@ export function Breakdown({
       await reload();
       await onChanged();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not place the task');
+      setError(e instanceof ApiError ? e.message : t('Could not place the task'));
     }
   }
 
@@ -93,11 +94,11 @@ export function Breakdown({
       await reload();
       await onChanged();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not add the task');
+      setError(e instanceof ApiError ? e.message : t('Could not add the task'));
     }
   }
 
-  if (tasks === null) return <p>Loading…</p>;
+  if (tasks === null) return <p>{t('Loading…')}</p>;
   const archivedCount = tasks.filter((t) => t.archived).length;
 
   return (
@@ -110,8 +111,10 @@ export function Breakdown({
       {canWork && !itemArchived && itemState !== 'open' && (
         <p className="notice" data-testid="reopen-warning">
           {itemState === 'done'
-            ? 'This item is accepted. Adding or reopening a task returns it to Open; the acceptance stays in history.'
-            : 'This item is Ready for Review. Adding or reopening a task returns it to Open.'}
+            ? t(
+                'This item is accepted. Adding or reopening a task returns it to Open; the acceptance stays in history.',
+              )
+            : t('This item is Ready for Review. Adding or reopening a task returns it to Open.')}
         </p>
       )}
       <div className="task-groups">
@@ -119,11 +122,12 @@ export function Breakdown({
           const group = tasks.filter(
             (t) => t.category === category && (showArchived || !t.archived),
           );
+          const label = t(TASK_CATEGORY_LABELS[category]);
           return (
             <section
               key={category}
               className={`task-group lane cat-${category}${collapsed.has(category) ? ' collapsed' : ''}`}
-              aria-label={`${TASK_CATEGORY_LABELS[category]} tasks`}
+              aria-label={t('{category} tasks', { category: label })}
               data-testid={`tasks-${category}`}
             >
               {collapsed.has(category) ? (
@@ -131,24 +135,24 @@ export function Breakdown({
                   type="button"
                   className="lane-stub"
                   aria-expanded={false}
-                  aria-label={`Expand ${TASK_CATEGORY_LABELS[category]} tasks`}
+                  aria-label={t('Expand {category} tasks', { category: label })}
                   onClick={() => toggleLane(category)}
                 >
                   <span className="count">{group.filter((t) => !t.archived).length}</span>
-                  <span className="lane-stub-title">{TASK_CATEGORY_LABELS[category]}</span>
+                  <span className="lane-stub-title">{label}</span>
                 </button>
               ) : (
                 <>
                   <div className="lane-head">
                     <h3>
-                      {TASK_CATEGORY_LABELS[category]}{' '}
+                      {label}{' '}
                       <span className="count">{group.filter((t) => !t.archived).length}</span>
                     </h3>
                     <button
                       type="button"
                       className="lane-toggle"
                       aria-expanded={true}
-                      aria-label={`Collapse ${TASK_CATEGORY_LABELS[category]} tasks`}
+                      aria-label={t('Collapse {category} tasks', { category: label })}
                       onClick={() => toggleLane(category)}
                     >
                       ‹
@@ -156,7 +160,7 @@ export function Breakdown({
                   </div>
                   {group.length === 0 ? (
                     <p className="muted small">
-                      No {TASK_CATEGORY_LABELS[category].toLowerCase()} tasks.
+                      {t('No {category} tasks.', { category: label.toLowerCase() })}
                     </p>
                   ) : (
                     <ul className="task-list">
@@ -197,7 +201,7 @@ export function Breakdown({
                                             version: task.version,
                                             assigneeId,
                                           }),
-                                        'Could not assign the task',
+                                        t('Could not assign the task'),
                                       )
                                   : undefined
                               }
@@ -219,12 +223,12 @@ export function Breakdown({
                                   onClick={() =>
                                     void act(
                                       () => api.completeTask(projectId, task.id),
-                                      'Could not complete the task',
+                                      t('Could not complete the task'),
                                     )
                                   }
-                                  aria-label={`Mark ${task.title} complete`}
+                                  aria-label={t('Mark {title} complete', { title: task.title })}
                                 >
-                                  Mark complete
+                                  {t('Mark complete')}
                                 </button>
                               )}
 
@@ -239,13 +243,19 @@ export function Breakdown({
                                       type="button"
                                       className="link"
                                       onClick={() => void place(task)}
-                                      aria-label={`Add ${task.title} to Workboard`}
+                                      aria-label={t('Add {title} to Workboard', {
+                                        title: task.title,
+                                      })}
                                     >
-                                      {activeBoard ? 'Add to Workboard' : 'Place as exception'}
+                                      {activeBoard
+                                        ? t('Add to Workboard')
+                                        : t('Place as exception')}
                                     </button>
                                   ) : task.pendingRequest ? (
                                     <>
-                                      <span className="badge neutral">Placement requested</span>
+                                      <span className="badge neutral">
+                                        {t('Placement requested')}
+                                      </span>
                                       {task.pendingRequest.requesterId === me.id && (
                                         <button
                                           type="button"
@@ -258,12 +268,14 @@ export function Breakdown({
                                                   boardId,
                                                   task.pendingRequest!.id,
                                                 ),
-                                              'Could not withdraw the request',
+                                              t('Could not withdraw the request'),
                                             )
                                           }
-                                          aria-label={`Withdraw request for ${task.title}`}
+                                          aria-label={t('Withdraw request for {title}', {
+                                            title: task.title,
+                                          })}
                                         >
-                                          Withdraw
+                                          {t('Withdraw')}
                                         </button>
                                       )}
                                     </>
@@ -272,9 +284,11 @@ export function Breakdown({
                                       type="button"
                                       className="link"
                                       onClick={() => setRequesting({ taskId: task.id, reason: '' })}
-                                      aria-label={`Request placement of ${task.title}`}
+                                      aria-label={t('Request placement of {title}', {
+                                        title: task.title,
+                                      })}
                                     >
-                                      Request placement on Workboard
+                                      {t('Request placement on Workboard')}
                                     </button>
                                   ) : null}
                                 </>
@@ -282,7 +296,9 @@ export function Breakdown({
                             {requesting?.taskId === task.id && boardId && (
                               <form
                                 className="confirm small"
-                                aria-label={`Request placement of ${task.title}`}
+                                aria-label={t('Request placement of {title}', {
+                                  title: task.title,
+                                })}
                                 onSubmit={(e) => {
                                   e.preventDefault();
                                   void act(
@@ -291,28 +307,29 @@ export function Breakdown({
                                         taskId: task.id,
                                         reason: requesting.reason.trim(),
                                       }),
-                                    'Could not send the request',
+                                    t('Could not send the request'),
                                   ).then((ok) => ok && setRequesting(null));
                                 }}
                               >
                                 <p>
-                                  Asks a Game Director to place this task on the Workboard although
-                                  its item is outside the scope.
+                                  {t(
+                                    'Asks a Game Director to place this task on the Workboard although its item is outside the scope.',
+                                  )}
                                 </p>
                                 <input
                                   value={requesting.reason}
                                   onChange={(e) =>
                                     setRequesting({ taskId: task.id, reason: e.target.value })
                                   }
-                                  placeholder="Why now? (optional)"
-                                  aria-label="Reason"
+                                  placeholder={t('Why now? (optional)')}
+                                  aria-label={t('Reason')}
                                   maxLength={5000}
                                 />
                                 <button type="submit" className="primary">
-                                  Send request
+                                  {t('Send request')}
                                 </button>
                                 <button type="button" onClick={() => setRequesting(null)}>
-                                  Cancel
+                                  {t('Cancel')}
                                 </button>
                               </form>
                             )}
@@ -333,8 +350,11 @@ export function Breakdown({
       {archivedCount > 0 && (
         <button type="button" className="link" onClick={() => setShowArchived((v) => !v)}>
           {showArchived
-            ? 'Hide deleted tasks'
-            : `Show ${archivedCount} deleted task${archivedCount === 1 ? '' : 's'}`}
+            ? t('Hide deleted tasks')
+            : t('Show {count} {tasks}', {
+                count: archivedCount,
+                tasks: tp(archivedCount, 'deleted task'),
+              })}
         </button>
       )}
     </div>
@@ -356,21 +376,22 @@ function AddTaskForm({
     setTitle('');
     await onAdd(value);
   }
+  const label = t(TASK_CATEGORY_LABELS[category]);
   return (
     <form
       className="add-item"
       onSubmit={submit}
-      aria-label={`Add ${TASK_CATEGORY_LABELS[category]} task`}
+      aria-label={t('Add {category} task', { category: label })}
     >
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={`New ${TASK_CATEGORY_LABELS[category].toLowerCase()} task`}
-        aria-label={`New ${TASK_CATEGORY_LABELS[category]} task`}
+        placeholder={t('New {category} task', { category: label.toLowerCase() })}
+        aria-label={t('New {category} task', { category: label })}
         maxLength={500}
       />
       <button type="submit" disabled={title.trim() === ''}>
-        Add
+        {t('Add')}
       </button>
     </form>
   );

@@ -1,5 +1,6 @@
 import { TASK_CATEGORIES, TASK_CATEGORY_LABELS, type TaskCategory } from '@gameweld/domain';
 import { backlogFiltersOn, boardFiltersOn, UNASSIGNED, useCardFilters } from '../cardFilters.ts';
+import { t } from '../i18n/index.ts';
 import { ActionMenu } from './ActionMenu.tsx';
 
 /**
@@ -41,17 +42,17 @@ export function CardFilterControls({
           value={filters.text}
           onChange={(e) => change({ text: e.target.value })}
           onKeyDown={(e) => e.key === 'Escape' && change({ searchOpen: false, text: '' })}
-          placeholder="Search titles…"
-          aria-label="Search titles"
+          placeholder={t('Search titles…')}
+          aria-label={t('Search titles')}
           autoFocus
         />
       )}
       <button
         type="button"
         className={`quiet icon-button${searching ? ' on' : ''}`}
-        aria-label={searching ? 'Close search' : 'Search titles'}
+        aria-label={searching ? t('Close search') : t('Search titles')}
         aria-expanded={searching}
-        title={searching ? 'Close search' : 'Search titles'}
+        title={searching ? t('Close search') : t('Search titles')}
         // Closing the search also drops its text: text nobody can see must not go on filtering.
         onClick={() => change(searching ? { searchOpen: false, text: '' } : { searchOpen: true })}
       >
@@ -70,7 +71,7 @@ export function CardFilterControls({
         </svg>
       </button>
       <ActionMenu
-        label="Filters"
+        label={t('Filters')}
         triggerClassName={`quiet icon-button${on > 0 ? ' on' : ''}`}
         triggerContent={
           <>
@@ -93,14 +94,14 @@ export function CardFilterControls({
       >
         <div className="filter-menu">
           <label>
-            Assignee
+            {t('Assignee')}
             <select
               value={filters.assignee}
               onChange={(e) => change({ assignee: e.target.value })}
               className={filters.assignee ? 'set' : ''}
             >
-              <option value="">Anyone</option>
-              <option value={UNASSIGNED}>Unassigned</option>
+              <option value="">{t('Anyone')}</option>
+              <option value={UNASSIGNED}>{t('Unassigned')}</option>
               {people.map((p) => (
                 <option key={p.userId} value={p.userId}>
                   {p.displayName}
@@ -109,29 +110,29 @@ export function CardFilterControls({
             </select>
           </label>
           <label>
-            Type
+            {t('Type')}
             <select
               value={filters.type}
               onChange={(e) => change({ type: e.target.value as TaskCategory | '' })}
               className={filters.type ? 'set' : ''}
             >
-              <option value="">Any type</option>
+              <option value="">{t('Any type')}</option>
               {TASK_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {TASK_CATEGORY_LABELS[c]}
+                  {t(TASK_CATEGORY_LABELS[c])}
                 </option>
               ))}
             </select>
           </label>
           {boardItems && labels.length > 0 && (
             <label>
-              Label
+              {t('Label')}
               <select
                 value={filters.label}
                 onChange={(e) => change({ label: e.target.value })}
                 className={filters.label ? 'set' : ''}
               >
-                <option value="">Any label</option>
+                <option value="">{t('Any label')}</option>
                 {labels.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
@@ -142,13 +143,13 @@ export function CardFilterControls({
           )}
           {boardItems && (
             <label>
-              Backlog item
+              {t('Backlog item')}
               <select
                 value={filters.itemId}
                 onChange={(e) => change({ itemId: e.target.value })}
                 className={filters.itemId ? 'set' : ''}
               >
-                <option value="">Any item</option>
+                <option value="">{t('Any item')}</option>
                 {boardItems.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.title}
@@ -166,7 +167,7 @@ export function CardFilterControls({
                 checked={filters.blocked}
                 onChange={(e) => change({ blocked: e.target.checked })}
               />
-              Blocked only
+              {t('Blocked only')}
             </label>
             <label className="menu-check">
               <input
@@ -174,11 +175,11 @@ export function CardFilterControls({
                 checked={filters.outOfScope}
                 onChange={(e) => change({ outOfScope: e.target.checked })}
               />
-              Out of scope only
+              {t('Out of scope only')}
             </label>
           </>
         )}
-        <p className="menu-note">Only for you, until you leave or reload.</p>
+        <p className="menu-note">{t('Only for you, until you leave or reload.')}</p>
       </ActionMenu>
     </>
   );
@@ -208,10 +209,14 @@ export function CardFilterRow({
   return (
     <p className="card-filters" role="status" data-testid="card-filters">
       <span>
-        Showing {shown} of {total} {noun}. Reordering is off while filtering.
+        {t('Showing {shown} of {total} {noun}. Reordering is off while filtering.', {
+          shown,
+          total,
+          noun,
+        })}
       </span>
       <button type="button" className="link" onClick={() => change(null)}>
-        Clear filters
+        {t('Clear filters')}
       </button>
     </p>
   );

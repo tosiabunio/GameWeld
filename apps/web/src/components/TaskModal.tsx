@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { t } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import type { TaskLinkState } from '../taskLinks.ts';
 import { ResourcePanel } from './ResourcePanel.tsx';
@@ -53,13 +54,13 @@ export function TaskHome() {
         void navigate(pathname, { replace: true, state });
       },
       (e: unknown) =>
-        current && setError(e instanceof ApiError ? e.message : 'Could not load the task'),
+        current && setError(e instanceof ApiError ? e.message : t('Could not load the task')),
     );
     return () => {
       current = false;
     };
   }, [project.id, taskId, pathname, navigate]);
-  return error ? <p className="error">{error}</p> : <p>Loading…</p>;
+  return error ? <p className="error">{error}</p> : <p>{t('Loading…')}</p>;
 }
 
 /**
@@ -87,7 +88,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
       setTask(await api.task(project.id, taskId));
       setError(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load the task');
+      setError(e instanceof ApiError ? e.message : t('Could not load the task'));
     }
   }, [project.id, taskId]);
 
@@ -140,7 +141,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
       return true;
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) await reload();
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       return false;
     } finally {
       // Assigning, finishing, or deleting the task changes whose "My tasks" it is on.
@@ -153,11 +154,15 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
   const body = task && (
     <>
       <div className="item-status">
-        <span className="badge neutral">{TASK_CATEGORY_LABELS[task.category]} task</span>
+        <span className="badge neutral">
+          {t('{category} task', { category: t(TASK_CATEGORY_LABELS[task.category]) })}
+        </span>
         <TaskStatus task={task} />
         <TaskFlags task={task} />
         {task.completedAt && (
-          <span className="muted">completed {new Date(task.completedAt).toLocaleString()}</span>
+          <span className="muted">
+            {t('completed {date}', { date: new Date(task.completedAt).toLocaleString() })}
+          </span>
         )}
         {/* Dragging a card into Done is one way to finish a task; a task that waits in the
             Breakdown has no card to drag, and this works for both. */}
@@ -167,8 +172,10 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
             className="complete-task"
             title={
               task.placement
-                ? `Marks the task complete and moves its card to Done on ${task.placement.boardName}`
-                : 'Marks the task complete'
+                ? t('Marks the task complete and moves its card to Done on {board}', {
+                    board: task.placement.boardName,
+                  })
+                : t('Marks the task complete')
             }
             onClick={() => void run(() => api.completeTask(project.id, task.id))}
           >
@@ -182,7 +189,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
                 strokeLinejoin="round"
               />
             </svg>
-            Mark complete
+            {t('Mark complete')}
           </button>
         )}
       </div>
@@ -225,7 +232,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
             onRemove={(id) => run(() => api.removeChecklistItem(project.id, task.id, id))}
           />
           <section className="panel" aria-labelledby="task-comments-heading">
-            <h2 id="task-comments-heading">Comments</h2>
+            <h2 id="task-comments-heading">{t('Comments')}</h2>
             <Comments
               owner={{ taskId: task.id }}
               comments={task.comments}
@@ -236,7 +243,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
 
           <History query={{ entityType: 'task', entityId: task.id }} />
         </div>
-        <aside className="detail-resources" aria-label="Task resources">
+        <aside className="detail-resources" aria-label={t('Task resources')}>
           {/* Beside the checklist and the comments, which are long, rather than beside the
               description, which is often short. */}
           <div className="form task-meta">
@@ -279,20 +286,21 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
 
       {task.completed && canComplete && !task.archived && (
         <section className="panel" aria-labelledby="reopen-heading">
-          <h2 id="reopen-heading">Reopen</h2>
+          <h2 id="reopen-heading">{t('Reopen')}</h2>
           <p className="muted">
-            Reopening marks the task unfinished. If its backlog item is Ready for Review or accepted
-            as Done, the item returns to Open and any acceptance is kept in history.
+            {t(
+              'Reopening marks the task unfinished. If its backlog item is Ready for Review or accepted as Done, the item returns to Open and any acceptance is kept in history.',
+            )}
           </p>
           <button type="button" onClick={() => void run(() => api.reopenTask(project.id, task.id))}>
-            Reopen task
+            {t('Reopen task')}
           </button>
         </section>
       )}
 
       {canDirect && (
         <section className="panel" aria-labelledby="task-admin-heading">
-          <h2 id="task-admin-heading">Game Director actions</h2>
+          <h2 id="task-admin-heading">{t('Game Director actions')}</h2>
           <ReparentForm
             task={task}
             projectId={project.id}
@@ -302,8 +310,12 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
           />
           <p className="muted">
             {task.archived
-              ? 'This task is deleted and excluded from its item’s completion check. Restoring an unfinished task adds it back to the active Workboard when its item is in scope.'
-              : 'Deleting removes the task from the Workboard and its item’s completion checks without counting it as done. History is kept and the task can be restored.'}
+              ? t(
+                  'This task is deleted and excluded from its item’s completion check. Restoring an unfinished task adds it back to the active Workboard when its item is in scope.',
+                )
+              : t(
+                  'Deleting removes the task from the Workboard and its item’s completion checks without counting it as done. History is kept and the task can be restored.',
+                )}
           </p>
           <button
             type="button"
@@ -320,11 +332,15 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
               ).then((ok) => ok && !task.archived && close());
             }}
           >
-            {task.archived ? 'Restore task' : deleting ? 'Confirm deletion' : 'Delete task'}
+            {task.archived
+              ? t('Restore task')
+              : deleting
+                ? t('Confirm deletion')
+                : t('Delete task')}
           </button>
           {deleting && !task.archived && (
             <button type="button" onClick={() => setDeleting(false)}>
-              Cancel
+              {t('Cancel')}
             </button>
           )}
         </section>
@@ -336,7 +352,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
     <dialog
       ref={dialog}
       className="task-modal"
-      aria-label={task ? `Task: ${task.title}` : 'Task'}
+      aria-label={task ? t('Task: {title}', { title: task.title }) : t('Task')}
       data-testid="task-modal"
       // Escape asks to close, like the button, so it cannot throw unsaved text away either.
       onCancel={(e) => {
@@ -356,7 +372,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
                 </Link>
                 <span className="muted">
                   {' '}
-                  · {CATEGORY_LABELS[task.item.category]} · {STATE_LABELS[task.item.state]}
+                  · {t(CATEGORY_LABELS[task.item.category])} · {t(STATE_LABELS[task.item.state])}
                 </span>
               </>
             )}
@@ -364,8 +380,8 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
           <button
             type="button"
             className="quiet modal-close"
-            aria-label="Close task"
-            title="Close"
+            aria-label={t('Close task')}
+            title={t('Close')}
             onClick={requestClose}
           >
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -380,17 +396,17 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
           </button>
         </header>
         {discarding && (
-          <div className="confirm small" role="group" aria-label="Unsaved changes">
-            <p>The title or description has changes that are not saved.</p>
+          <div className="confirm small" role="group" aria-label={t('Unsaved changes')}>
+            <p>{t('The title or description has changes that are not saved.')}</p>
             <button type="button" className="primary" onClick={close}>
-              Discard and close
+              {t('Discard and close')}
             </button>
             <button type="button" onClick={() => setDiscarding(false)}>
-              Keep editing
+              {t('Keep editing')}
             </button>
           </div>
         )}
-        {!task ? error ? <p className="error">{error}</p> : <p>Loading…</p> : body}
+        {!task ? error ? <p className="error">{error}</p> : <p>{t('Loading…')}</p> : body}
       </article>
     </dialog>
   );
@@ -467,21 +483,21 @@ function TaskForm({
       return;
     }
     const name = members.find((m) => m.userId === next)?.displayName;
-    setAssigned(name ? `Assigned to ${name}.` : 'Unassigned.');
+    setAssigned(name ? t('Assigned to {name}.', { name }) : t('Unassigned.'));
   }
 
   return (
     <form className="task-editor" onSubmit={submit}>
       {editing && (
         <WritingPrompt id="task-description">
-          What is the desired result, and how could someone check it?
+          {t('What is the desired result, and how could someone check it?')}
         </WritingPrompt>
       )}
       <div className="task-copy">
         {editing ? (
           <div className="form">
             <label>
-              Title
+              {t('Title')}
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -491,7 +507,7 @@ function TaskForm({
               />
             </label>
             <label>
-              Description
+              {t('Description')}
               <MentionTextarea
                 value={description}
                 onChange={setDescription}
@@ -501,7 +517,7 @@ function TaskForm({
                   e.currentTarget.setSelectionRange(description.length, description.length)
                 }
                 rows={8}
-                placeholder="Free-form notes, links to references, anything useful."
+                placeholder={t('Free-form notes, links to references, anything useful.')}
               />
             </label>
           </div>
@@ -513,7 +529,7 @@ function TaskForm({
                   task.title
                 ) : (
                   <EditableTitle
-                    label="Click to edit the title"
+                    label={t('Click to edit the title')}
                     onEdit={() => startEditing('title')}
                   >
                     {task.title}
@@ -522,7 +538,7 @@ function TaskForm({
               </h1>
               {!readOnly && (
                 <button type="button" className="quiet" onClick={() => startEditing('title')}>
-                  Edit task
+                  {t('Edit task')}
                 </button>
               )}
             </div>
@@ -530,17 +546,17 @@ function TaskForm({
               task.description ? (
                 <RichText text={task.description} className="description-text" />
               ) : (
-                <p className="description-text">No description yet.</p>
+                <p className="description-text">{t('No description yet.')}</p>
               )
             ) : (
               <EditableText
-                label="Click to edit the description"
+                label={t('Click to edit the description')}
                 onEdit={() => startEditing('description')}
               >
                 {task.description ? (
                   <RichText text={task.description} className="description-text" />
                 ) : (
-                  <p className="description-text">No description yet. Click to add one.</p>
+                  <p className="description-text">{t('No description yet. Click to add one.')}</p>
                 )}
               </EditableText>
             )}
@@ -553,7 +569,7 @@ function TaskForm({
               className="primary"
               disabled={!dirty || title.trim() === '' || assigning || saving}
             >
-              Save
+              {t('Save')}
             </button>
             <button
               type="button"
@@ -565,45 +581,45 @@ function TaskForm({
                 setEditing(false);
               }}
             >
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         )}
         {saved && !dirty && (
           <span className="ok" role="status">
-            Saved.
+            {t('Saved.')}
           </span>
         )}
       </div>
       <div className="form task-properties">
         <label>
-          Category
+          {t('Category')}
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as TaskCategory)}
             disabled={readOnly || task.placement !== null}
             title={
               task.placement
-                ? 'Category cannot be changed while the task is on a Workboard'
+                ? t('Category cannot be changed while the task is on a Workboard')
                 : undefined
             }
           >
             {TASK_CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {TASK_CATEGORY_LABELS[c]}
+                {t(TASK_CATEGORY_LABELS[c])}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Assignee
+          {t('Assignee')}
           <select
             value={assigneeId ?? ''}
             onChange={(e) => void assign(e.target.value || null)}
             // Each write carries the task's version, so the two never race each other.
             disabled={readOnly || assigning || saving}
           >
-            <option value="">Unassigned</option>
+            <option value="">{t('Unassigned')}</option>
             {members.map((m) => (
               <option key={m.userId} value={m.userId}>
                 {m.displayName}
@@ -611,7 +627,7 @@ function TaskForm({
             ))}
           </select>
           {assigning ? (
-            <span className="hint">Saving…</span>
+            <span className="hint">{t('Saving…')}</span>
           ) : (
             assigned && (
               <span className="hint ok" role="status">
@@ -643,25 +659,25 @@ function ReparentForm({
   return (
     <form
       className="form inline"
-      aria-label="Move task to another item"
+      aria-label={t('Move task to another item')}
       onSubmit={(e) => {
         e.preventDefault();
         if (target) void onMove(target).then((ok) => ok && setTarget(''));
       }}
     >
       <label>
-        Move to another backlog item
+        {t('Move to another backlog item')}
         <select value={target} onChange={(e) => setTarget(e.target.value)}>
-          <option value="">Choose an item…</option>
+          <option value="">{t('Choose an item…')}</option>
           {others.map((i) => (
             <option key={i.id} value={i.id}>
-              {i.title} ({CATEGORY_LABELS[i.category]})
+              {i.title} ({t(CATEGORY_LABELS[i.category])})
             </option>
           ))}
         </select>
       </label>
       <button type="submit" disabled={!target}>
-        Move task
+        {t('Move task')}
       </button>
     </form>
   );

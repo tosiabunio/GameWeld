@@ -1,5 +1,6 @@
 import type { AvatarCrop } from '@gameweld/domain';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { t } from '../i18n/index.ts';
 
 /** The stage, and the circle inside it that becomes the picture. */
 const STAGE = 288;
@@ -172,7 +173,8 @@ export function AvatarCropper({
     );
   };
 
-  if (failed) return <p className="error">This picture could not be shown. Try another file.</p>;
+  if (failed)
+    return <p className="error">{t('This picture could not be shown. Try another file.')}</p>;
 
   return (
     <div className="cropper" data-testid="avatar-cropper">
@@ -182,7 +184,9 @@ export function AvatarCropper({
         style={{ width: STAGE, height: STAGE }}
         tabIndex={0}
         role="group"
-        aria-label="Choose the part of the picture inside the circle: drag the picture or use the arrow keys; plus and minus zoom."
+        aria-label={t(
+          'Choose the part of the picture inside the circle: drag the picture or use the arrow keys; plus and minus zoom.',
+        )}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -214,7 +218,7 @@ export function AvatarCropper({
       </div>
       <div className="crop-side">
         <label className="crop-zoom">
-          Zoom
+          {t('Zoom')}
           <input
             type="range"
             min={0}
@@ -235,10 +239,10 @@ export function AvatarCropper({
             disabled={!view || busy}
             onClick={() => onSave(crop())}
           >
-            {busy ? 'Saving…' : 'Save picture'}
+            {busy ? t('Saving…') : t('Save picture')}
           </button>
           <button type="button" onClick={onCancel} disabled={busy}>
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       </div>

@@ -14,6 +14,7 @@ import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { History } from '../components/History.tsx';
 import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { daysUntil, formatDay, LabelChips, TaskFlags } from '../components/TaskBadges.tsx';
+import { t, tj, tp } from '../i18n/index.ts';
 import { useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
 
@@ -40,8 +41,8 @@ export function WorkboardPage() {
       setBoard(null);
       setError(
         e instanceof ApiError && e.status === 404
-          ? 'That Workboard does not exist.'
-          : 'Could not load the Workboard',
+          ? t('That Workboard does not exist.')
+          : t('Could not load the Workboard'),
       );
     }
   }, [project.id, boardId]);
@@ -61,7 +62,7 @@ export function WorkboardPage() {
       else await reload();
       return true;
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       await reload();
       return false;
     } finally {
@@ -70,20 +71,20 @@ export function WorkboardPage() {
     }
   }
 
-  if (board === undefined) return <p>Loading…</p>;
+  if (board === undefined) return <p>{t('Loading…')}</p>;
 
   if (board === null && boardId) {
     return (
       <div className="panel">
         <p className="error">{error}</p>
-        <Link to={`/projects/${project.id}/board`}>← The active Workboard</Link>
+        <Link to={`/projects/${project.id}/board`}>{t('← The active Workboard')}</Link>
       </div>
     );
   }
   if (board === null) {
     return (
       <div className="panel">
-        <h2>No active Workboard</h2>
+        <h2>{t('No active Workboard')}</h2>
         {canManage ? (
           <CreateBoardForm
             onCreate={(name) => run(() => api.createBoard(project.id, { name }))}
@@ -91,7 +92,7 @@ export function WorkboardPage() {
           />
         ) : (
           <p className="muted">
-            A Game Director creates the Workboard when the team is ready to plan work.
+            {t('A Game Director creates the Workboard when the team is ready to plan work.')}
           </p>
         )}
         <ArchivedBoards projectId={project.id} />
@@ -103,10 +104,15 @@ export function WorkboardPage() {
     <div data-testid="workboard">
       {board.state === 'archived' && (
         <p className="notice info" data-testid="archived-notice">
-          This Workboard was archived
-          {board.archivedAt ? ` on ${new Date(board.archivedAt).toLocaleDateString()}` : ''}. It is
-          history: it shows the cards as they stood, and nothing on it can be changed.{' '}
-          <Link to={`/projects/${project.id}/board`}>The active Workboard</Link>
+          {board.archivedAt
+            ? t(
+                'This Workboard was archived on {date}. It is history: it shows the cards as they stood, and nothing on it can be changed.',
+                { date: new Date(board.archivedAt).toLocaleDateString() },
+              )
+            : t(
+                'This Workboard was archived. It is history: it shows the cards as they stood, and nothing on it can be changed.',
+              )}{' '}
+          <Link to={`/projects/${project.id}/board`}>{t('The active Workboard')}</Link>
         </p>
       )}
       <BoardHeader
@@ -159,18 +165,19 @@ function CreateBoardForm({
         e.preventDefault();
         void onCreate(name.trim());
       }}
-      aria-label="Create Workboard"
+      aria-label={t('Create Workboard')}
     >
       <p className="muted">
-        A Workboard holds the current portion of work: a sprint, a week, a milestone, or a
-        continuous period. The product does not infer deadlines or rules from its name.
+        {t(
+          'A Workboard holds the current portion of work: a sprint, a week, a milestone, or a continuous period. The product does not infer deadlines or rules from its name.',
+        )}
       </p>
       <label>
-        Name
+        {t('Name')}
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="September production"
+          placeholder={t('September production')}
           required
           maxLength={200}
         />
@@ -178,7 +185,7 @@ function CreateBoardForm({
       {error && <p className="error">{error}</p>}
       <div>
         <button type="submit" className="primary" disabled={name.trim() === ''}>
-          Create Workboard
+          {t('Create Workboard')}
         </button>
       </div>
     </form>
@@ -199,13 +206,15 @@ function ArchivedBoards({ projectId, except }: { projectId: string; except?: str
   if (boards.length === 0) return null;
   return (
     <section className="archived-boards" aria-labelledby="archived-boards-heading">
-      <h3 id="archived-boards-heading">Archived Workboards</h3>
+      <h3 id="archived-boards-heading">{t('Archived Workboards')}</h3>
       <ul className="links">
         {boards.map((b) => (
           <li key={b.id}>
             <Link to={`/projects/${projectId}/board/${b.id}`}>{b.name}</Link>{' '}
             <span className="muted">
-              archived {b.archivedAt ? new Date(b.archivedAt).toLocaleDateString() : ''}
+              {t('archived {date}', {
+                date: b.archivedAt ? new Date(b.archivedAt).toLocaleDateString() : '',
+              })}
             </span>
           </li>
         ))}
@@ -233,11 +242,11 @@ function BoardHeader({
   return (
     <header className="board-header">
       <div>
-        <p className="eyebrow">Workboard</p>
+        <p className="eyebrow">{t('Workboard')}</p>
         {renaming ? (
           <form
             className="add-item"
-            aria-label="Rename Workboard"
+            aria-label={t('Rename Workboard')}
             onSubmit={(e) => {
               e.preventDefault();
               void onSaved(() =>
@@ -251,15 +260,15 @@ function BoardHeader({
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              aria-label="Workboard name"
+              aria-label={t('Workboard name')}
               maxLength={200}
               autoFocus
             />
             <button type="submit" className="primary" disabled={name.trim() === ''}>
-              Save
+              {t('Save')}
             </button>
             <button type="button" onClick={() => setRenaming(false)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </form>
         ) : (
@@ -268,7 +277,7 @@ function BoardHeader({
               <button
                 type="button"
                 className="title-edit"
-                title="Click to rename this Workboard"
+                title={t('Click to rename this Workboard')}
                 onClick={() => {
                   setName(board.name);
                   setRenaming(true);
@@ -287,20 +296,21 @@ function BoardHeader({
         <div className="muted board-counts" data-testid="board-counts">
           <ScopeMenu board={board} onChange={onSaved} />
           <BoardEnd board={board} canManage={canManage} onChange={onSaved} />
-          {c.acceptedItems > 0 && <span>{c.acceptedItems} accepted</span>}
+          {c.acceptedItems > 0 && <span>{t('{n} accepted', { n: c.acceptedItems })}</span>}
           {c.outOfScopeTasks > 0 && (
             <span>
-              <strong>{c.outOfScopeTasks}</strong> out-of-scope task
-              {c.outOfScopeTasks === 1 ? '' : 's'}
+              <strong>{c.outOfScopeTasks}</strong> {tp(c.outOfScopeTasks, 'out-of-scope task')}
             </span>
           )}
           <span>
-            {c.placedTasks - c.unfinishedTasks}/{c.placedTasks} tasks done
+            {t('{done}/{placed} tasks done', {
+              done: c.placedTasks - c.unfinishedTasks,
+              placed: c.placedTasks,
+            })}
           </span>
           {c.pendingRequests > 0 && (
             <span>
-              <strong>{c.pendingRequests}</strong> pending request
-              {c.pendingRequests === 1 ? '' : 's'}
+              <strong>{c.pendingRequests}</strong> {tp(c.pendingRequests, 'pending request')}
             </span>
           )}
         </div>
@@ -314,7 +324,7 @@ function BoardHeader({
         />
         <DisplayMenu />
         {canManage && !archiving && board.state === 'active' && (
-          <ActionMenu label="Workboard actions">
+          <ActionMenu label={t('Workboard actions')}>
             {!renaming && board.state === 'active' && (
               <button
                 type="button"
@@ -324,23 +334,30 @@ function BoardHeader({
                   setRenaming(true);
                 }}
               >
-                Rename
+                {t('Rename')}
               </button>
             )}
             <button type="button" data-close-menu onClick={() => setArchiving(true)}>
-              Archive Workboard
+              {t('Archive Workboard')}
             </button>
           </ActionMenu>
         )}
         {canManage && archiving && (
-          <div className="confirm" role="group" aria-label="Archive Workboard">
+          <div className="confirm" role="group" aria-label={t('Archive Workboard')}>
             <p>
               {c.unfinishedTasks > 0
-                ? `${c.unfinishedTasks} unfinished task${c.unfinishedTasks === 1 ? '' : 's'} will return to Breakdown. Nothing is marked complete.`
-                : 'The board becomes read-only history.'}
+                ? t(
+                    '{n} unfinished {tasks} will return to Breakdown. Nothing is marked complete.',
+                    { n: c.unfinishedTasks, tasks: tp(c.unfinishedTasks, 'task') },
+                  )
+                : t('The board becomes read-only history.')}
             </p>
             {c.pendingRequests > 0 && (
-              <p>Pending placement requests will be rejected with the note “Workboard archived”.</p>
+              <p>
+                {t(
+                  'Pending placement requests will be rejected with the note “Workboard archived”.',
+                )}
+              </p>
             )}
             <button
               type="button"
@@ -353,10 +370,10 @@ function BoardHeader({
                 })
               }
             >
-              {c.unfinishedTasks > 0 ? 'Return tasks and archive' : 'Archive'}
+              {c.unfinishedTasks > 0 ? t('Return tasks and archive') : t('Archive')}
             </button>
             <button type="button" onClick={() => setArchiving(false)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         )}
@@ -382,14 +399,20 @@ function BoardEnd({
   const left = board.endsOn ? daysUntil(board.endsOn) : null;
   const text =
     board.endsOn === null || left === null
-      ? 'Set an end date'
-      : `Ends ${formatDay(board.endsOn)} · ${
-          left < 0
-            ? `${-left} day${left === -1 ? '' : 's'} ago`
-            : left === 0
-              ? 'today'
-              : `${left} day${left === 1 ? '' : 's'} left`
-        }`;
+      ? t('Set an end date')
+      : left < 0
+        ? t('Ends {day} · {n} {days} ago', {
+            day: formatDay(board.endsOn),
+            n: -left,
+            days: tp(-left, 'day'),
+          })
+        : left === 0
+          ? t('Ends {day} · today', { day: formatDay(board.endsOn) })
+          : t('Ends {day} · {n} {days} left', {
+              day: formatDay(board.endsOn),
+              n: left,
+              days: tp(left, 'day'),
+            });
   const editable = canManage && board.state === 'active';
   if (!editable) return board.endsOn ? <span data-testid="board-end">{text}</span> : null;
   const save = (endsOn: string | null) =>
@@ -402,7 +425,7 @@ function BoardEnd({
       align="start"
     >
       <label className="menu-field first">
-        The Workboard ends on
+        {t('The Workboard ends on')}
         <input
           type="date"
           value={board.endsOn ?? ''}
@@ -411,10 +434,10 @@ function BoardEnd({
       </label>
       {board.endsOn && (
         <button type="button" data-close-menu onClick={() => save(null)}>
-          Clear the date
+          {t('Clear the date')}
         </button>
       )}
-      <p className="menu-note">Only a date for everyone to see; nothing happens on it.</p>
+      <p className="menu-note">{t('Only a date for everyone to see; nothing happens on it.')}</p>
     </ActionMenu>
   );
 }
@@ -436,7 +459,7 @@ function ScopeMenu({
   const [removing, setRemoving] = useState<string | null>(null);
   const full = board.counts.scopeItems >= board.scopeLimit;
   const toReview = board.scope.filter((s) => s.state === 'ready_for_review').length;
-  const stateOf = (s: ScopeItem) => (s.accepted ? 'Accepted' : STATE_LABELS[s.state]);
+  const stateOf = (s: ScopeItem) => (s.accepted ? t('Accepted') : t(STATE_LABELS[s.state]));
 
   const remove = (item: ScopeItem, returnTasks: boolean) =>
     void onChange(() => api.removeFromScope(project.id, board.id, item.id, { returnTasks })).then(
@@ -445,20 +468,27 @@ function ScopeMenu({
 
   return (
     <ActionMenu
-      label={`${board.counts.scopeItems}/${board.scopeLimit} items in scope`}
+      label={t('{n}/{limit} items in scope', {
+        n: board.counts.scopeItems,
+        limit: board.scopeLimit,
+      })}
       triggerClassName={`scope-pill${toReview > 0 ? ' review' : ''}`}
       popoverClassName="scope-popover"
       align="start"
       triggerContent={
         <>
           <span>
-            <strong>{board.counts.scopeItems}</strong>/{board.scopeLimit} items in scope
+            {tj(
+              '<1>{n}</1>/{limit} items in scope',
+              { n: board.counts.scopeItems, limit: board.scopeLimit },
+              { 1: (s) => <strong>{s}</strong> },
+            )}
           </span>
           {/* An item waiting for acceptance is the one thing about the scope worth a glance. */}
           {toReview > 0 && (
             <>
               <span className="dot review" aria-hidden="true" />
-              <span className="sr-only">, {toReview} ready for review</span>
+              <span className="sr-only">{t(', {n} ready for review', { n: toReview })}</span>
             </>
           )}
           <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" focusable="false">
@@ -476,28 +506,30 @@ function ScopeMenu({
     >
       <section className="scope" aria-labelledby="scope-heading" data-testid="scope">
         <h3 id="scope-heading">
-          Scope{' '}
+          {t('Scope')}{' '}
           <span className="count">
             {board.counts.scopeItems}/{board.scopeLimit}
           </span>
         </h3>
         {board.state === 'active' && (
           <p className="scope-guidance">
-            {full ? (
-              'Scope limit reached. Remove an item to make room.'
-            ) : board.nextEligible ? (
-              <>
-                Next in priority: <strong>{board.nextEligible.title}</strong>. Add items from their{' '}
-                <Link to={`/projects/${project.id}/backlog`}>Backlog cards</Link>.
-              </>
-            ) : (
-              'No open item is eligible. Add items from the Backlog when there are some.'
-            )}
+            {full
+              ? t('Scope limit reached. Remove an item to make room.')
+              : board.nextEligible
+                ? tj(
+                    'Next in priority: <1>{title}</1>. Add items from their <2>Backlog cards</2>.',
+                    { title: board.nextEligible.title },
+                    {
+                      1: (s) => <strong>{s}</strong>,
+                      2: (s) => <Link to={`/projects/${project.id}/backlog`}>{s}</Link>,
+                    },
+                  )
+                : t('No open item is eligible. Add items from the Backlog when there are some.')}
           </p>
         )}
         {board.scope.length === 0 ? (
           <p className="muted small">
-            No items in scope yet. Use “Add to Workboard” on a Backlog card.
+            {t('No items in scope yet. Use “Add to Workboard” on a Backlog card.')}
           </p>
         ) : (
           <ul className="scope-items">
@@ -515,7 +547,7 @@ function ScopeMenu({
                   <Link
                     to={`/projects/${project.id}/breakdown/${s.id}`}
                     className="scope-title"
-                    title="Open in Breakdown"
+                    title={t('Open in Breakdown')}
                   >
                     {s.title}
                   </Link>
@@ -526,8 +558,12 @@ function ScopeMenu({
                   </span>
                 </div>
                 <p className="muted small">
-                  {CATEGORY_LABELS[s.category]} · {s.taskCounts.completed}/{s.taskCounts.total}{' '}
-                  tasks complete · added {new Date(s.addedAt).toLocaleDateString()}
+                  {t('{category} · {done}/{total} tasks complete · added {date}', {
+                    category: t(CATEGORY_LABELS[s.category]),
+                    done: s.taskCounts.completed,
+                    total: s.taskCounts.total,
+                    date: new Date(s.addedAt).toLocaleDateString(),
+                  })}
                 </p>
                 {canSelect &&
                   board.state === 'active' &&
@@ -535,17 +571,17 @@ function ScopeMenu({
                     <div
                       className="confirm small"
                       role="group"
-                      aria-label={`Remove ${s.title} from scope`}
+                      aria-label={t('Remove {title} from scope', { title: s.title })}
                     >
-                      <p>What happens to its unfinished tasks on this board?</p>
+                      <p>{t('What happens to its unfinished tasks on this board?')}</p>
                       <button type="button" onClick={() => remove(s, true)}>
-                        Return them to Breakdown
+                        {t('Return them to Breakdown')}
                       </button>
                       <button type="button" onClick={() => remove(s, false)}>
-                        Keep them as out-of-scope work
+                        {t('Keep them as out-of-scope work')}
                       </button>
                       <button type="button" onClick={() => setRemoving(null)}>
-                        Cancel
+                        {t('Cancel')}
                       </button>
                     </div>
                   ) : (
@@ -553,9 +589,9 @@ function ScopeMenu({
                       type="button"
                       className="link"
                       onClick={() => setRemoving(s.id)}
-                      aria-label={`Remove ${s.title} from scope`}
+                      aria-label={t('Remove {title} from scope', { title: s.title })}
                     >
-                      Remove from scope
+                      {t('Remove from scope')}
                     </button>
                   ))}
               </li>
@@ -648,7 +684,7 @@ function Columns({
         board
         shown={lanes.reduce((sum, lane) => sum + lane.items.length, 0)}
         total={board.counts.placedTasks}
-        noun="tasks"
+        noun={t('tasks')}
       />
       <CardLanes
         lanes={lanes}
@@ -683,14 +719,14 @@ function Columns({
                 {card.title}
               </Link>
               {canDelete && deleting !== card.id && (
-                <ActionMenu label={`${card.title} actions`}>
+                <ActionMenu label={t('{title} actions', { title: card.title })}>
                   <button
                     type="button"
                     data-close-menu
                     onClick={() => setDeleting(card.id)}
-                    aria-label={`Delete ${card.title}`}
+                    aria-label={t('Delete {title}', { title: card.title })}
                   >
-                    Delete task
+                    {t('Delete task')}
                   </button>
                 </ActionMenu>
               )}
@@ -699,12 +735,12 @@ function Columns({
               <span className="muted">{card.itemTitle}</span>
               <TaskFlags task={card} />
               <ChecklistProgress checklist={card.checklist} />
-              {card.outOfScope && <span className="badge warn">Out of scope</span>}
-              {uploading === card.id && <span role="status">Uploading…</span>}
+              {card.outOfScope && <span className="badge warn">{t('Out of scope')}</span>}
+              {uploading === card.id && <span role="status">{t('Uploading…')}</span>}
             </div>
             <div className="card-bottom">
               <span className={`category-label cat-${card.category}`}>
-                {TASK_CATEGORY_LABELS[card.category]}
+                {t(TASK_CATEGORY_LABELS[card.category])}
               </span>
               <AssigneePicker
                 assignee={card.assignee}
@@ -727,12 +763,13 @@ function Columns({
               <div
                 className="confirm small"
                 role="group"
-                aria-label={`Confirm deleting ${card.title}`}
+                aria-label={t('Confirm deleting {title}', { title: card.title })}
               >
                 <p>
-                  Delete this task from “{card.itemTitle}”? It will leave the Workboard and no
-                  longer count toward the item’s completion. Its history is kept, and you can
-                  restore it.
+                  {t(
+                    'Delete this task from “{item}”? It will leave the Workboard and no longer count toward the item’s completion. Its history is kept, and you can restore it.',
+                    { item: card.itemTitle },
+                  )}
                 </p>
                 <button
                   type="button"
@@ -747,17 +784,20 @@ function Columns({
                       if (ok) {
                         setDeleting(null);
                         onNotice({
-                          text: `“${card.title}” deleted from “${card.itemTitle}”.`,
-                          link: { ...tasks.link(card.id), label: 'View deleted task' },
+                          text: t('“{title}” deleted from “{item}”.', {
+                            title: card.title,
+                            item: card.itemTitle,
+                          }),
+                          link: { ...tasks.link(card.id), label: t('View deleted task') },
                         });
                       }
                     })
                   }
                 >
-                  Delete task
+                  {t('Delete task')}
                 </button>
                 <button type="button" onClick={() => setDeleting(null)}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </div>
             )}
@@ -788,7 +828,7 @@ function ColumnTitle({
       <button
         type="button"
         className="title-edit lane-title-edit"
-        title="Click to rename this column"
+        title={t('Click to rename this column')}
         onClick={() => setName(column.name)}
       >
         {column.name}
@@ -797,7 +837,7 @@ function ColumnTitle({
   return (
     <form
       className="lane-title-form"
-      aria-label={`Rename ${column.name}`}
+      aria-label={t('Rename {name}', { name: column.name })}
       onSubmit={(e) => {
         e.preventDefault();
         const next = name.trim();
@@ -815,7 +855,7 @@ function ColumnTitle({
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && setName(null)}
         onBlur={() => setName(null)}
-        aria-label="Column name"
+        aria-label={t('Column name')}
         maxLength={100}
         autoFocus
       />
@@ -841,13 +881,13 @@ function ColumnFooter({
   const empty = (board.cards[column.id] ?? []).length === 0;
 
   return (
-    <ActionMenu label={`${column.name} column actions`}>
+    <ActionMenu label={t('{name} column actions', { name: column.name })}>
       {canManage && (
         <div className="column-admin">
           {renaming ? (
             <form
               className="add-item"
-              aria-label={`Rename column ${column.name}`}
+              aria-label={t('Rename column {name}', { name: column.name })}
               onSubmit={(e) => {
                 e.preventDefault();
                 void onChange(() =>
@@ -861,15 +901,15 @@ function ColumnFooter({
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                aria-label="Column name"
+                aria-label={t('Column name')}
                 maxLength={100}
                 autoFocus
               />
               <button type="submit" disabled={name.trim() === ''}>
-                Save
+                {t('Save')}
               </button>
               <button type="button" onClick={() => setRenaming(false)}>
-                Cancel
+                {t('Cancel')}
               </button>
             </form>
           ) : (
@@ -878,22 +918,22 @@ function ColumnFooter({
                 type="button"
                 className="link"
                 onClick={() => setRenaming(true)}
-                aria-label={`Rename column ${column.name}`}
+                aria-label={t('Rename column {name}', { name: column.name })}
               >
-                Rename
+                {t('Rename')}
               </button>
               {column.kind === 'intermediate' && (
                 <button
                   type="button"
                   className="link"
                   disabled={!empty}
-                  title={empty ? undefined : 'Move the tasks out first'}
+                  title={empty ? undefined : t('Move the tasks out first')}
                   onClick={() =>
                     void onChange(() => api.deleteColumn(project.id, board.id, column.id))
                   }
-                  aria-label={`Delete column ${column.name}`}
+                  aria-label={t('Delete column {name}', { name: column.name })}
                 >
-                  Delete
+                  {t('Delete')}
                 </button>
               )}
               {column.kind !== 'done' && (
@@ -916,9 +956,9 @@ function ColumnFooter({
                       type="button"
                       className="link"
                       onClick={() => setAdding(true)}
-                      aria-label={`Add column after ${column.name}`}
+                      aria-label={t('Add column after {name}', { name: column.name })}
                     >
-                      + Column
+                      {t('+ Column')}
                     </button>
                   ) : null}
                 </>
@@ -944,7 +984,7 @@ function AddColumnForm({
   return (
     <form
       className="add-item"
-      aria-label="Add column"
+      aria-label={t('Add column')}
       onSubmit={(e) => {
         e.preventDefault();
         void onAdd(name.trim());
@@ -953,16 +993,16 @@ function AddColumnForm({
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Column name"
-        aria-label="New column name"
+        placeholder={t('Column name')}
+        aria-label={t('New column name')}
         maxLength={100}
         autoFocus
       />
       <button type="submit" disabled={name.trim() === ''}>
-        Add
+        {t('Add')}
       </button>
       <button type="button" onClick={onCancel}>
-        Cancel
+        {t('Cancel')}
       </button>
     </form>
   );
@@ -1008,9 +1048,9 @@ function NewCardForm({
         type="button"
         className="link"
         onClick={() => setOpen(true)}
-        aria-label={`New ${TASK_CATEGORY_LABELS[category]} task`}
+        aria-label={t('New {category} task', { category: t(TASK_CATEGORY_LABELS[category]) })}
       >
-        + New task
+        {t('+ New task')}
       </button>
     );
   }
@@ -1018,7 +1058,7 @@ function NewCardForm({
   return (
     <form
       className="form new-card"
-      aria-label={`New ${TASK_CATEGORY_LABELS[category]} task`}
+      aria-label={t('New {category} task', { category: t(TASK_CATEGORY_LABELS[category]) })}
       onSubmit={(e) => {
         e.preventDefault();
         void onCreate({ ...(itemId ? { itemId } : {}), category, title: title.trim() }).then(
@@ -1032,7 +1072,7 @@ function NewCardForm({
       }}
     >
       <label>
-        Title
+        {t('Title')}
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -1042,16 +1082,16 @@ function NewCardForm({
         />
       </label>
       <label>
-        Backlog item
+        {t('Backlog item')}
         <select
           value={itemId}
           onChange={(e) => setItemId(e.target.value)}
           required={parentRequired}
-          aria-label="Parent backlog item"
+          aria-label={t('Parent backlog item')}
         >
           {board.scope.length !== 1 && (
             <option value="">
-              {board.scope.length === 0 ? 'Choose an item…' : 'Choose an item in scope…'}
+              {board.scope.length === 0 ? t('Choose an item…') : t('Choose an item in scope…')}
             </option>
           )}
           {board.scope.map((s) => (
@@ -1060,7 +1100,7 @@ function NewCardForm({
             </option>
           ))}
           {canPlaceOutside && others.length > 0 && (
-            <optgroup label="Outside scope (placed as an exception)">
+            <optgroup label={t('Outside scope (placed as an exception)')}>
               {others.map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.title}
@@ -1070,7 +1110,7 @@ function NewCardForm({
           )}
         </select>
         {board.scope.length === 1 && (
-          <span className="hint">The only item in scope, selected by default.</span>
+          <span className="hint">{t('The only item in scope, selected by default.')}</span>
         )}
       </label>
       <div className="row">
@@ -1079,10 +1119,10 @@ function NewCardForm({
           className="primary"
           disabled={title.trim() === '' || (parentRequired && !itemId)}
         >
-          Add to board
+          {t('Add to board')}
         </button>
         <button type="button" onClick={() => setOpen(false)}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </form>

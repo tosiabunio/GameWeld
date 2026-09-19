@@ -100,3 +100,9 @@ export interface AuthProviders {
     personas: { key: string; displayName: string; roles: ProjectRole[] }[];
   };
 }
+
+/** What quick open finds in a project for a few typed letters. */
+export interface SearchResults {
+  items: { id: string; title: string; state: 'open' | 'ready_for_review' | 'done' }[];
+  tasks: { id: string; title: string; completed: boolean; itemTitle: string }[];
+}

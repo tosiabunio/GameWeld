@@ -1,12 +1,8 @@
 import {
   DndContext,
   DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
   closestCorners,
   useDroppable,
-  useSensor,
-  useSensors,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -26,6 +22,8 @@ import {
   type ReactNode,
 } from 'react';
 import { useDisplayOptions } from '../displayOptions.ts';
+import { useCardSensors } from '../dragSensors.ts';
+import { t, tp } from '../i18n/index.ts';
 import { isCardClick } from '../taskLinks.ts';
 
 /**
@@ -312,10 +310,7 @@ export function CardLanes<T extends { id: string }>({
     return closestCorners(args);
   }, []);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: laneKeyboardCoordinates }),
-  );
+  const sensors = useCardSensors(laneKeyboardCoordinates);
 
   const byId = useMemo(() => {
     const map = new Map<string, T>();
@@ -437,9 +432,9 @@ export function CardLanes<T extends { id: string }>({
       }}
     >
       <label className="lane-navigation">
-        Column
+        {t('Column')}
         <select
-          aria-label="Visible column"
+          aria-label={t('Visible column')}
           value={lanes[shownIndex]?.id ?? ''}
           onChange={(event) => {
             const id = event.target.value;
@@ -466,9 +461,9 @@ export function CardLanes<T extends { id: string }>({
               type="button"
               className="link"
               onClick={() => scrollLanes(-1)}
-              aria-label={`Show earlier columns, ${hidden.left} hidden`}
+              aria-label={t('Show earlier columns, {count} hidden', { count: hidden.left })}
             >
-              ← {hidden.left} more
+              {t('← {count} more', { count: hidden.left })}
             </button>
           )}
           {hidden.right > 0 && (
@@ -476,9 +471,9 @@ export function CardLanes<T extends { id: string }>({
               type="button"
               className="link"
               onClick={() => scrollLanes(1)}
-              aria-label={`Show later columns, ${hidden.right} hidden`}
+              aria-label={t('Show later columns, {count} hidden', { count: hidden.right })}
             >
-              {hidden.right} more →
+              {t('{count} more →', { count: hidden.right })}
             </button>
           )}
         </div>
@@ -561,7 +556,7 @@ function LaneView<T extends { id: string }>({
     id: lane.id,
     disabled: !lane.droppable || rejects,
   });
-  const cards = `${items.length} card${items.length === 1 ? '' : 's'}`;
+  const cards = `${items.length} ${tp(items.length, 'card')}`;
   return (
     <section
       ref={setNodeRef}
@@ -574,8 +569,8 @@ function LaneView<T extends { id: string }>({
           type="button"
           className="lane-stub"
           aria-expanded={false}
-          aria-label={`Expand ${lane.title}, ${cards}`}
-          title={`Expand ${lane.title}`}
+          aria-label={t('Expand {lane}, {cards}', { lane: lane.title, cards })}
+          title={t('Expand {lane}', { lane: lane.title })}
           onClick={onToggle}
         >
           <span className="count">{items.length}</span>
@@ -596,8 +591,8 @@ function LaneView<T extends { id: string }>({
               type="button"
               className="lane-toggle"
               aria-expanded={true}
-              aria-label={`Collapse ${lane.title}`}
-              title={`Collapse ${lane.title}`}
+              aria-label={t('Collapse {lane}', { lane: lane.title })}
+              title={t('Collapse {lane}', { lane: lane.title })}
               onClick={onToggle}
             >
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
@@ -617,7 +612,7 @@ function LaneView<T extends { id: string }>({
             <ul className="cards">{children}</ul>
           </SortableContext>
           {items.length === 0 && (
-            <p className="lane-empty">{lane.total ? 'No matching cards' : 'No cards yet'}</p>
+            <p className="lane-empty">{lane.total ? t('No matching cards') : t('No cards yet')}</p>
           )}
           {lane.footer}
         </>

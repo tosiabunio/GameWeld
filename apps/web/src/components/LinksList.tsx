@@ -1,6 +1,7 @@
 import type { ItemLink } from '@gameweld/domain';
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../api.ts';
+import { t } from '../i18n/index.ts';
 
 /** External links on an item or task. Adding and removing is wired by the parent. */
 export function LinksList({
@@ -24,7 +25,7 @@ export function LinksList({
       await action();
       return true;
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       return false;
     }
   }
@@ -37,7 +38,7 @@ export function LinksList({
         </p>
       )}
       {links.length === 0 ? (
-        <p className="muted small">No links yet.</p>
+        <p className="muted small">{t('No links yet.')}</p>
       ) : (
         <ul className="links">
           {links.map((l) => (
@@ -50,9 +51,9 @@ export function LinksList({
                   type="button"
                   className="link"
                   onClick={() => void run(() => onRemove(l.id))}
-                  aria-label={`Remove link ${l.label || l.url}`}
+                  aria-label={t('Remove link {name}', { name: l.label || l.url })}
                 >
-                  Remove
+                  {t('Remove')}
                 </button>
               )}
             </li>
@@ -62,7 +63,7 @@ export function LinksList({
       {canEdit && (
         <form
           className="form inline"
-          aria-label="Add link"
+          aria-label={t('Add link')}
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             void run(() => onAdd(url.trim(), label.trim())).then((ok) => {
@@ -74,7 +75,7 @@ export function LinksList({
           }}
         >
           <label>
-            URL
+            {t('URL')}
             <input
               type="url"
               value={url}
@@ -84,16 +85,16 @@ export function LinksList({
             />
           </label>
           <label>
-            Label
+            {t('Label')}
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Optional"
+              placeholder={t('Optional')}
               maxLength={200}
             />
           </label>
           <button type="submit" disabled={url.trim() === ''}>
-            Add link
+            {t('Add link')}
           </button>
         </form>
       )}

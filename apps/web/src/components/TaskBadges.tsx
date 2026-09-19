@@ -1,4 +1,5 @@
 import type { Label, Task } from '@gameweld/domain';
+import { t } from '../i18n/index.ts';
 
 /** A date kept as YYYY-MM-DD is a day on the viewer's calendar, not a moment in some time zone. */
 export function parseDay(day: string): Date {
@@ -49,8 +50,8 @@ export function TaskFlags({
   return (
     <>
       {task.blocked && (
-        <span className="badge blocked" title={task.blockedReason || 'Blocked'}>
-          Blocked
+        <span className="badge blocked" title={task.blockedReason || t('Blocked')}>
+          {t('Blocked')}
         </span>
       )}
       {task.dueDate && (
@@ -58,8 +59,8 @@ export function TaskFlags({
           className={`due-date${urgency}`}
           title={
             urgency === ' overdue'
-              ? `Was due ${formatDay(task.dueDate)}`
-              : `Due ${formatDay(task.dueDate)}`
+              ? t('Was due {day}', { day: formatDay(task.dueDate) })
+              : t('Due {day}', { day: formatDay(task.dueDate) })
           }
         >
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
@@ -80,7 +81,9 @@ export function TaskFlags({
               strokeLinecap="round"
             />
           </svg>
-          <span className="sr-only">{urgency === ' overdue' ? 'Overdue, was due ' : 'Due '}</span>
+          <span className="sr-only">
+            {urgency === ' overdue' ? t('Overdue, was due ') : t('Due ')}
+          </span>
           {formatDay(task.dueDate)}
         </span>
       )}

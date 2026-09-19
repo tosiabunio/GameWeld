@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n/index.ts';
 
 /**
  * Specification Section 7: optional writing prompts are dismissible guidance, never required
@@ -20,7 +21,7 @@ export function WritingPrompt({ id, children }: { id: string; children: React.Re
       <button
         type="button"
         className="link"
-        aria-label="Dismiss writing prompt"
+        aria-label={t('Dismiss writing prompt')}
         onClick={() => {
           try {
             localStorage.setItem(key, '1');
@@ -30,7 +31,7 @@ export function WritingPrompt({ id, children }: { id: string; children: React.Re
           setDismissed(true);
         }}
       >
-        Dismiss
+        {t('Dismiss')}
       </button>
     </aside>
   );

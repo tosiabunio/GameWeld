@@ -1,0 +1,160 @@
+import type { PluralForms } from '../index.ts';
+
+/**
+ * Polish: what surrounds every page (the top bar, quick open, the bell, the display and filter
+ * menus) and the pages outside a project: signing in, the projects, a new one, the profile.
+ */
+export const texts: Record<string, string> = {
+  // Top bar
+  'Your profile and picture': 'Twój profil i zdjęcie',
+  'Switch persona': 'Zmień personę',
+  'Sign out': 'Wyloguj się',
+
+  // Signing in
+  'Sign-in failed': 'Logowanie nie powiodło się',
+  'Production Management System': 'System zarządzania produkcją',
+  'Sign in as': 'Zaloguj się jako',
+  'Mock sign-in is enabled for local development. Pick a persona.':
+    'Logowanie próbne jest włączone na potrzeby lokalnego rozwoju. Wybierz personę.',
+  'No sign-in provider is configured for this instance.':
+    'W tej instancji nie skonfigurowano żadnego sposobu logowania.',
+
+  // Projects
+  Projects: 'Projekty',
+  'Archived projects': 'Zarchiwizowane projekty',
+  'Show active': 'Pokaż aktywne',
+  'Show archived': 'Pokaż zarchiwizowane',
+  'New project': 'Nowy projekt',
+  'No archived projects.': 'Brak zarchiwizowanych projektów.',
+  'You are not a member of any project yet. Create one to become its Game Director.':
+    'Nie należysz jeszcze do żadnego projektu. Utwórz projekt, aby zostać jego Dyrektorem gry.',
+  'Your roles: {roles}': 'Twoje role: {roles}',
+  'scope limit {limit}': 'limit zakresu {limit}',
+  'Done restricted to Testers': '„Gotowe” tylko dla Testerów',
+
+  // A new project
+  'Could not create the project': 'Nie udało się utworzyć projektu',
+  "You become the project's Game Director. Settings can be changed later.":
+    'Zostajesz Dyrektorem gry tego projektu. Ustawienia można zmienić później.',
+  'Workboard scope limit': 'Limit zakresu Tablicy',
+  "Maximum number of backlog items included in the active Workboard's scope.":
+    'Największa liczba elementów backlogu w zakresie aktywnej Tablicy.',
+  'Create project': 'Utwórz projekt',
+
+  // The profile
+  Profile: 'Profil',
+  'Your profile': 'Twój profil',
+  Picture: 'Zdjęcie',
+  'Shown in the top bar, on the cards assigned to you, and when someone picks an assignee. Without a picture, your initials are used.':
+    'Widoczne na górnym pasku, na przypisanych do Ciebie kartach i przy wyborze osoby przypisanej. Bez zdjęcia pokazywane są Twoje inicjały.',
+  'Choose a PNG, JPEG, GIF, or WebP picture.': 'Wybierz obraz PNG, JPEG, GIF lub WebP.',
+  'Picture saved.': 'Zapisano zdjęcie.',
+  'Picture removed; your initials are shown instead.':
+    'Usunięto zdjęcie; zamiast niego widać Twoje inicjały.',
+  'Upload a new picture': 'Prześlij nowe zdjęcie',
+  'Upload a picture': 'Prześlij zdjęcie',
+  'Change the circle': 'Zmień kadr',
+  'Remove picture': 'Usuń zdjęcie',
+  Language: 'Język',
+  'Kept in this browser. The page reloads in the new language.':
+    'Zapamiętywany w tej przeglądarce. Strona wczyta się ponownie w nowym języku.',
+
+  // Cropping the picture
+  'This picture could not be shown. Try another file.':
+    'Nie udało się pokazać tego obrazu. Spróbuj użyć innego pliku.',
+  'Choose the part of the picture inside the circle: drag the picture or use the arrow keys; plus and minus zoom.':
+    'Wybierz część obrazu wewnątrz okręgu: przeciągnij obraz lub użyj klawiszy strzałek; plus i minus zmieniają powiększenie.',
+  Zoom: 'Powiększenie',
+  'Save picture': 'Zapisz zdjęcie',
+
+  // A project's page
+  'Project not found, or you are not a member.':
+    'Nie znaleziono projektu albo do niego nie należysz.',
+  'Could not load the project': 'Nie udało się wczytać projektu',
+  'Project settings': 'Ustawienia projektu',
+  'Project sections': 'Sekcje projektu',
+
+  // Quick open
+  'Quick open': 'Szybkie otwieranie',
+  'Quick open ({shortcut})': 'Szybkie otwieranie ({shortcut})',
+  'Find a task, an item, a section, a project…': 'Znajdź zadanie, element, sekcję, projekt…',
+  'Find a project…': 'Znajdź projekt…',
+  Results: 'Wyniki',
+  'Nothing found.': 'Nic nie znaleziono.',
+  Tasks: 'Zadania',
+  'Backlog items': 'Elementy backlogu',
+  'Go to': 'Przejdź do',
+  'All projects': 'Wszystkie projekty',
+  complete: 'ukończone',
+  accepted: 'zaakceptowany',
+  'ready for review': 'do przeglądu',
+
+  // The bell. In a sentence, <1> is who did it and <2> the task or item; the present tense
+  // keeps the verbs free of the person's gender.
+  Notifications: 'Powiadomienia',
+  'Notifications: {waiting} waiting for you, {unread} unread':
+    'Powiadomienia: czekające na Ciebie: {waiting}, nieprzeczytane: {unread}',
+  'Waiting for you': 'Czeka na Ciebie',
+  'Mark all read': 'Oznacz wszystkie jako przeczytane',
+  'Nothing yet. You will hear when a task is given to you, someone comments on your work, or a decision you asked for is made.':
+    'Na razie nic. Damy znać, gdy ktoś przydzieli Ci zadanie lub skomentuje Twoją pracę albo gdy zapadnie decyzja, na którą czekasz.',
+  '<1>{who}</1> asks to place <2>{task}</2> on the Workboard':
+    '<1>{who}</1> prosi o umieszczenie <2>{task}</2> na Tablicy',
+  '<2>{item}</2> is ready for review': '<2>{item}</2> czeka na przegląd',
+  'a task': 'zadanie',
+  'an item': 'element',
+  '<1>{who}</1> assigned <2>{task}</2> to you': '<1>{who}</1> przypisuje Ci <2>{task}</2>',
+  '<1>{who}</1> took <2>{task}</2> off your hands': '<1>{who}</1> zdejmuje z Ciebie <2>{task}</2>',
+  '<1>{who}</1> commented on <2>{subject}</2>': '<1>{who}</1> komentuje <2>{subject}</2>',
+  '<1>{who}</1> flagged <2>{task}</2> as blocked':
+    '<1>{who}</1> oznacza <2>{task}</2> jako zablokowane',
+  '<1>{who}</1> mentioned you on <2>{subject}</2>':
+    '<1>{who}</1> wspomina o Tobie w <2>{subject}</2>',
+  'Your request to place <2>{task}</2> was approved':
+    'Zatwierdzono Twoją prośbę o umieszczenie <2>{task}</2> na Tablicy',
+  'Your request to place <2>{task}</2> was rejected':
+    'Odrzucono Twoją prośbę o umieszczenie <2>{task}</2> na Tablicy',
+  '<1>{who}</1> accepted <2>{item}</2>': '<1>{who}</1> akceptuje <2>{item}</2>',
+  '<1>{who}</1> sent <2>{item}</2> back from review':
+    '<1>{who}</1> odsyła <2>{item}</2> z przeglądu',
+  '“{detail}”': '„{detail}”',
+  unread: 'nieprzeczytane',
+  'just now': 'przed chwilą',
+  '{n} min ago': '{n} min temu',
+  '{n} h ago': '{n} godz. temu',
+
+  // Display options
+  'Display options': 'Opcje wyświetlania',
+  Display: 'Widok',
+  'Collapse empty columns': 'Zwijaj puste kolumny',
+  'Small cover images': 'Małe okładki',
+  'Center columns': 'Wyśrodkuj kolumny',
+  'Center cards': 'Wyśrodkuj karty',
+  'Only for you, in this browser.': 'Tylko dla Ciebie, w tej przeglądarce.',
+
+  // Search and filters of cards
+  'Search titles…': 'Szukaj w tytułach…',
+  'Search titles': 'Szukaj w tytułach',
+  'Close search': 'Zamknij wyszukiwanie',
+  Filters: 'Filtry',
+  Anyone: 'Ktokolwiek',
+  Type: 'Typ',
+  'Any type': 'Dowolny typ',
+  Label: 'Etykieta',
+  'Any label': 'Dowolna etykieta',
+  'Backlog item': 'Element backlogu',
+  'Any item': 'Dowolny element',
+  'Blocked only': 'Tylko zablokowane',
+  'Out of scope only': 'Tylko poza zakresem',
+  'Only for you, until you leave or reload.':
+    'Tylko dla Ciebie, do opuszczenia lub ponownego wczytania strony.',
+  // The noun comes from the page in English ("items", "tasks"); the count says enough.
+  'Showing {shown} of {total} {noun}. Reordering is off while filtering.':
+    'Widoczne: {shown} z {total}. Podczas filtrowania nie można zmieniać kolejności.',
+  'Clear filters': 'Wyczyść filtry',
+};
+
+export const plurals: Record<string, PluralForms> = {
+  // The projects page counts "backlog items" with the same English word for any number.
+  'backlog items': ['element backlogu', 'elementy backlogu', 'elementów backlogu'],
+};

@@ -1,6 +1,7 @@
 import type { ActivityEntry, ActivityQuery } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { api } from '../api.ts';
+import { t, tj } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 
 const LABELS: Record<string, string> = {
@@ -71,7 +72,9 @@ function detail(e: ActivityEntry): string | null {
     case 'request.created':
       return str(n.note) ?? str(n.reason);
     case 'attachment.added':
-      return n.cover ? `${str(n.fileName)}, now the cover` : str(n.fileName);
+      return n.cover
+        ? t('{file}, now the cover', { file: String(str(n.fileName)) })
+        : str(n.fileName);
     case 'attachment.removed':
       return str(p.fileName);
     case 'column.updated':
@@ -84,7 +87,9 @@ function detail(e: ActivityEntry): string | null {
       return str(n.reason);
     case 'scope.removed':
       return str(n.reason) === 'item accepted'
-        ? `the item was accepted; ${Number(n.removedTasks ?? 0)} of its tasks left the board`
+        ? t('the item was accepted; {n} of its tasks left the board', {
+            n: Number(n.removedTasks ?? 0),
+          })
         : null;
     default:
       return null;
@@ -122,14 +127,14 @@ export function History({
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
         >
-          {open ? '▾' : '▸'} History
+          {open ? '▾' : '▸'} {t('History')}
         </button>
       </h3>
       {open &&
         (entries === null ? (
-          <p className="muted small">Loading…</p>
+          <p className="muted small">{t('Loading…')}</p>
         ) : entries.length === 0 ? (
-          <p className="muted small">Nothing recorded yet.</p>
+          <p className="muted small">{t('Nothing recorded yet.')}</p>
         ) : (
           <ul className="history-list">
             {entries.map((e) => {
@@ -137,7 +142,14 @@ export function History({
               return (
                 <li key={e.id} data-testid="history-entry">
                   <span className="muted small">{new Date(e.createdAt).toLocaleString()}</span>{' '}
-                  <strong>{e.actor?.displayName ?? 'System'}</strong> {LABELS[e.action] ?? e.action}
+                  {tj(
+                    '<1>{actor}</1> {action}',
+                    {
+                      actor: e.actor?.displayName ?? t('System'),
+                      action: t(LABELS[e.action] ?? e.action),
+                    },
+                    { 1: (s) => <strong>{s}</strong> },
+                  )}
                   {extra && <span className="muted"> · {extra}</span>}
                 </li>
               );

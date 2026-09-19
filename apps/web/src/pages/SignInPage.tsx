@@ -3,6 +3,7 @@ import { ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api.ts';
 import { Avatar, Logo } from '../components/Brand.tsx';
+import { t } from '../i18n/index.ts';
 import { useSession } from '../session.tsx';
 
 export function SignInPage() {
@@ -20,7 +21,7 @@ export function SignInPage() {
       await api.mockSignIn(persona);
       await refresh();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Sign-in failed');
+      setError(e instanceof ApiError ? e.message : t('Sign-in failed'));
     }
   }
 
@@ -30,13 +31,15 @@ export function SignInPage() {
         <div className="auth-brand">
           <Logo size={44} />
           <h1>GameWeld</h1>
-          <p className="muted">Production Management System</p>
+          <p className="muted">{t('Production Management System')}</p>
         </div>
         {error && <p className="error">{error}</p>}
         {providers?.mock.enabled ? (
           <section aria-labelledby="persona-heading">
-            <h2 id="persona-heading">Sign in as</h2>
-            <p className="muted">Mock sign-in is enabled for local development. Pick a persona.</p>
+            <h2 id="persona-heading">{t('Sign in as')}</h2>
+            <p className="muted">
+              {t('Mock sign-in is enabled for local development. Pick a persona.')}
+            </p>
             <ul className="persona-list">
               {providers.mock.personas.map((p) => (
                 <li key={p.key}>
@@ -48,7 +51,9 @@ export function SignInPage() {
                     <Avatar name={p.displayName} size={36} />
                     <span className="persona-text">
                       <strong>{p.displayName}</strong>
-                      <span className="muted">{p.roles.map((r) => ROLE_LABELS[r]).join(', ')}</span>
+                      <span className="muted">
+                        {p.roles.map((r) => t(ROLE_LABELS[r])).join(', ')}
+                      </span>
                     </span>
                   </button>
                 </li>
@@ -56,9 +61,9 @@ export function SignInPage() {
             </ul>
           </section>
         ) : providers ? (
-          <p>No sign-in provider is configured for this instance.</p>
+          <p>{t('No sign-in provider is configured for this instance.')}</p>
         ) : (
-          <p>Loading…</p>
+          <p>{t('Loading…')}</p>
         )}
       </div>
     </main>

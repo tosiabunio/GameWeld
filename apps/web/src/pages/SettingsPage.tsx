@@ -3,6 +3,8 @@ import { PROJECT_ROLES, ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { TransferPanel } from '../components/TransferPanel.tsx';
+import { t } from '../i18n/index.ts';
 import { useCurrentUser } from '../session.tsx';
 import { useProject } from './ProjectPage.tsx';
 
@@ -12,15 +14,16 @@ export function SettingsPage() {
   return (
     <>
       <section className="panel" aria-labelledby="settings-heading">
-        <h2 id="settings-heading">Settings</h2>
-        {!canEdit && <p className="muted">Only a Game Director can change settings.</p>}
+        <h2 id="settings-heading">{t('Settings')}</h2>
+        {!canEdit && <p className="muted">{t('Only a Game Director can change settings.')}</p>}
         <SettingsForm readOnly={!canEdit} />
       </section>
       <section className="panel" aria-labelledby="members-heading">
-        <h2 id="members-heading">Members</h2>
+        <h2 id="members-heading">{t('Members')}</h2>
         <MembersTable readOnly={!project.permissions['members.manage']} />
         {project.permissions['members.manage'] && <AddMemberForm />}
       </section>
+      {canEdit && <TransferPanel />}
       {canEdit && <DangerZone />}
     </>
   );
@@ -59,18 +62,18 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
         doneRestricted,
       });
       await reload();
-      setStatus({ kind: 'ok', text: 'Settings saved.' });
+      setStatus({ kind: 'ok', text: t('Settings saved.') });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         await reload();
         setStatus({
           kind: 'error',
-          text: `${err.message} Your unsaved changes were replaced with the current values.`,
+          text: `${err.message} ${t('Your unsaved changes were replaced with the current values.')}`,
         });
       } else {
         setStatus({
           kind: 'error',
-          text: err instanceof ApiError ? err.message : 'Could not save',
+          text: err instanceof ApiError ? err.message : t('Could not save'),
         });
       }
     }
@@ -79,7 +82,7 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
   return (
     <form className="form" onSubmit={submit}>
       <label>
-        Name
+        {t('Name')}
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -89,7 +92,7 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
         />
       </label>
       <label>
-        Description
+        {t('Description')}
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -98,7 +101,7 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
         />
       </label>
       <label>
-        Workboard scope limit
+        {t('Workboard scope limit')}
         <input
           type="number"
           min={1}
@@ -116,13 +119,13 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
           disabled={readOnly}
           data-testid="done-restricted"
         />
-        Restrict moving tasks into Done to Testers
+        {t('Restrict moving tasks into Done to Testers')}
       </label>
       {status && <p className={status.kind === 'ok' ? 'ok' : 'error'}>{status.text}</p>}
       {!readOnly && (
         <div className="row">
           <button type="submit" className="primary" disabled={!dirty}>
-            Save settings
+            {t('Save settings')}
           </button>
         </div>
       )}
@@ -141,14 +144,14 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
   ) {
     setError(null);
     if (patch.roles && patch.roles.length === 0) {
-      setError('A member needs at least one role. Remove the member instead.');
+      setError(t('A member needs at least one role. Remove the member instead.'));
       return;
     }
     try {
       await api.updateMember(project.id, member.userId, patch);
       await reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not update the member');
+      setError(err instanceof ApiError ? err.message : t('Could not update the member'));
     }
   }
 
@@ -158,7 +161,7 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
       await api.removeMember(project.id, member.userId);
       await reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not remove the member');
+      setError(err instanceof ApiError ? err.message : t('Could not remove the member'));
     }
   }
 
@@ -168,11 +171,11 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
       <table className="table" data-testid="members-table">
         <thead>
           <tr>
-            <th>Member</th>
+            <th>{t('Member')}</th>
             {PROJECT_ROLES.map((r) => (
-              <th key={r}>{ROLE_LABELS[r]}</th>
+              <th key={r}>{t(ROLE_LABELS[r])}</th>
             ))}
-            <th>May accept items</th>
+            <th>{t('May accept items')}</th>
             {!readOnly && <th />}
           </tr>
         </thead>
@@ -181,7 +184,7 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
             <tr key={m.userId} data-testid={`member-${m.email ?? m.userId}`}>
               <td>
                 <strong>{m.displayName}</strong>
-                {m.userId === me.id && <span className="muted"> (you)</span>}
+                {m.userId === me.id && <span className="muted"> {t('(you)')}</span>}
                 <br />
                 <span className="muted">{m.email}</span>
               </td>
@@ -189,7 +192,10 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
                 <td key={r}>
                   <input
                     type="checkbox"
-                    aria-label={`${m.displayName} is ${ROLE_LABELS[r]}`}
+                    aria-label={t('{name} is {role}', {
+                      name: m.displayName,
+                      role: t(ROLE_LABELS[r]),
+                    })}
                     checked={m.roles.includes(r)}
                     disabled={readOnly}
                     onChange={(e) =>
@@ -203,11 +209,11 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
               <td>
                 <input
                   type="checkbox"
-                  aria-label={`${m.displayName} may accept items`}
+                  aria-label={t('{name} may accept items', { name: m.displayName })}
                   checked={m.canAccept}
                   disabled={readOnly || m.roles.includes('director')}
                   title={
-                    m.roles.includes('director') ? 'Game Directors always may accept' : undefined
+                    m.roles.includes('director') ? t('Game Directors always may accept') : undefined
                   }
                   onChange={(e) => void update(m, { canAccept: e.target.checked })}
                 />
@@ -217,9 +223,9 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
                   <button
                     type="button"
                     onClick={() => void remove(m)}
-                    aria-label={`Remove ${m.displayName}`}
+                    aria-label={t('Remove {name}', { name: m.displayName })}
                   >
-                    Remove
+                    {t('Remove')}
                   </button>
                 </td>
               )}
@@ -255,21 +261,21 @@ function AddMemberForm() {
       setRoles(['developer']);
       await reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not add the member');
+      setError(err instanceof ApiError ? err.message : t('Could not add the member'));
     }
   }
 
   return (
-    <form className="form inline" onSubmit={submit} aria-label="Add member">
-      <h3>Add member</h3>
+    <form className="form inline" onSubmit={submit} aria-label={t('Add member')}>
+      <h3>{t('Add member')}</h3>
       <label>
-        Email
+        {t('Email')}
         <input
           type="email"
           list="known-users"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@example.com"
+          placeholder={t('name@example.com')}
           required
         />
         <datalist id="known-users">
@@ -279,10 +285,10 @@ function AddMemberForm() {
             </option>
           ))}
         </datalist>
-        <span className="hint">The person must have signed in at least once.</span>
+        <span className="hint">{t('The person must have signed in at least once.')}</span>
       </label>
       <fieldset className="roles">
-        <legend>Roles</legend>
+        <legend>{t('Roles')}</legend>
         {PROJECT_ROLES.map((r) => (
           <label key={r} className="check">
             <input
@@ -292,7 +298,7 @@ function AddMemberForm() {
                 setRoles(e.target.checked ? [...roles, r] : roles.filter((x) => x !== r))
               }
             />
-            {ROLE_LABELS[r]}
+            {t(ROLE_LABELS[r])}
           </label>
         ))}
       </fieldset>
@@ -302,7 +308,7 @@ function AddMemberForm() {
         className="primary"
         disabled={roles.length === 0 || email.trim() === ''}
       >
-        Add member
+        {t('Add member')}
       </button>
     </form>
   );
@@ -323,21 +329,25 @@ function DangerZone() {
       if (!project.archived) navigate('/');
       else await reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not change the archive state');
+      setError(err instanceof ApiError ? err.message : t('Could not change the archive state'));
     }
   }
 
   return (
     <section className="panel" aria-labelledby="archive-heading">
-      <h2 id="archive-heading">{project.archived ? 'Archived project' : 'Archive'}</h2>
+      <h2 id="archive-heading">
+        {project.archived ? t('Archived project') : t('Archive', undefined, 'heading')}
+      </h2>
       <p className="muted">
         {project.archived
-          ? 'This project is archived and hidden from the active list. Nothing was deleted.'
-          : 'Archiving hides the project from the active list. Nothing is deleted, and it can be restored later.'}
+          ? t('This project is archived and hidden from the active list. Nothing was deleted.')
+          : t(
+              'Archiving hides the project from the active list. Nothing is deleted, and it can be restored later.',
+            )}
       </p>
       {error && <p className="error">{error}</p>}
       <button type="button" onClick={() => void toggleArchive()}>
-        {project.archived ? 'Restore project' : 'Archive project'}
+        {project.archived ? t('Restore project') : t('Archive project')}
       </button>
     </section>
   );

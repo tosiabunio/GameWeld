@@ -528,6 +528,109 @@ input[type='file']::file-selector-button:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Quick open: its button in the top bar, and the dialog. */
+.palette-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-right: -8px;
+}
+.palette-button kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+}
+@media (max-width: 900px) {
+  .palette-button kbd {
+    display: none;
+  }
+}
+.palette {
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(70dvh, 520px);
+  margin: 12vh auto auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.palette[open] {
+  display: flex;
+  flex-direction: column;
+}
+.palette::backdrop {
+  background: rgb(12 14 22 / 0.35);
+}
+.palette input {
+  flex: none;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 1rem;
+}
+.palette input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.palette ul {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+.palette-group {
+  display: block;
+  padding: 8px 10px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.palette li > button {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  font-size: 14px;
+}
+.palette li > button.chosen {
+  background: var(--accent-soft);
+}
+.palette-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palette-hint {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+.palette-empty {
+  padding: 14px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
 /* The bell, and what it opens: what waits for the viewer, then what they have not read. */
 .user .bell {
   margin-right: -8px;
@@ -1438,7 +1541,12 @@ ul.project-grid {
 }
 .card.draggable {
   cursor: grab;
-  touch-action: none;
+  /* A swipe over cards scrolls the page; a short hold picks a card up (see dragSensors.ts).
+     The hold must not select text or call up the browser's own menu for the card. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .card.draggable.clickable {
   cursor: pointer;
@@ -2327,6 +2435,44 @@ h1:has(> .title-edit) {
 .rich-text hr {
   border: 0;
   border-top: 1px solid var(--border);
+}
+/* A download link that looks like the buttons beside it, and a set of choices that read as
+   sentences. */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--fg);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+a.button:hover {
+  border-color: var(--accent-line);
+}
+fieldset.choices {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+fieldset.choices legend {
+  padding: 0 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+fieldset.choices label.check {
+  align-items: start;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+fieldset.choices input {
+  margin-top: 4px;
 }
 /* Labels. The palette is fixed, so each colour is tuned once for both themes: a soft fill with
    text of the same hue, readable on light and on dark. */

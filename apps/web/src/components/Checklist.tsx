@@ -1,5 +1,6 @@
 import type { ChecklistItem, UpdateChecklistItemInput } from '@gameweld/domain';
 import { useEffect, useState, type ClipboardEvent, type FormEvent } from 'react';
+import { t } from '../i18n/index.ts';
 
 /** Progress of a task's checklist, as cards show it when the task has one. */
 export function ChecklistProgress({ checklist }: { checklist: { total: number; done: number } }) {
@@ -8,7 +9,10 @@ export function ChecklistProgress({ checklist }: { checklist: { total: number; d
   return (
     <span
       className={`checklist-progress${all ? ' all' : ''}`}
-      title={`Checklist: ${checklist.done} of ${checklist.total} done`}
+      title={t('Checklist: {done} of {total} done', {
+        done: checklist.done,
+        total: checklist.total,
+      })}
     >
       <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
         <rect
@@ -30,7 +34,7 @@ export function ChecklistProgress({ checklist }: { checklist: { total: number; d
           strokeLinejoin="round"
         />
       </svg>
-      <span className="sr-only">Checklist </span>
+      <span className="sr-only">{t('Checklist')} </span>
       {checklist.done}/{checklist.total}
     </span>
   );
@@ -64,7 +68,7 @@ export function Checklist({
   if (items.length === 0 && !canEdit) return null;
 
   const add = (titles: string[]) => {
-    const wanted = titles.map((t) => t.trim()).filter((t) => t !== '');
+    const wanted = titles.map((title) => title.trim()).filter((title) => title !== '');
     if (wanted.length > 0) void onAdd(wanted).then((ok) => ok && setDraft(''));
   };
   /** A pasted list becomes one item per line, without the bullets or boxes it may carry. */
@@ -78,7 +82,7 @@ export function Checklist({
   return (
     <section className="checklist" aria-labelledby="checklist-heading" data-testid="checklist">
       <div className="row between">
-        <h2 id="checklist-heading">Checklist</h2>
+        <h2 id="checklist-heading">{t('Checklist')}</h2>
         {items.length > 0 && (
           <span className="muted small" data-testid="checklist-count">
             {done}/{items.length}
@@ -86,7 +90,7 @@ export function Checklist({
         )}
       </div>
       {items.length > 0 && (
-        <progress value={done} max={items.length} aria-label="Checklist progress" />
+        <progress value={done} max={items.length} aria-label={t('Checklist progress')} />
       )}
       <ul>
         {items.map((item) => (
@@ -106,7 +110,7 @@ export function Checklist({
             />
             {renaming?.id === item.id ? (
               <form
-                aria-label={`Rename ${item.title}`}
+                aria-label={t('Rename {title}', { title: item.title })}
                 onSubmit={(e: FormEvent) => {
                   e.preventDefault();
                   const title = renaming.title.trim();
@@ -126,7 +130,7 @@ export function Checklist({
                   }}
                   onBlur={() => setRenaming(null)}
                   maxLength={500}
-                  aria-label="Item text"
+                  aria-label={t('Item text')}
                   autoFocus
                 />
               </form>
@@ -134,7 +138,7 @@ export function Checklist({
               <button
                 type="button"
                 className="checklist-title"
-                title="Click to rename"
+                title={t('Click to rename')}
                 onClick={() => setRenaming({ id: item.id, title: item.title })}
               >
                 {item.title}
@@ -146,8 +150,8 @@ export function Checklist({
               <button
                 type="button"
                 className="quiet checklist-remove"
-                aria-label={`Remove ${item.title}`}
-                title="Remove"
+                aria-label={t('Remove {title}', { title: item.title })}
+                title={t('Remove')}
                 onClick={() => void onRemove(item.id)}
               >
                 ✕
@@ -159,7 +163,7 @@ export function Checklist({
       {canEdit && (
         <form
           className="add-item"
-          aria-label="Add checklist item"
+          aria-label={t('Add checklist item')}
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             add([draft]);
@@ -169,12 +173,12 @@ export function Checklist({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onPaste={onPaste}
-            placeholder="Add a step… (paste a list to add several)"
-            aria-label="New checklist item"
+            placeholder={t('Add a step… (paste a list to add several)')}
+            aria-label={t('New checklist item')}
             maxLength={500}
           />
           <button type="submit" disabled={draft.trim() === ''}>
-            Add
+            {t('Add')}
           </button>
         </form>
       )}

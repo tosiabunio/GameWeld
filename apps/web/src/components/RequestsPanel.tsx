@@ -10,6 +10,7 @@ import { CATEGORY_LABELS, TASK_CATEGORIES, TASK_CATEGORY_LABELS } from '@gamewel
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { t, tj, tp } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { useCurrentUser } from '../session.tsx';
 
@@ -56,7 +57,7 @@ export function RequestsPanel({
       await action();
     } catch (e) {
       ok = false;
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
     }
     setDeciding(null);
     await reload();
@@ -78,7 +79,7 @@ export function RequestsPanel({
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
           >
-            {open ? '▾' : '▸'} Out-of-scope requests{' '}
+            {open ? '▾' : '▸'} {t('Out-of-scope requests')}{' '}
             <span className={pending.length > 0 ? 'badge warn' : 'count'}>{pending.length}</span>
           </button>
         </h3>
@@ -91,7 +92,7 @@ export function RequestsPanel({
               setAsking(true);
             }}
           >
-            + Request out-of-scope work
+            {t('+ Request out-of-scope work')}
           </button>
         )}
       </div>
@@ -111,8 +112,9 @@ export function RequestsPanel({
           )}
           {pending.length === 0 ? (
             <p className="muted small">
-              No pending requests. Members ask here, or from a task’s row in the Breakdown, when the
-              task's item is outside the scope.
+              {t(
+                "No pending requests. Members ask here, or from a task’s row in the Breakdown, when the task's item is outside the scope.",
+              )}
             </p>
           ) : (
             <ul className="request-list">
@@ -120,21 +122,32 @@ export function RequestsPanel({
                 <li key={r.id} data-testid="request">
                   <div>
                     <strong>{r.task.title}</strong>{' '}
-                    <span className="chip">{TASK_CATEGORY_LABELS[r.task.category]}</span>{' '}
+                    <span className="chip">{t(TASK_CATEGORY_LABELS[r.task.category])}</span>{' '}
                     <span className="muted">
-                      under{' '}
-                      <Link to={`/projects/${project.id}/breakdown/${r.item.id}`}>
-                        {r.item.title}
-                      </Link>{' '}
-                      · asked by {r.requester.displayName} on{' '}
-                      {new Date(r.createdAt).toLocaleDateString()}
+                      {tj(
+                        'under <1>{item}</1> · asked by {name} on {date}',
+                        {
+                          item: r.item.title,
+                          name: r.requester.displayName,
+                          date: new Date(r.createdAt).toLocaleDateString(),
+                        },
+                        {
+                          1: (s) => (
+                            <Link to={`/projects/${project.id}/breakdown/${r.item.id}`}>{s}</Link>
+                          ),
+                        },
+                      )}
                     </span>
-                    {r.reason && <p className="small">“{r.reason}”</p>}
+                    {r.reason && <p className="small">{t('“{text}”', { text: r.reason })}</p>}
                   </div>
                   {deciding?.id === r.id ? (
                     <form
                       className="confirm small"
-                      aria-label={`${deciding.verb === 'approve' ? 'Approve' : 'Reject'} request for ${r.task.title}`}
+                      aria-label={
+                        deciding.verb === 'approve'
+                          ? t('Approve request for {title}', { title: r.task.title })
+                          : t('Reject request for {title}', { title: r.task.title })
+                      }
                       onSubmit={(e) => {
                         e.preventDefault();
                         void run(() =>
@@ -147,15 +160,15 @@ export function RequestsPanel({
                       <input
                         value={deciding.note}
                         onChange={(e) => setDeciding({ ...deciding, note: e.target.value })}
-                        placeholder="Note (optional)"
-                        aria-label="Decision note"
+                        placeholder={t('Note (optional)')}
+                        aria-label={t('Decision note')}
                         autoFocus
                       />
                       <button type="submit" className="primary">
-                        {deciding.verb === 'approve' ? 'Approve and place' : 'Reject'}
+                        {deciding.verb === 'approve' ? t('Approve and place') : t('Reject')}
                       </button>
                       <button type="button" onClick={() => setDeciding(null)}>
-                        Cancel
+                        {t('Cancel')}
                       </button>
                     </form>
                   ) : (
@@ -166,16 +179,16 @@ export function RequestsPanel({
                             type="button"
                             className="primary"
                             onClick={() => setDeciding({ id: r.id, verb: 'approve', note: '' })}
-                            aria-label={`Approve request for ${r.task.title}`}
+                            aria-label={t('Approve request for {title}', { title: r.task.title })}
                           >
-                            Approve
+                            {t('Approve')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeciding({ id: r.id, verb: 'reject', note: '' })}
-                            aria-label={`Reject request for ${r.task.title}`}
+                            aria-label={t('Reject request for {title}', { title: r.task.title })}
                           >
-                            Reject
+                            {t('Reject')}
                           </button>
                         </>
                       )}
@@ -186,9 +199,9 @@ export function RequestsPanel({
                           onClick={() =>
                             void run(() => api.withdrawRequest(project.id, board.id, r.id))
                           }
-                          aria-label={`Withdraw request for ${r.task.title}`}
+                          aria-label={t('Withdraw request for {title}', { title: r.task.title })}
                         >
-                          Withdraw
+                          {t('Withdraw')}
                         </button>
                       )}
                     </div>
@@ -200,8 +213,11 @@ export function RequestsPanel({
           {decided.length > 0 && (
             <button type="button" className="link" onClick={() => setShowDecided((v) => !v)}>
               {showDecided
-                ? 'Hide decided requests'
-                : `Show ${decided.length} decided request${decided.length === 1 ? '' : 's'}`}
+                ? t('Hide decided requests')
+                : t('Show {n} decided {requests}', {
+                    n: decided.length,
+                    requests: tp(decided.length, 'request'),
+                  })}
             </button>
           )}
           {showDecided && (
@@ -209,13 +225,16 @@ export function RequestsPanel({
               {decided.map((r) => (
                 <li key={r.id}>
                   <span className={`badge ${r.status === 'approved' ? 'done' : 'neutral'}`}>
-                    {r.status}
+                    {t(r.status)}
                   </span>{' '}
                   <strong>{r.task.title}</strong>{' '}
                   <span className="muted">
-                    under {r.item.title} · {r.requester.displayName}
+                    {t('under {item} · {name}', {
+                      item: r.item.title,
+                      name: r.requester.displayName,
+                    })}
                     {r.decidedBy && ` → ${r.decidedBy.displayName}`}
-                    {r.decisionNote && ` · “${r.decisionNote}”`}
+                    {r.decisionNote && ` · ${t('“{text}”', { text: r.decisionNote })}`}
                   </span>
                 </li>
               ))}
@@ -268,7 +287,7 @@ function NewRequestForm({
     let current = true;
     void api.tasks(project.id, itemId).then((all) => {
       if (!current) return;
-      setTasks(all.filter((t) => !t.archived && !t.completed && !t.placement && !t.pendingRequest));
+      setTasks(all.filter((x) => !x.archived && !x.completed && !x.placement && !x.pendingRequest));
     });
     return () => {
       current = false;
@@ -281,7 +300,7 @@ function NewRequestForm({
   return (
     <form
       className="form new-request"
-      aria-label="Request out-of-scope work"
+      aria-label={t('Request out-of-scope work')}
       onSubmit={(e) => {
         e.preventDefault();
         setSending(true);
@@ -295,31 +314,32 @@ function NewRequestForm({
       }}
     >
       <p className="muted small">
-        Asks a Game Director to place one task on this Workboard although its backlog item is
-        outside the scope. The task waits in the Breakdown until the request is approved.
+        {t(
+          'Asks a Game Director to place one task on this Workboard although its backlog item is outside the scope. The task waits in the Breakdown until the request is approved.',
+        )}
       </p>
       {items !== null && items.length === 0 ? (
-        <p className="muted small">Every open backlog item is already in scope.</p>
+        <p className="muted small">{t('Every open backlog item is already in scope.')}</p>
       ) : (
         <>
           <label>
-            Backlog item
+            {t('Backlog item')}
             <select value={itemId} onChange={(e) => setItemId(e.target.value)} required autoFocus>
-              <option value="">Choose an item outside the scope…</option>
+              <option value="">{t('Choose an item outside the scope…')}</option>
               {(items ?? []).map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.title} ({CATEGORY_LABELS[i.category]})
+                  {i.title} ({t(CATEGORY_LABELS[i.category])})
                 </option>
               ))}
             </select>
           </label>
           <label>
-            Task
+            {t('Task')}
             <select value={taskId} onChange={(e) => setTaskId(e.target.value)} disabled={!itemId}>
-              <option value={NEW_TASK}>New task…</option>
-              {tasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title} ({TASK_CATEGORY_LABELS[t.category]})
+              <option value={NEW_TASK}>{t('New task…')}</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title} ({t(TASK_CATEGORY_LABELS[task.category])})
                 </option>
               ))}
             </select>
@@ -327,7 +347,7 @@ function NewRequestForm({
           {isNew && (
             <div className="new-request-task">
               <label>
-                New task’s title
+                {t('New task’s title')}
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -336,14 +356,14 @@ function NewRequestForm({
                 />
               </label>
               <label>
-                Category
+                {t('Category')}
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as TaskCategory)}
                 >
                   {TASK_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {TASK_CATEGORY_LABELS[c]}
+                      {t(TASK_CATEGORY_LABELS[c])}
                     </option>
                   ))}
                 </select>
@@ -351,17 +371,17 @@ function NewRequestForm({
             </div>
           )}
           <label>
-            Why now? (optional)
+            {t('Why now? (optional)')}
             <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={5000} />
           </label>
         </>
       )}
       <div className="row">
         <button type="submit" className="primary" disabled={!ready}>
-          Send request
+          {t('Send request')}
         </button>
         <button type="button" onClick={onClose}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </form>

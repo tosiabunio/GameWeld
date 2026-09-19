@@ -15,6 +15,7 @@ import { CardFilterControls, CardFilterRow } from '../components/CardFilterBar.t
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
+import { t, tj, tp } from '../i18n/index.ts';
 import { useProject } from './ProjectPage.tsx';
 
 const isCategory = (lane: string): lane is MoscowCategory =>
@@ -62,7 +63,7 @@ export function BacklogPage() {
     try {
       await action();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
     }
     await reload();
   }
@@ -105,7 +106,7 @@ export function BacklogPage() {
     () =>
       BACKLOG_LANES.map((lane) => ({
         id: lane,
-        title: LANE_LABELS[lane],
+        title: t(LANE_LABELS[lane]),
         items: filtering
           ? grouped.get(lane)!.filter((item) => matchesItem(item, filters))
           : grouped.get(lane)!,
@@ -128,17 +129,20 @@ export function BacklogPage() {
     [grouped, canManage, project.id, filtering, filters],
   );
 
-  if (items === null) return <p>Loading…</p>;
+  if (items === null) return <p>{t('Loading…')}</p>;
 
   return (
     <div data-testid="backlog">
       <header className="page-head row between">
         <div>
-          <p className="eyebrow">Production scope</p>
-          <h1>Backlog</h1>
+          <p className="eyebrow">{t('Production scope')}</p>
+          <h1>{t('Backlog')}</h1>
           <p className="muted small">
-            {items.length} items · {items.filter((item) => item.activeBoard).length} on the
-            Workboard
+            {/* English says "items" whatever the count; other languages take the form they need. */}
+            {t('{items} · {count} on the Workboard', {
+              items: `${items.length} ${tp(items.length, 'items', 'items')}`,
+              count: items.filter((item) => item.activeBoard).length,
+            })}
           </p>
         </div>
         <div className="row page-controls">
@@ -190,8 +194,8 @@ export function BacklogPage() {
               <Link
                 to={`/projects/${project.id}/breakdown/${item.id}`}
                 className="card-open"
-                aria-label={`Open ${item.title} in the Breakdown`}
-                title="Open in the Breakdown"
+                aria-label={t('Open {title} in the Breakdown', { title: item.title })}
+                title={t('Open in the Breakdown')}
               >
                 {/* One node splitting into three: what the Breakdown does to an item. */}
                 <svg
@@ -212,30 +216,30 @@ export function BacklogPage() {
                 </svg>
               </Link>
               {canManage && item.state === 'open' && (
-                <ActionMenu label={`${item.title} actions`}>
+                <ActionMenu label={t('{title} actions', { title: item.title })}>
                   <button
                     type="button"
                     data-close-menu
                     onClick={() => moveBy(item, -1)}
                     // Up and down are places among all the lane's cards, not the ones showing.
                     disabled={filtering || index === 0}
-                    aria-label={`Move ${item.title} up`}
+                    aria-label={t('Move {title} up', { title: item.title })}
                   >
-                    <span aria-hidden="true">↑</span> Move up
+                    <span aria-hidden="true">↑</span> {t('Move up')}
                   </button>
                   <button
                     type="button"
                     data-close-menu
                     onClick={() => moveBy(item, 1)}
                     disabled={filtering || index === count - 1}
-                    aria-label={`Move ${item.title} down`}
+                    aria-label={t('Move {title} down', { title: item.title })}
                   >
-                    <span aria-hidden="true">↓</span> Move down
+                    <span aria-hidden="true">↓</span> {t('Move down')}
                   </button>
                   <label className="menu-field">
-                    Category
+                    {t('Category')}
                     <select
-                      aria-label={`Move ${item.title} to category`}
+                      aria-label={t('Move {title} to category', { title: item.title })}
                       value={item.category}
                       onChange={(e) =>
                         void move(item, e.target.value as MoscowCategory, null, null)
@@ -243,7 +247,7 @@ export function BacklogPage() {
                     >
                       {MOSCOW_CATEGORIES.map((c) => (
                         <option key={c} value={c}>
-                          {CATEGORY_LABELS[c]}
+                          {t(CATEGORY_LABELS[c])}
                         </option>
                       ))}
                     </select>
@@ -254,21 +258,26 @@ export function BacklogPage() {
             <div className="card-foot">
               <div className="card-meta">
                 {item.taskCounts.total > 0 ? (
-                  <span className="task-progress" title="Completed tasks / all tasks">
+                  <span className="task-progress" title={t('Completed tasks / all tasks')}>
                     <progress value={item.taskCounts.completed} max={item.taskCounts.total} />
-                    {item.taskCounts.completed}/{item.taskCounts.total} tasks
+                    {t('{completed}/{total} tasks', {
+                      completed: item.taskCounts.completed,
+                      total: item.taskCounts.total,
+                    })}
                   </span>
                 ) : (
-                  <span className="muted">No tasks yet</span>
+                  <span className="muted">{t('No tasks yet')}</span>
                 )}
-                {item.activeBoard && <span className="badge">On {item.activeBoard.name}</span>}
+                {item.activeBoard && (
+                  <span className="badge">{t('On {name}', { name: item.activeBoard.name })}</span>
+                )}
                 {item.state === 'ready_for_review' && (
-                  <span className="badge">Awaiting acceptance</span>
+                  <span className="badge">{t('Awaiting acceptance')}</span>
                 )}
-                {item.state === 'done' && <span className="badge done">Accepted</span>}
-                {uploading === item.id && <span role="status">Uploading…</span>}
+                {item.state === 'done' && <span className="badge done">{t('Accepted')}</span>}
+                {uploading === item.id && <span role="status">{t('Uploading…')}</span>}
                 {item.state !== 'open' && (
-                  <span className="muted">{CATEGORY_LABELS[item.category]}</span>
+                  <span className="muted">{t(CATEGORY_LABELS[item.category])}</span>
                 )}
               </div>
               {/* The way onto the Workboard. With several boards this button opens a choice of board. */}
@@ -283,15 +292,21 @@ export function BacklogPage() {
                     disabled={board.counts.scopeItems >= board.scopeLimit}
                     title={
                       board.counts.scopeItems >= board.scopeLimit
-                        ? `Scope limit reached (${board.counts.scopeItems}/${board.scopeLimit})`
+                        ? t('Scope limit reached ({count}/{limit})', {
+                            count: board.counts.scopeItems,
+                            limit: board.scopeLimit,
+                          })
                         : board.nextEligible?.id === item.id
-                          ? `Add to ${board.name} · next in priority`
+                          ? t('Add to {board} · next in priority', { board: board.name })
                           : board.nextEligible
-                            ? `Add to ${board.name} · “${board.nextEligible.title}” is next in priority`
-                            : `Add to ${board.name}`
+                            ? t('Add to {board} · “{title}” is next in priority', {
+                                board: board.name,
+                                title: board.nextEligible.title,
+                              })
+                            : t('Add to {board}', { board: board.name })
                     }
                     onClick={() => setActivating(item.id)}
-                    aria-label={`Add ${item.title} to Workboard`}
+                    aria-label={t('Add {title} to Workboard', { title: item.title })}
                   >
                     <svg
                       viewBox="0 0 16 16"
@@ -310,10 +325,17 @@ export function BacklogPage() {
                 )}
             </div>
             {activating === item.id && board && (
-              <div className="confirm small" role="group" aria-label={`Activate ${item.title}`}>
+              <div
+                className="confirm small"
+                role="group"
+                aria-label={t('Activate {title}', { title: item.title })}
+              >
                 <p>
-                  Joins the scope of <strong>{board.name}</strong>; its unfinished tasks enter the
-                  To Do columns, and tasks added later in the Breakdown join the board too.
+                  {tj(
+                    'Joins the scope of <1>{board}</1>; its unfinished tasks enter the To Do columns, and tasks added later in the Breakdown join the board too.',
+                    { board: board.name },
+                    { 1: (s) => <strong>{s}</strong> },
+                  )}
                 </p>
                 <button
                   type="button"
@@ -324,10 +346,10 @@ export function BacklogPage() {
                     )
                   }
                 >
-                  Activate
+                  {t('Activate')}
                 </button>
                 <button type="button" onClick={() => setActivating(null)}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </div>
             )}
@@ -357,17 +379,17 @@ function AddItemForm({
     <form
       className="add-item"
       onSubmit={submit}
-      aria-label={`Add item to ${CATEGORY_LABELS[category]}`}
+      aria-label={t('Add item to {category}', { category: t(CATEGORY_LABELS[category]) })}
     >
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="New backlog item"
-        aria-label={`New item in ${CATEGORY_LABELS[category]}`}
+        placeholder={t('New backlog item')}
+        aria-label={t('New item in {category}', { category: t(CATEGORY_LABELS[category]) })}
         maxLength={500}
       />
       <button type="submit" disabled={title.trim() === ''}>
-        Add
+        {t('Add')}
       </button>
     </form>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { notADrag } from '../dragSensors.ts';
 
 /** Native popovers escape scrolling lanes and supply outside-click and Escape dismissal. */
 export function ActionMenu({
@@ -71,7 +72,7 @@ export function ActionMenu({
         aria-label={label}
         aria-expanded={open}
         aria-controls={id}
-        onPointerDown={(event) => event.stopPropagation()}
+        {...notADrag}
         onClick={toggle}
       >
         {triggerContent ?? (
@@ -90,7 +91,7 @@ export function ActionMenu({
         role="group"
         aria-label={label}
         onToggle={(event) => setOpen(event.newState === 'open')}
-        onPointerDown={(event) => event.stopPropagation()}
+        {...notADrag}
         onKeyDown={(event) => event.stopPropagation()}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('[data-close-menu]')) {

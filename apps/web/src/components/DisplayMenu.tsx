@@ -1,4 +1,5 @@
 import { setDisplayOption, useDisplayOptions } from '../displayOptions.ts';
+import { t } from '../i18n/index.ts';
 import { ActionMenu } from './ActionMenu.tsx';
 
 /**
@@ -9,7 +10,7 @@ export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
   const options = useDisplayOptions();
   return (
     <ActionMenu
-      label="Display options"
+      label={t('Display options')}
       triggerClassName="quiet display-trigger"
       triggerContent={
         <>
@@ -27,7 +28,7 @@ export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
             <circle cx="10" cy="4.5" r="1.8" />
             <circle cx="6" cy="11.5" r="1.8" />
           </svg>
-          <span>Display</span>
+          <span>{t('Display')}</span>
         </>
       }
     >
@@ -38,7 +39,7 @@ export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
             checked={options.collapseEmpty}
             onChange={(event) => setDisplayOption('collapseEmpty', event.target.checked)}
           />
-          Collapse empty columns
+          {t('Collapse empty columns')}
         </label>
       )}
       <label className="menu-check">
@@ -47,7 +48,7 @@ export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
           checked={options.smallCovers}
           onChange={(event) => setDisplayOption('smallCovers', event.target.checked)}
         />
-        Small cover images
+        {t('Small cover images')}
       </label>
       <label className="menu-check">
         <input
@@ -55,9 +56,9 @@ export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
           checked={options.centered}
           onChange={(event) => setDisplayOption('centered', event.target.checked)}
         />
-        {lanes ? 'Center columns' : 'Center cards'}
+        {lanes ? t('Center columns') : t('Center cards')}
       </label>
-      <p className="menu-note">Only for you, in this browser.</p>
+      <p className="menu-note">{t('Only for you, in this browser.')}</p>
     </ActionMenu>
   );
 }

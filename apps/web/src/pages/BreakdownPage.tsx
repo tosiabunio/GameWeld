@@ -3,6 +3,7 @@ import { BACKLOG_LANES, LANE_LABELS, laneOf } from '@gameweld/domain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router';
 import { api } from '../api.ts';
+import { t } from '../i18n/index.ts';
 import { ItemBreakdown } from './ItemBreakdown.tsx';
 import { useProject } from './ProjectPage.tsx';
 
@@ -43,18 +44,18 @@ export function BreakdownPage() {
 
   return (
     <div className="breakdown-layout">
-      <nav className="item-nav" aria-label="Backlog items" data-testid="item-nav" ref={nav}>
+      <nav className="item-nav" aria-label={t('Backlog items')} data-testid="item-nav" ref={nav}>
         {items === null ? (
-          <p className="muted small">Loading…</p>
+          <p className="muted small">{t('Loading…')}</p>
         ) : items.length === 0 ? (
-          <p className="muted small">No backlog items yet. Add some on the Backlog tab.</p>
+          <p className="muted small">{t('No backlog items yet. Add some on the Backlog tab.')}</p>
         ) : (
           BACKLOG_LANES.map((lane) => {
             const laneItems = grouped.get(lane)!;
             if (laneItems.length === 0) return null;
             return (
               <section key={lane}>
-                <h4>{LANE_LABELS[lane]}</h4>
+                <h4>{t(LANE_LABELS[lane])}</h4>
                 <ul>
                   {laneItems.map((item) => (
                     <li key={item.id}>
@@ -79,7 +80,7 @@ export function BreakdownPage() {
         {itemId ? (
           <ItemBreakdown key={itemId} itemId={itemId} onChanged={reload} />
         ) : (
-          <p className="muted">Choose a backlog item to see its breakdown.</p>
+          <p className="muted">{t('Choose a backlog item to see its breakdown.')}</p>
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
 import type { Attachment } from '@gameweld/domain';
 import { useRef, useState } from 'react';
 import { api, ApiError } from '../api.ts';
+import { t } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { useCurrentUser } from '../session.tsx';
 
@@ -44,7 +45,7 @@ export function Attachments({
       for (const file of Array.from(files)) await api.uploadAttachment(project.id, owner, file);
       await onChanged();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Upload failed');
+      setError(e instanceof ApiError ? e.message : t('Upload failed'));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = '';
@@ -57,7 +58,7 @@ export function Attachments({
       await api.deleteAttachment(project.id, a.id);
       await onChanged();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not delete the attachment');
+      setError(e instanceof ApiError ? e.message : t('Could not delete the attachment'));
     }
   }
 
@@ -69,7 +70,7 @@ export function Attachments({
         </p>
       )}
       {attachments.length === 0 ? (
-        <p className="muted small">No attachments yet.</p>
+        <p className="muted small">{t('No attachments yet.')}</p>
       ) : (
         <ul className="attachment-list">
           {attachments.map((a) => (
@@ -90,7 +91,7 @@ export function Attachments({
                 <span className="muted small">
                   {formatSize(a.sizeBytes)} · {a.uploadedBy.displayName} ·{' '}
                   {new Date(a.createdAt).toLocaleDateString()}
-                  {coverId === a.id && ' · cover'}
+                  {coverId === a.id && ` · ${t('cover')}`}
                 </span>
               </div>
               <div className="row">
@@ -100,7 +101,7 @@ export function Attachments({
                     className="link"
                     onClick={() => void onSetCover(coverId === a.id ? null : a.id)}
                   >
-                    {coverId === a.id ? 'Remove cover' : 'Use as cover'}
+                    {coverId === a.id ? t('Remove cover') : t('Use as cover')}
                   </button>
                 )}
                 {(a.uploadedBy.id === me.id || canDirect) && canWork && (
@@ -108,9 +109,9 @@ export function Attachments({
                     type="button"
                     className="link"
                     onClick={() => void remove(a)}
-                    aria-label={`Delete attachment ${a.fileName}`}
+                    aria-label={t('Delete attachment {name}', { name: a.fileName })}
                   >
-                    Delete
+                    {t('Delete')}
                   </button>
                 )}
               </div>
@@ -126,10 +127,10 @@ export function Attachments({
             multiple
             onChange={(e) => void upload(e.target.files)}
             disabled={busy}
-            aria-label="Add attachment"
+            aria-label={t('Add attachment')}
           />
           <span className="muted small">
-            {busy ? 'Uploading…' : 'Images, documents, builds… anything useful.'}
+            {busy ? t('Uploading…') : t('Images, documents, builds… anything useful.')}
           </span>
         </label>
       )}

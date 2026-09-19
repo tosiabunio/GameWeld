@@ -7,6 +7,7 @@ import {
 } from '@gameweld/domain';
 import { useState } from 'react';
 import { api, ApiError } from '../api.ts';
+import { t } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { ActionMenu } from './ActionMenu.tsx';
 import { LabelChip } from './TaskBadges.tsx';
@@ -30,17 +31,17 @@ export function TaskMeta({
   return (
     <>
       <div className="field">
-        <span className="field-label">Labels</span>
+        <span className="field-label">{t('Labels')}</span>
         <div className="label-field">
           {task.labels.map((l) => (
             <LabelChip key={l.id} label={l} />
           ))}
-          {task.labels.length === 0 && readOnly && <span className="muted small">None</span>}
+          {task.labels.length === 0 && readOnly && <span className="muted small">{t('None')}</span>}
           {!readOnly && <LabelPicker task={task} onPatch={onPatch} />}
         </div>
       </div>
       <label>
-        Due date
+        {t('Due date')}
         <input
           type="date"
           value={task.dueDate ?? ''}
@@ -49,10 +50,10 @@ export function TaskMeta({
         />
       </label>
       <div className="field">
-        <span className="field-label">Blocked</span>
+        <span className="field-label">{t('Blocked')}</span>
         {task.blocked ? (
           <div className="blocked-field">
-            <span className="badge blocked">Blocked</span>
+            <span className="badge blocked">{t('Blocked')}</span>
             {task.blockedReason && <span className="small">{task.blockedReason}</span>}
             {!readOnly && (
               <button
@@ -60,7 +61,7 @@ export function TaskMeta({
                 className="link"
                 onClick={() => void onPatch({ blocked: false })}
               >
-                Unblock
+                {t('Unblock')}
               </button>
             )}
           </div>
@@ -76,8 +77,8 @@ export function TaskMeta({
                   (ok) => ok && setReason(null),
                 );
               }}
-              placeholder="What is it waiting for? (optional)"
-              aria-label="Why the task is blocked"
+              placeholder={t('What is it waiting for? (optional)')}
+              aria-label={t('Why the task is blocked')}
               maxLength={500}
               autoFocus
             />
@@ -89,18 +90,18 @@ export function TaskMeta({
                 )
               }
             >
-              Flag as blocked
+              {t('Flag as blocked')}
             </button>
             <button type="button" className="link" onClick={() => setReason(null)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         ) : (
           <div className="blocked-field">
-            <span className="muted small">No</span>
+            <span className="muted small">{t('No')}</span>
             {!readOnly && !task.completed && (
               <button type="button" className="link" onClick={() => setReason('')}>
-                Flag as blocked…
+                {t('Flag as blocked…')}
               </button>
             )}
           </div>
@@ -139,7 +140,7 @@ function LabelPicker({
       await reload();
       return all;
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
       return null;
     }
   }
@@ -156,9 +157,9 @@ function LabelPicker({
 
   return (
     <ActionMenu
-      label="Labels"
+      label={t('Labels')}
       triggerClassName="quiet label-add"
-      triggerContent={task.labels.length === 0 ? '+ Add label' : 'Edit'}
+      triggerContent={task.labels.length === 0 ? t('+ Add label') : t('Edit')}
       popoverClassName="label-popover"
     >
       {error && (
@@ -167,7 +168,7 @@ function LabelPicker({
         </p>
       )}
       {project.labels.length === 0 && (
-        <p className="menu-note top">No labels in this project yet.</p>
+        <p className="menu-note top">{t('No labels in this project yet.')}</p>
       )}
       {project.labels.map((l) =>
         editing?.id === l.id ? (
@@ -175,7 +176,7 @@ function LabelPicker({
             <input
               value={editing.name}
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-              aria-label="Label name"
+              aria-label={t('Label name')}
               maxLength={40}
               autoFocus
             />
@@ -196,22 +197,22 @@ function LabelPicker({
                   ).then((ok) => ok && setEditing(null))
                 }
               >
-                Save
+                {t('Save')}
               </button>
               <button
                 type="button"
                 className="link"
-                title="Takes the label off every task that carries it"
+                title={t('Takes the label off every task that carries it')}
                 onClick={() =>
                   void labels(() => api.deleteLabel(project.id, l.id)).then(
                     (ok) => ok && setEditing(null),
                   )
                 }
               >
-                Delete label
+                {t('Delete label')}
               </button>
               <button type="button" className="link" onClick={() => setEditing(null)}>
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </div>
@@ -236,9 +237,9 @@ function LabelPicker({
                 type="button"
                 className="link"
                 onClick={() => setEditing(l)}
-                aria-label={`Edit label ${l.name}`}
+                aria-label={t('Edit label {name}', { name: l.name })}
               >
-                Edit
+                {t('Edit')}
               </button>
             )}
           </div>
@@ -253,13 +254,13 @@ function LabelPicker({
             e.preventDefault();
             void create();
           }}
-          placeholder="New label…"
-          aria-label="New label name"
+          placeholder={t('New label…')}
+          aria-label={t('New label name')}
           maxLength={40}
         />
         <Swatches value={draft.color} onChange={(color) => setDraft({ ...draft, color })} />
         <button type="button" disabled={draft.name.trim() === ''} onClick={() => void create()}>
-          Add label
+          {t('Add label')}
         </button>
       </div>
     </ActionMenu>
@@ -274,15 +275,15 @@ function Swatches({
   onChange: (color: LabelColor) => void;
 }) {
   return (
-    <div className="swatches" role="radiogroup" aria-label="Label colour">
+    <div className="swatches" role="radiogroup" aria-label={t('Label colour')}>
       {LABEL_COLORS.map((color) => (
         <button
           key={color}
           type="button"
           role="radio"
           aria-checked={value === color}
-          aria-label={color}
-          title={color}
+          aria-label={t(color)}
+          title={t(color)}
           className={`swatch label-${color}`}
           onClick={() => onChange(color)}
         />

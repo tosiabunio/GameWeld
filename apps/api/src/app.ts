@@ -22,7 +22,9 @@ import { myTaskRoutes } from './routes/myTasks.ts';
 import { notificationRoutes } from './routes/notifications.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { requestRoutes } from './routes/requests.ts';
+import { searchRoutes } from './routes/search.ts';
 import { taskRoutes } from './routes/tasks.ts';
+import { transferRoutes } from './routes/transfer.ts';
 import { userRoutes } from './routes/users.ts';
 import { HttpError } from './errors.ts';
 
@@ -102,6 +104,8 @@ export async function buildApp(
   await app.register(taskRoutes, { prefix: '/api' });
   await app.register(checklistRoutes, { prefix: '/api' });
   await app.register(labelRoutes, { prefix: '/api' });
+  await app.register(transferRoutes, { prefix: '/api' });
+  await app.register(searchRoutes, { prefix: '/api' });
   await app.register(myTaskRoutes, { prefix: '/api' });
   await app.register(boardRoutes, { prefix: '/api' });
   await app.register(acceptanceRoutes, { prefix: '/api' });

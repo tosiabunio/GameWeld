@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { t } from '../i18n/index.ts';
 
 /** A side-column disclosure. It starts open when it has something to show, then obeys the viewer. */
 export function ResourcePanel({
@@ -6,6 +7,7 @@ export function ResourcePanel({
   count,
   children,
 }: {
+  /** In English: it names the panel for tests as it is, and is shown in the viewer's language. */
   title: string;
   count: number;
   children: ReactNode;
@@ -20,7 +22,7 @@ export function ResourcePanel({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
-        {title} <span className="count">{count}</span>
+        {t(title)} <span className="count">{count}</span>
       </summary>
       <div className="resource-content">{children}</div>
     </details>

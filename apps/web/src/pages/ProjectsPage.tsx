@@ -3,6 +3,7 @@ import { ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../api.ts';
+import { t, tp } from '../i18n/index.ts';
 import { Shell } from './Shell.tsx';
 
 export function ProjectsPage() {
@@ -17,23 +18,23 @@ export function ProjectsPage() {
   return (
     <Shell>
       <div className="row between page-head">
-        <h2>{showArchived ? 'Archived projects' : 'Projects'}</h2>
+        <h2>{showArchived ? t('Archived projects') : t('Projects')}</h2>
         <div className="row">
           <button type="button" className="link" onClick={() => setShowArchived((v) => !v)}>
-            {showArchived ? 'Show active' : 'Show archived'}
+            {showArchived ? t('Show active') : t('Show archived')}
           </button>
           <Link className="button primary" to="/projects/new">
-            New project
+            {t('New project')}
           </Link>
         </div>
       </div>
       {projects === null ? (
-        <p>Loading…</p>
+        <p>{t('Loading…')}</p>
       ) : projects.length === 0 ? (
         <p className="muted">
           {showArchived
-            ? 'No archived projects.'
-            : 'You are not a member of any project yet. Create one to become its Game Director.'}
+            ? t('No archived projects.')
+            : t('You are not a member of any project yet. Create one to become its Game Director.')}
         </p>
       ) : (
         <ul className="card-list project-grid">
@@ -44,12 +45,17 @@ export function ProjectsPage() {
               </h3>
               {p.description && <p className="project-desc">{p.description}</p>}
               <p className="muted small">
-                Your roles: {p.roles.map((r) => ROLE_LABELS[r]).join(', ')}
+                {t('Your roles: {roles}', {
+                  roles: p.roles.map((r) => t(ROLE_LABELS[r])).join(', '),
+                })}
               </p>
               <p className="stats">
-                <span>{p.itemCount} backlog items</span>
-                <span>scope limit {p.scopeLimit}</span>
-                {p.doneRestricted && <span>Done restricted to Testers</span>}
+                {/* English says "backlog items" for any count, one included. */}
+                <span>
+                  {p.itemCount} {tp(p.itemCount, 'backlog items', 'backlog items')}
+                </span>
+                <span>{t('scope limit {limit}', { limit: p.scopeLimit })}</span>
+                {p.doneRestricted && <span>{t('Done restricted to Testers')}</span>}
               </p>
             </li>
           ))}

@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api.ts';
 import { AvatarCropper } from '../components/AvatarCropper.tsx';
 import { Avatar } from '../components/Brand.tsx';
+import { lang, LANGUAGES, setLang, t, type Lang } from '../i18n/index.ts';
 import { useCurrentUser, useSession } from '../session.tsx';
 import { Shell } from './Shell.tsx';
 
 type Editing = { src: string; file: File } | { src: string; initial: AvatarCrop };
 
-/** The signed-in user's own settings: for now, the picture shown for them everywhere. */
+/**
+ * The signed-in user's own settings: the picture shown for them everywhere, and the language
+ * of the interface, which is this browser's rather than the account's.
+ */
 export function ProfilePage() {
   const user = useCurrentUser();
   const { refresh } = useSession();
@@ -34,7 +38,7 @@ export function ProfilePage() {
     setStatus(null);
     if (!file) return;
     if (!PREVIEW_IMAGE_TYPES.has(file.type)) {
-      setError('Choose a PNG, JPEG, GIF, or WebP picture.');
+      setError(t('Choose a PNG, JPEG, GIF, or WebP picture.'));
       return;
     }
     setEditing({ src: URL.createObjectURL(file), file });
@@ -49,27 +53,28 @@ export function ProfilePage() {
       await refresh();
       setStatus(done);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong');
+      setError(e instanceof ApiError ? e.message : t('Something went wrong'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Shell title="Profile">
+    <Shell title={t('Profile')}>
       <div className="row between page-head">
-        <h2>Your profile</h2>
+        <h2>{t('Your profile')}</h2>
       </div>
       <section className="panel" aria-labelledby="picture-heading">
-        <h2 id="picture-heading">Picture</h2>
+        <h2 id="picture-heading">{t('Picture')}</h2>
         <div className="profile-card">
           <Avatar name={user.displayName} url={user.avatarUrl} size={96} />
           <div>
             <strong>{user.displayName}</strong>
             {user.email && <p className="muted small">{user.email}</p>}
             <p className="muted small">
-              Shown in the top bar, on the cards assigned to you, and when someone picks an
-              assignee. Without a picture, your initials are used.
+              {t(
+                'Shown in the top bar, on the cards assigned to you, and when someone picks an assignee. Without a picture, your initials are used.',
+              )}
             </p>
           </div>
         </div>
@@ -94,14 +99,14 @@ export function ProfilePage() {
               void run(
                 () =>
                   'file' in editing ? api.uploadAvatar(editing.file, crop) : api.cropAvatar(crop),
-                'Picture saved.',
+                t('Picture saved.'),
               )
             }
           />
         ) : (
           <div className="row">
             <label className="button primary">
-              {avatar ? 'Upload a new picture' : 'Upload a picture'}
+              {avatar ? t('Upload a new picture') : t('Upload a picture')}
               <input
                 type="file"
                 className="sr-only"
@@ -124,7 +129,7 @@ export function ProfilePage() {
                     })
                   }
                 >
-                  Change the circle
+                  {t('Change the circle')}
                 </button>
                 <button
                   type="button"
@@ -134,15 +139,32 @@ export function ProfilePage() {
                     void run(async () => {
                       await api.deleteAvatar();
                       return null;
-                    }, 'Picture removed; your initials are shown instead.')
+                    }, t('Picture removed; your initials are shown instead.'))
                   }
                 >
-                  Remove picture
+                  {t('Remove picture')}
                 </button>
               </>
             )}
           </div>
         )}
+      </section>
+      <section className="panel" aria-labelledby="language-heading">
+        <h2 id="language-heading">{t('Language')}</h2>
+        <select
+          aria-label={t('Language')}
+          value={lang}
+          onChange={(e) => setLang(e.target.value as Lang)}
+        >
+          {Object.entries(LANGUAGES).map(([code, name]) => (
+            <option key={code} value={code}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <p className="muted small">
+          {t('Kept in this browser. The page reloads in the new language.')}
+        </p>
       </section>
     </Shell>
   );

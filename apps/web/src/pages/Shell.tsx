@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Avatar, Logo } from '../components/Brand.tsx';
+import { CommandPalette } from '../components/CommandPalette.tsx';
 import { NotificationsBell } from '../components/NotificationsBell.tsx';
+import { t } from '../i18n/index.ts';
 import { useCurrentUser, useSession } from '../session.tsx';
 
 /**
@@ -34,13 +36,14 @@ export function Shell({
         </div>
         {nav}
         <div className="user">
+          <CommandPalette />
           <NotificationsBell />
-          <Link to="/profile" className="me" title="Your profile and picture">
+          <Link to="/profile" className="me" title={t('Your profile and picture')}>
             <Avatar name={user.displayName} url={user.avatarUrl} />
             <span data-testid="current-user">{user.displayName}</span>
           </Link>
           <button type="button" className="quiet" onClick={() => void signOut()}>
-            {user.provider === 'mock' ? 'Switch persona' : 'Sign out'}
+            {user.provider === 'mock' ? t('Switch persona') : t('Sign out')}
           </button>
         </div>
       </header>

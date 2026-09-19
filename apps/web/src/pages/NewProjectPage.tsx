@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { t } from '../i18n/index.ts';
 import { Shell } from './Shell.tsx';
 
 export function NewProjectPage() {
@@ -20,20 +21,20 @@ export function NewProjectPage() {
       const project = await api.createProject({ name, description, scopeLimit, doneRestricted });
       navigate(`/projects/${project.id}/settings`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not create the project');
+      setError(err instanceof ApiError ? err.message : t('Could not create the project'));
       setBusy(false);
     }
   }
 
   return (
-    <Shell title="New project">
-      <h2>New project</h2>
+    <Shell title={t('New project')}>
+      <h2>{t('New project')}</h2>
       <p className="muted">
-        You become the project's Game Director. Settings can be changed later.
+        {t("You become the project's Game Director. Settings can be changed later.")}
       </p>
       <form className="form" onSubmit={submit}>
         <label>
-          Name
+          {t('Name')}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -43,7 +44,7 @@ export function NewProjectPage() {
           />
         </label>
         <label>
-          Description
+          {t('Description')}
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -52,7 +53,7 @@ export function NewProjectPage() {
           />
         </label>
         <label>
-          Workboard scope limit
+          {t('Workboard scope limit')}
           <input
             type="number"
             min={1}
@@ -61,7 +62,7 @@ export function NewProjectPage() {
             onChange={(e) => setScopeLimit(Number(e.target.value))}
           />
           <span className="hint">
-            Maximum number of backlog items included in the active Workboard's scope.
+            {t("Maximum number of backlog items included in the active Workboard's scope.")}
           </span>
         </label>
         <label className="check">
@@ -70,15 +71,15 @@ export function NewProjectPage() {
             checked={doneRestricted}
             onChange={(e) => setDoneRestricted(e.target.checked)}
           />
-          Restrict moving tasks into Done to Testers
+          {t('Restrict moving tasks into Done to Testers')}
         </label>
         {error && <p className="error">{error}</p>}
         <div className="row">
           <button type="submit" className="primary" disabled={busy || name.trim() === ''}>
-            Create project
+            {t('Create project')}
           </button>
           <button type="button" onClick={() => navigate('/')}>
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       </form>
