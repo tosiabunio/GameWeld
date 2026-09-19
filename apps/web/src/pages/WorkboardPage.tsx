@@ -13,6 +13,7 @@ import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { History } from '../components/History.tsx';
 import { RequestsPanel } from '../components/RequestsPanel.tsx';
+import { daysUntil, formatDay, LabelChips, TaskFlags } from '../components/TaskBadges.tsx';
 import { useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
 
@@ -241,6 +242,7 @@ function BoardHeader({
         )}
         <div className="muted board-counts" data-testid="board-counts">
           <ScopeMenu board={board} onChange={onSaved} />
+          <BoardEnd board={board} canManage={canManage} onChange={onSaved} />
           {c.acceptedItems > 0 && <span>{c.acceptedItems} accepted</span>}
           {c.outOfScopeTasks > 0 && (
             <span>
@@ -264,6 +266,7 @@ function BoardHeader({
           projectId={project.id}
           people={project.members}
           boardItems={boardItems}
+          labels={project.labels}
         />
         <DisplayMenu />
         {canManage && !archiving && (
@@ -315,6 +318,60 @@ function BoardHeader({
         )}
       </div>
     </header>
+  );
+}
+
+/**
+ * The optional end of the period the board covers. The product infers nothing from it: it is
+ * there so that everyone sees the same day, and how far off it is.
+ */
+function BoardEnd({
+  board,
+  canManage,
+  onChange,
+}: {
+  board: BoardView;
+  canManage: boolean;
+  onChange: (action: () => Promise<BoardView | void>) => Promise<boolean>;
+}) {
+  const { project } = useProject();
+  const left = board.endsOn ? daysUntil(board.endsOn) : null;
+  const text =
+    board.endsOn === null || left === null
+      ? 'Set an end date'
+      : `Ends ${formatDay(board.endsOn)} · ${
+          left < 0
+            ? `${-left} day${left === -1 ? '' : 's'} ago`
+            : left === 0
+              ? 'today'
+              : `${left} day${left === 1 ? '' : 's'} left`
+        }`;
+  const editable = canManage && board.state === 'active';
+  if (!editable) return board.endsOn ? <span data-testid="board-end">{text}</span> : null;
+  const save = (endsOn: string | null) =>
+    void onChange(() => api.updateBoard(project.id, board.id, { version: board.version, endsOn }));
+  return (
+    <ActionMenu
+      label={text}
+      triggerClassName={`scope-pill${board.endsOn ? '' : ' unset'}`}
+      triggerContent={<span data-testid="board-end">{text}</span>}
+      align="start"
+    >
+      <label className="menu-field first">
+        The Workboard ends on
+        <input
+          type="date"
+          value={board.endsOn ?? ''}
+          onChange={(e) => save(e.target.value || null)}
+        />
+      </label>
+      {board.endsOn && (
+        <button type="button" data-close-menu onClick={() => save(null)}>
+          Clear the date
+        </button>
+      )}
+      <p className="menu-note">Only a date for everyone to see; nothing happens on it.</p>
+    </ActionMenu>
   );
 }
 
@@ -576,6 +633,7 @@ function Columns({
                 onError={(e) => (e.currentTarget.style.display = 'none')}
               />
             )}
+            <LabelChips labels={card.labels} />
             <div className="card-head">
               <Link {...tasks.link(card.id)} className="card-title">
                 {card.title}
@@ -595,6 +653,7 @@ function Columns({
             </div>
             <div className="card-meta">
               <span className="muted">{card.itemTitle}</span>
+              <TaskFlags task={card} />
               <ChecklistProgress checklist={card.checklist} />
               {card.outOfScope && <span className="badge warn">Out of scope</span>}
               {uploading === card.id && <span role="status">Uploading…</span>}

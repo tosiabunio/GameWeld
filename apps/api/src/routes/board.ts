@@ -21,7 +21,13 @@ import { withTransaction, type Db, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import { placeTask, rankAtEndOfColumn, returnTask } from '../services/placement.ts';
-import { CHECKLIST_COUNTS, fetchTask, setTaskCompleted } from './tasks.ts';
+import {
+  CHECKLIST_COUNTS,
+  fetchTask,
+  setTaskCompleted,
+  taskExtras,
+  type TaskExtrasRow,
+} from './tasks.ts';
 
 const uuid = z.string().uuid();
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
@@ -34,6 +40,12 @@ const updateBoardSchema = z.object({
   version: z.number().int(),
   name: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(5000).optional(),
+  endsOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((d) => !Number.isNaN(Date.parse(d)), 'Not a date')
+    .nullable()
+    .optional(),
 });
 const archiveSchema = z.object({ returnUnfinished: z.boolean().default(false) });
 const createColumnSchema = z.object({
@@ -69,7 +81,11 @@ interface BoardRow {
   version: number;
   created_at: Date;
   archived_at: Date | null;
+  ends_on: string | null;
 }
+
+const BOARD_COLUMNS = `id, project_id, name, description, state, version, created_at, archived_at,
+            to_char(ends_on, 'YYYY-MM-DD') AS ends_on`;
 
 function toSummary(b: BoardRow): BoardSummary {
   return {
@@ -81,6 +97,7 @@ function toSummary(b: BoardRow): BoardSummary {
     version: b.version,
     createdAt: b.created_at.toISOString(),
     archivedAt: b.archived_at?.toISOString() ?? null,
+    endsOn: b.ends_on,
   };
 }
 
@@ -110,7 +127,7 @@ export async function fetchBoardRow(
 ): Promise<BoardRow | null> {
   if (!isUuid(boardId)) return null;
   const res = await db.query<BoardRow>(
-    `SELECT id, project_id, name, description, state, version, created_at, archived_at
+    `SELECT ${BOARD_COLUMNS}
        FROM workboards WHERE project_id = $1 AND id = $2${lock ? ' FOR UPDATE' : ''}`,
     [projectId, boardId],
   );
@@ -152,33 +169,33 @@ export async function fetchView(
   }));
   const scopeIds = new Set(scope.map((s) => s.id));
 
-  const cardRows = await db.query<{
-    id: string;
-    project_id: string;
-    item_id: string;
-    category: BoardCard['category'];
-    title: string;
-    description: string;
-    assignee_id: string | null;
-    assignee_name: string | null;
-    assignee_avatar_id: string | null;
-    completed: boolean;
-    completed_at: Date | null;
-    archived_at: Date | null;
-    cover_attachment_id: string | null;
-    checklist_total: string;
-    checklist_done: string;
-    version: number;
-    created_at: Date;
-    updated_at: Date;
-    column_id: string;
-    column_name: string;
-    column_kind: ColumnKind;
-    entered_as_exception: boolean;
-    rank: string;
-    item_title: string;
-    item_category: MoscowCategory;
-  }>(
+  const cardRows = await db.query<
+    TaskExtrasRow & {
+      id: string;
+      project_id: string;
+      item_id: string;
+      category: BoardCard['category'];
+      title: string;
+      description: string;
+      assignee_id: string | null;
+      assignee_name: string | null;
+      assignee_avatar_id: string | null;
+      completed: boolean;
+      completed_at: Date | null;
+      archived_at: Date | null;
+      cover_attachment_id: string | null;
+      version: number;
+      created_at: Date;
+      updated_at: Date;
+      column_id: string;
+      column_name: string;
+      column_kind: ColumnKind;
+      entered_as_exception: boolean;
+      rank: string;
+      item_title: string;
+      item_category: MoscowCategory;
+    }
+  >(
     `SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
             u.display_name AS assignee_name, u.avatar_id AS assignee_avatar_id, t.completed, t.completed_at, t.archived_at, t.version,
             t.created_at, t.updated_at, t.cover_attachment_id,
@@ -220,7 +237,7 @@ export async function fetchView(
       completedAt: r.completed_at?.toISOString() ?? null,
       archived: r.archived_at !== null,
       coverAttachmentId: r.cover_attachment_id,
-      checklist: { total: Number(r.checklist_total), done: Number(r.checklist_done) },
+      ...taskExtras(r),
       placement: {
         boardId: board.id,
         boardName: board.name,
@@ -350,7 +367,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(base, projectRoute('project.view'), async (req): Promise<BoardSummary[]> => {
     const res = await db.query<BoardRow>(
-      `SELECT id, project_id, name, description, state, version, created_at, archived_at
+      `SELECT ${BOARD_COLUMNS}
          FROM workboards WHERE project_id = $1 ORDER BY state, created_at DESC`,
       [req.access!.project.id],
     );
@@ -416,9 +433,16 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
         throw conflict('The Workboard was changed by someone else. Reload and try again.', {
           currentVersion: board.version,
         });
+      const endsOn = parsed.data.endsOn === undefined ? board.ends_on : parsed.data.endsOn;
       await tx.query(
-        'UPDATE workboards SET name = $2, description = $3, version = version + 1 WHERE id = $1',
-        [boardId, parsed.data.name ?? board.name, parsed.data.description ?? board.description],
+        `UPDATE workboards SET name = $2, description = $3, ends_on = $4::date, version = version + 1
+          WHERE id = $1`,
+        [
+          boardId,
+          parsed.data.name ?? board.name,
+          parsed.data.description ?? board.description,
+          endsOn,
+        ],
       );
       await recordActivity(tx, {
         projectId,
@@ -426,8 +450,8 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
         action: 'board.updated',
         entityType: 'workboard',
         entityId: boardId,
-        previous: { name: board.name },
-        next: { name: parsed.data.name ?? board.name },
+        previous: { name: board.name, endsOn: board.ends_on },
+        next: { name: parsed.data.name ?? board.name, endsOn },
       });
     });
     return view(req, boardId);

@@ -1,4 +1,5 @@
 import type { Permissions, ProjectRole } from './roles.ts';
+import type { Label } from './tasks.ts';
 
 /** Shapes returned by the API and consumed by the web client. */
 
@@ -61,6 +62,8 @@ export interface ProjectMember {
 export interface ProjectDetail extends ProjectSummary {
   members: ProjectMember[];
   permissions: Permissions;
+  /** The project's labels, by name. */
+  labels: Label[];
 }
 
 export interface CreateProjectInput {

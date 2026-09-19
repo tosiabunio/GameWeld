@@ -12,6 +12,31 @@ export const TASK_CATEGORY_LABELS: Record<TaskCategory, string> = {
   content: 'Content',
 };
 
+/** The palette a label's colour comes from; the interface knows how each looks in both themes. */
+export const LABEL_COLORS = [
+  'red',
+  'orange',
+  'yellow',
+  'green',
+  'teal',
+  'blue',
+  'purple',
+  'gray',
+] as const;
+export type LabelColor = (typeof LABEL_COLORS)[number];
+
+/** A project's label. It means what the team says it means; no rule hangs on it. */
+export interface Label {
+  id: string;
+  name: string;
+  color: LabelColor;
+}
+
+export interface LabelInput {
+  name: string;
+  color: LabelColor;
+}
+
 /** Where a task currently is (Section 7: unplaced, on a Workboard, or complete). */
 export interface TaskPlacement {
   boardId: string;
@@ -38,6 +63,12 @@ export interface Task {
   coverAttachmentId: string | null;
   /** How far the task's checklist is; cards show it when the task has one. */
   checklist: { total: number; done: number };
+  labels: Label[];
+  /** An optional date, as YYYY-MM-DD. The product infers nothing from it; cards show it. */
+  dueDate: string | null;
+  /** Someone flagged that the task cannot go on. It stops nothing; it is there to be seen. */
+  blocked: boolean;
+  blockedReason: string;
   placement: TaskPlacement | null;
   /** A pending out-of-scope placement request for this task, if any (Section 9). */
   pendingRequest: { id: string; boardId: string; boardName: string; requesterId: string } | null;
@@ -99,4 +130,10 @@ export interface UpdateTaskInput {
   archived?: boolean;
   /** An image attachment of this task, or null to clear the cover. */
   coverAttachmentId?: string | null;
+  /** The task's labels, all of them: the ones left out are taken off. */
+  labelIds?: string[];
+  dueDate?: string | null;
+  blocked?: boolean;
+  /** Why it is blocked; kept only while it is. */
+  blockedReason?: string;
 }

@@ -78,7 +78,9 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
     let projectToo = false;
     const unsubscribe = subscribeLive((event) => {
       if (!isForeignChange(event, projectId!)) return;
-      projectToo ||= event.resync === true || event.t === 'project' || event.t === 'user';
+      // Labels are part of the project too: pickers and filters list them.
+      projectToo ||=
+        event.resync === true || event.t === 'project' || event.t === 'user' || event.t === 'label';
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         if (projectToo) void reload();

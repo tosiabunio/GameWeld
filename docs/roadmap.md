@@ -23,6 +23,7 @@ enforce such a process at all; Taiga and Plane only in part.
 attachments, links, comments, assignees with avatars, "My tasks" in the member's own order,
 notifications in the app with a list of what waits for the viewer's decision, live updates of
 every open page, Markdown with @mentions in descriptions and comments, checklists inside tasks,
+labels, a "blocked" flag and an optional date on tasks, an optional end date on the Workboard,
 filters and title search, the task in a window over its board, dark mode, a phone layout,
 archive and restore instead of hard deletion, and continuous deployment.
 
@@ -43,10 +44,10 @@ Wekan, Taiga, and Plane.
 
 - **Reordering a checklist.** Items keep the order they were added in; the simple tools let
   them be dragged.
-- **Labels, and above all a "blocked" flag** (Taiga). Today a card has only its task category
-  and its item's MoSCoW category; nothing marks a bug, polish, or a platform.
-- **Dates.** The specification deliberately infers no deadlines. An optional date on an item, or
-  a milestone date on a Workboard, does not break that, and all five have dates.
+- **Labels and dates on backlog items.** Tasks have them; an item, which is what a publisher
+  asks about, has neither, and the Backlog cannot be filtered by label.
+- **Reminders of a date.** A task's date turns amber the day before and red after; nobody is
+  told. That needs a scheduler, which the application does not have, and then e-mail.
 - **Swimlanes on the Workboard**, by backlog item or by person (Wekan, Taiga, Plane). With
   several items in scope this reads better than a filter.
 - **Opening an archived Workboard.** Archived boards are a list of names; the API can return
@@ -84,7 +85,8 @@ exists.
    Discord webhook is deferred (decided 19 September 2026); it stays listed under adoption.
 3. **Live updates.** Done (19 September 2026): server-sent events fed by Postgres NOTIFY.
 4. **Markdown, @mentions, and checklists.** Done (19 September 2026).
-5. **Labels with a "blocked" flag, and optional dates.**
+5. **Labels with a "blocked" flag, and optional dates.** Done for tasks and the Workboard
+   (19 September 2026).
 6. **Swimlanes, and opening archived Workboards.**
 7. **Import from Trello, and export.**
 8. **Polish translation, the touch fix on phones, and Cmd+K.**

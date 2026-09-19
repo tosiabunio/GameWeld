@@ -2315,6 +2315,166 @@ h1:has(> .title-edit) {
   border: 0;
   border-top: 1px solid var(--border);
 }
+/* Labels. The palette is fixed, so each colour is tuned once for both themes: a soft fill with
+   text of the same hue, readable on light and on dark. */
+.label-red {
+  --label: #d6336c;
+}
+.label-orange {
+  --label: #e8590c;
+}
+.label-yellow {
+  --label: #b08800;
+}
+.label-green {
+  --label: #2f9e44;
+}
+.label-teal {
+  --label: #0c8599;
+}
+.label-blue {
+  --label: #1c7ed6;
+}
+.label-purple {
+  --label: #7048e8;
+}
+.label-gray {
+  --label: #6b7280;
+}
+.label-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--label) 16%, var(--surface));
+  color: color-mix(in srgb, var(--label) 72%, var(--fg));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.label-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.badge.blocked {
+  background: var(--error-soft);
+  color: var(--error);
+  font-weight: 600;
+}
+.due-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.due-date.soon {
+  color: var(--warn);
+}
+.due-date.overdue {
+  color: var(--error);
+  font-weight: 600;
+}
+/* The same, as fields of the task's window, above its attachments and links. */
+.task-meta {
+  gap: 14px;
+  padding-bottom: 16px;
+}
+.task-meta .field {
+  display: grid;
+  gap: 5px;
+}
+/* The picker's rows are menu rows, whatever form the picker stands in. */
+.label-popover .menu-check {
+  display: flex;
+  font-weight: 400;
+}
+.label-popover input:not([type='checkbox']) {
+  width: 100%;
+}
+.field-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.label-field,
+.blocked-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+.blocked-field input {
+  flex: 1 1 100%;
+}
+.label-add {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.action-popover.label-popover {
+  width: min(280px, calc(100vw - 16px));
+  max-width: none;
+}
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.label-row .menu-check {
+  flex: 1;
+  min-width: 0;
+}
+.label-row .link {
+  font-size: 12px;
+}
+.label-new,
+.label-edit {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 6px 4px;
+  border-top: 1px solid var(--border);
+}
+.label-edit {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+.swatches {
+  display: flex;
+  gap: 6px;
+}
+.swatch {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--label);
+  box-shadow: none;
+}
+.swatch[aria-checked='true'] {
+  border-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--label);
+}
+.menu-note.top {
+  margin: 0;
+  border-top: 0;
+}
+.menu-field.first {
+  margin-top: 0;
+  border-top: 0;
+}
+.scope-pill.unset {
+  background: none;
+  border: 1px dashed var(--border-strong);
+}
 /* A task's checklist: in its window, and as a count on its cards. */
 .checklist-progress {
   display: inline-flex;

@@ -11,17 +11,25 @@ export function CardFilterControls({
   projectId,
   people,
   boardItems,
+  labels = [],
 }: {
   projectId: string;
   people: { userId: string; displayName: string }[];
-  /** The Workboard passes the backlog items its cards belong to, and gets its own two filters. */
+  /** The Workboard passes the backlog items its cards belong to, and gets its own filters. */
   boardItems?: { id: string; title: string }[];
+  /** The project's labels, for the Workboard's label filter. */
+  labels?: { id: string; name: string }[];
 }) {
   const [filters, change] = useCardFilters(projectId);
   const on =
     Number(filters.assignee !== '') +
     Number(filters.type !== '') +
-    (boardItems ? Number(filters.itemId !== '') + Number(filters.outOfScope) : 0);
+    (boardItems
+      ? Number(filters.itemId !== '') +
+        Number(filters.outOfScope) +
+        Number(filters.label !== '') +
+        Number(filters.blocked)
+      : 0);
   const searching = filters.searchOpen || filters.text.trim() !== '';
   return (
     <>
@@ -115,6 +123,23 @@ export function CardFilterControls({
               ))}
             </select>
           </label>
+          {boardItems && labels.length > 0 && (
+            <label>
+              Label
+              <select
+                value={filters.label}
+                onChange={(e) => change({ label: e.target.value })}
+                className={filters.label ? 'set' : ''}
+              >
+                <option value="">Any label</option>
+                {labels.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {boardItems && (
             <label>
               Backlog item
@@ -134,14 +159,24 @@ export function CardFilterControls({
           )}
         </div>
         {boardItems && (
-          <label className="menu-check">
-            <input
-              type="checkbox"
-              checked={filters.outOfScope}
-              onChange={(e) => change({ outOfScope: e.target.checked })}
-            />
-            Out of scope only
-          </label>
+          <>
+            <label className="menu-check">
+              <input
+                type="checkbox"
+                checked={filters.blocked}
+                onChange={(e) => change({ blocked: e.target.checked })}
+              />
+              Blocked only
+            </label>
+            <label className="menu-check">
+              <input
+                type="checkbox"
+                checked={filters.outOfScope}
+                onChange={(e) => change({ outOfScope: e.target.checked })}
+              />
+              Out of scope only
+            </label>
+          </>
         )}
         <p className="menu-note">Only for you, until you leave or reload.</p>
       </ActionMenu>

@@ -51,6 +51,24 @@ export async function notifyFromActivity(db: Queryable, a: ActivityInput): Promi
   const base = { projectId: a.projectId, actorId: a.actorId };
 
   if (a.entityType === 'task' && a.action.startsWith('task.')) {
+    // A block is a call for help; those who can clear the way hear of it.
+    if (field(a.previous, 'blocked') === false && field(a.next, 'blocked') === true) {
+      const blocked = (
+        await db.query<{ item_id: string }>('SELECT item_id FROM tasks WHERE id = $1', [a.entityId])
+      ).rows[0];
+      const directors = await db.query<{ user_id: string }>(
+        `SELECT user_id FROM project_memberships WHERE project_id = $1 AND 'director' = ANY(roles)`,
+        [a.projectId],
+      );
+      await notify(db, {
+        ...base,
+        kind: 'task.blocked',
+        taskId: a.entityId,
+        itemId: blocked?.item_id ?? null,
+        recipients: directors.rows.map((d) => d.user_id),
+        detail: text(field(a.next, 'blockedReason')),
+      });
+    }
     const before = field(a.previous, 'assigneeId');
     const after = field(a.next, 'assigneeId');
     const created = a.action === 'task.created';

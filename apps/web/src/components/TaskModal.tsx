@@ -19,6 +19,8 @@ import { Comments } from './Comments.tsx';
 import { History } from './History.tsx';
 import { LinksList } from './LinksList.tsx';
 import { MentionTextarea } from './MentionTextarea.tsx';
+import { TaskFlags } from './TaskBadges.tsx';
+import { TaskMeta } from './TaskMeta.tsx';
 import { TaskStatus } from './TaskStatus.tsx';
 import { WritingPrompt } from './WritingPrompt.tsx';
 
@@ -153,6 +155,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
       <div className="item-status">
         <span className="badge neutral">{TASK_CATEGORY_LABELS[task.category]} task</span>
         <TaskStatus task={task} />
+        <TaskFlags task={task} />
         {task.completedAt && (
           <span className="muted">completed {new Date(task.completedAt).toLocaleString()}</span>
         )}
@@ -234,6 +237,17 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
           <History query={{ entityType: 'task', entityId: task.id }} />
         </div>
         <aside className="detail-resources" aria-label="Task resources">
+          {/* Beside the checklist and the comments, which are long, rather than beside the
+              description, which is often short. */}
+          <div className="form task-meta">
+            <TaskMeta
+              task={task}
+              readOnly={!editable}
+              onPatch={(input) =>
+                run(() => api.updateTask(project.id, task.id, { version: task.version, ...input }))
+              }
+            />
+          </div>
           <ResourcePanel title="Attachments" count={task.attachments.length}>
             <Attachments
               owner={{ taskId: task.id }}

@@ -37,6 +37,8 @@ import type {
   CreateItemInput,
   CreateTaskInput,
   ItemLink,
+  Label,
+  LabelInput,
   MoveItemInput,
   UpdateItemInput,
   Task,
@@ -180,6 +182,12 @@ export const api = {
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`),
   updateTask: (projectId: string, taskId: string, input: UpdateTaskInput) =>
     request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`, json('PATCH', input)),
+  createLabel: (projectId: string, input: LabelInput) =>
+    request<Label[]>(`/api/projects/${projectId}/labels`, json('POST', input)),
+  updateLabel: (projectId: string, labelId: string, input: LabelInput) =>
+    request<Label[]>(`/api/projects/${projectId}/labels/${labelId}`, json('PATCH', input)),
+  deleteLabel: (projectId: string, labelId: string) =>
+    request<Label[]>(`/api/projects/${projectId}/labels/${labelId}`, { method: 'DELETE' }),
   addChecklistItem: (projectId: string, taskId: string, title: string) =>
     request<ChecklistItem[]>(
       `/api/projects/${projectId}/tasks/${taskId}/checklist`,

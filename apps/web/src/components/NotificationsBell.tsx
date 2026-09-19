@@ -223,6 +223,11 @@ function NotificationRow({
             <strong>{who}</strong> commented on {n.task ? task : item}
           </>
         )}
+        {n.kind === 'task.blocked' && (
+          <>
+            <strong>{who}</strong> flagged {task} as blocked
+          </>
+        )}
         {n.kind === 'mention' && (
           <>
             <strong>{who}</strong> mentioned you on {n.task ? task : item}

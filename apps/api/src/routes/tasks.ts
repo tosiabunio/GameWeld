@@ -2,6 +2,7 @@ import {
   can,
   TASK_CATEGORIES,
   type ChecklistItem,
+  type Label,
   type Task,
   type TaskCategory,
   type TaskDetail,
@@ -38,9 +39,18 @@ const updateSchema = z.object({
   itemId: uuid.optional(),
   archived: z.boolean().optional(),
   coverAttachmentId: uuid.nullable().optional(),
+  labelIds: z.array(uuid).max(50).optional(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((d) => !Number.isNaN(Date.parse(d)), 'Not a date')
+    .nullable()
+    .optional(),
+  blocked: z.boolean().optional(),
+  blockedReason: z.string().trim().max(500).optional(),
 });
 
-export interface TaskRow {
+export interface TaskRow extends TaskExtrasRow {
   id: string;
   project_id: string;
   item_id: string;
@@ -54,8 +64,6 @@ export interface TaskRow {
   completed_at: Date | null;
   archived_at: Date | null;
   cover_attachment_id: string | null;
-  checklist_total: string;
-  checklist_done: string;
   version: number;
   created_at: Date;
   updated_at: Date;
@@ -71,10 +79,37 @@ export interface TaskRow {
   request_requester_id: string | null;
 }
 
-/** A task's checklist progress, for every query that lists tasks (the alias `t` is the task). */
+/**
+ * What a card shows beyond the task's own row, for every query that lists tasks (the alias `t`
+ * is the task): checklist progress, labels, the optional date as plain text so that no time
+ * zone shifts it, and the blocked flag.
+ */
 export const CHECKLIST_COUNTS = `
          (SELECT count(*) FROM task_checklist_items k WHERE k.task_id = t.id) AS checklist_total,
-         (SELECT count(*) FROM task_checklist_items k WHERE k.task_id = t.id AND k.done) AS checklist_done`;
+         (SELECT count(*) FROM task_checklist_items k WHERE k.task_id = t.id AND k.done) AS checklist_done,
+         (SELECT coalesce(jsonb_agg(jsonb_build_object('id', l.id, 'name', l.name, 'color', l.color)
+                                    ORDER BY lower(l.name), l.id), '[]')
+            FROM task_labels tl JOIN project_labels l ON l.id = tl.label_id
+           WHERE tl.task_id = t.id) AS labels,
+         to_char(t.due_date, 'YYYY-MM-DD') AS due_date, t.blocked, t.blocked_reason`;
+
+/** The columns CHECKLIST_COUNTS adds to a row. */
+export interface TaskExtrasRow {
+  checklist_total: string;
+  checklist_done: string;
+  labels: Label[];
+  due_date: string | null;
+  blocked: boolean;
+  blocked_reason: string;
+}
+
+export const taskExtras = (r: TaskExtrasRow) => ({
+  checklist: { total: Number(r.checklist_total), done: Number(r.checklist_done) },
+  labels: r.labels,
+  dueDate: r.due_date,
+  blocked: r.blocked,
+  blockedReason: r.blocked_reason,
+});
 
 export const taskSelect = `
   SELECT t.id, t.project_id, t.item_id, t.category, t.title, t.description, t.assignee_id,
@@ -112,7 +147,7 @@ export function toTask(r: TaskRow): Task {
     completedAt: r.completed_at?.toISOString() ?? null,
     archived: r.archived_at !== null,
     coverAttachmentId: r.cover_attachment_id,
-    checklist: { total: Number(r.checklist_total), done: Number(r.checklist_done) },
+    ...taskExtras(r),
     placement:
       r.board_id && r.board_name && r.column_id && r.column_name
         ? {
@@ -214,7 +249,10 @@ export async function setTaskCompleted(
 ): Promise<void> {
   if (task.completed === completed) return;
   await tx.query(
-    `UPDATE tasks SET completed = $2, completed_at = $3, completed_by = $4, version = version + 1, updated_at = now() WHERE id = $1`,
+    // Finished work is not blocked: completing a task lifts its block with its reason.
+    `UPDATE tasks SET completed = $2, completed_at = $3, completed_by = $4,
+            blocked = blocked AND NOT $2, blocked_reason = CASE WHEN $2 THEN '' ELSE blocked_reason END,
+            version = version + 1, updated_at = now() WHERE id = $1`,
     [task.id, completed, completed ? new Date() : null, completed ? actorId : null],
   );
   if (syncPlacement && task.placement) {
@@ -399,6 +437,10 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       archived,
       assigneeId,
       coverAttachmentId,
+      labelIds,
+      dueDate,
+      blocked,
+      blockedReason,
       ...fields
     } = parsed.data;
     const { taskId } = req.params as { taskId: string };
@@ -462,7 +504,33 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         archived_at: archived === undefined ? current.archived : archived,
         cover_attachment_id:
           coverAttachmentId === undefined ? current.coverAttachmentId : coverAttachmentId,
+        due_date: dueDate === undefined ? current.dueDate : dueDate,
+        blocked: blocked ?? current.blocked,
+        blocked_reason: '',
       };
+      // A reason belongs to a block: it is kept while the task is blocked and goes with it.
+      if (next.blocked) next.blocked_reason = blockedReason ?? current.blockedReason;
+      if (next.blocked && current.completed)
+        throw conflict('A completed task cannot be blocked. Reopen it first.');
+      let labelsAfter = current.labels.map((l) => l.id);
+      if (labelIds !== undefined) {
+        const known = await tx.query<{ id: string }>(
+          'SELECT id FROM project_labels WHERE project_id = $1 AND id = ANY($2::uuid[])',
+          [projectId, labelIds],
+        );
+        if (known.rowCount !== new Set(labelIds).size)
+          throw badRequest('A label does not belong to this project.');
+        labelsAfter = known.rows.map((l) => l.id);
+        await tx.query(
+          'DELETE FROM task_labels WHERE task_id = $1 AND NOT (label_id = ANY($2::uuid[]))',
+          [taskId, labelsAfter],
+        );
+        await tx.query(
+          `INSERT INTO task_labels (task_id, label_id) SELECT $1, unnest($2::uuid[])
+           ON CONFLICT DO NOTHING`,
+          [taskId, labelsAfter],
+        );
+      }
       if (archived === true && !current.archived) {
         await returnTask(tx, taskId, 'task deleted');
         const rejected = await tx.query<{ id: string; board_id: string }>(
@@ -492,7 +560,8 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       await tx.query(
         `UPDATE tasks SET title = $2, description = $3, category = $4, assignee_id = $5, item_id = $6,
                           archived_at = CASE WHEN $7::boolean THEN coalesce(archived_at, now()) ELSE NULL END,
-                          cover_attachment_id = $8, version = version + 1, updated_at = now()
+                          cover_attachment_id = $8, due_date = $9::date, blocked = $10,
+                          blocked_reason = $11, version = version + 1, updated_at = now()
           WHERE id = $1`,
         [
           taskId,
@@ -503,6 +572,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           next.item_id,
           next.archived_at,
           next.cover_attachment_id,
+          next.due_date,
+          next.blocked,
+          next.blocked_reason,
         ],
       );
       // A task that changes hands starts unordered on its new assignee's "My tasks".
@@ -530,6 +602,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           archived: current.archived,
           placement: current.placement,
           coverAttachmentId: current.coverAttachmentId,
+          labelIds: current.labels.map((l) => l.id),
+          dueDate: current.dueDate,
+          blocked: current.blocked,
         },
         next: {
           title: next.title,
@@ -538,6 +613,10 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           itemId: next.item_id,
           archived: next.archived_at,
           coverAttachmentId: next.cover_attachment_id,
+          labelIds: labelsAfter,
+          dueDate: next.due_date,
+          blocked: next.blocked,
+          blockedReason: next.blocked_reason,
         },
       });
       if (next.description !== current.description)

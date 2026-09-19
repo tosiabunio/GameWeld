@@ -16,6 +16,9 @@ export interface CardFilters {
   itemId: string;
   /** Workboard only: tasks whose item is outside the board's scope. */
   outOfScope: boolean;
+  /** Workboard only: tasks that carry one label, and tasks flagged as blocked. */
+  label: string;
+  blocked: boolean;
   /** Not a filter: whether the search field, kept behind its icon, is out. */
   searchOpen: boolean;
 }
@@ -27,6 +30,8 @@ const NONE: CardFilters = {
   type: '',
   itemId: '',
   outOfScope: false,
+  label: '',
+  blocked: false,
   searchOpen: false,
 };
 
@@ -71,7 +76,7 @@ export const backlogFiltersOn = (f: CardFilters) =>
   f.text.trim() !== '' || f.assignee !== '' || f.type !== '';
 
 export const boardFiltersOn = (f: CardFilters) =>
-  backlogFiltersOn(f) || f.itemId !== '' || f.outOfScope;
+  backlogFiltersOn(f) || f.itemId !== '' || f.outOfScope || f.label !== '' || f.blocked;
 
 /**
  * An item has no assignee or kind of its own: it matches when one of its tasks, finished or not,
@@ -92,6 +97,8 @@ export function matchesCard(card: BoardCard, f: CardFilters): boolean {
     isAssignedTo(card.assignee?.id ?? null, f.assignee) &&
     (f.type === '' || card.category === f.type) &&
     (f.itemId === '' || card.itemId === f.itemId) &&
-    (!f.outOfScope || card.outOfScope)
+    (!f.outOfScope || card.outOfScope) &&
+    (f.label === '' || card.labels.some((l) => l.id === f.label)) &&
+    (!f.blocked || card.blocked)
   );
 }

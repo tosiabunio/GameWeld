@@ -120,7 +120,7 @@ Backlog acceptance is a separate permission. Its default holder is the Game Dire
 | Team | Not implemented in the MVP. Access is by project membership; a Team entity is added only when a concrete need appears. |
 | Project Membership | User, project, and one or more roles. |
 | Backlog Item | Title, free-form description, MoSCoW category, order within that category, lifecycle state, optional cover and links. |
-| Task | Exactly one parent item, title, category, description, optional assignee, comments, attachments, optional cover, an explicit completion flag with timestamp and actor, and placement information. |
+| Task | Exactly one parent item, title, category, description, optional assignee, labels, an optional date, a blocked flag, comments, attachments, optional cover, an explicit completion flag with timestamp and actor, and placement information. |
 | Workboard | Name, optional description, lifecycle state, ordered columns, included backlog items, and scope limit. |
 | Column | Workboard, name, position, and any required system marker. Intermediate names carry no system-defined meaning. |
 | Task Placement | Task, Workboard, column, ordering, and placement history. |
@@ -327,6 +327,8 @@ The Backlog and the Workboard filter their cards by part of a title, an assignee
 Descriptions and comments are Markdown (GitHub's flavour). A line break in the text is a line break on screen; raw HTML is shown as text; a picture is shown as a link to it, because attachments are the place for pictures. Typing "@" suggests the project's members, and a mention stays in the text as it reads, "@Devin Developer", tied to the member by that name. A member newly named in a comment or a description is notified, once; an edit that leaves the mention standing does not tell them again.
 
 Text is edited where it stands. A click on the title or the description of a task or a backlog item opens its editor with the caret in the field that was clicked, at the end of what is there; a click on the name of a Workboard or of one of its columns renames it; a checklist item is renamed the same way. A link or a mention inside a description keeps its own click, and selecting text to copy it is not a click. The "Edit" buttons stay, as the keyboard's way in. None of this is offered to someone who may not edit.
+
+A card says more about its task than its category. A project has labels, each a name and one of eight colours; anyone who works on tasks adds one, while labelling, and a Game Director renames, recolours, and deletes them, which takes a deleted label off every task. A task carries any number of labels, an optional date, and a "blocked" flag with an optional reason. None of them carries a rule: a label means what the team says it means, the product infers nothing from a date, and "blocked" stops nothing. They are there to be seen, on the cards and in the task's window, and the Workboard filters by label and by "blocked only". An unfinished task's date reads amber from the day before and red once it has passed. Flagging a task as blocked notifies the Game Directors; finishing a task lifts its block. A Workboard may have an end date, shown in its header with the days left, which a Director sets; nothing happens on it.
 
 A task may have a checklist: the small steps of one piece of work, added, ticked, renamed, and removed in the task's window by anyone who may work on tasks, with its progress shown on the task's cards. Ticking decides nothing: completion stays the task's own flag. Checklist changes are not part of the activity history.
 

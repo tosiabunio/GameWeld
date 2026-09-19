@@ -19,6 +19,7 @@ import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { ChecklistProgress } from '../components/Checklist.tsx';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
+import { LabelChips, TaskFlags } from '../components/TaskBadges.tsx';
 import { TaskStatus } from '../components/TaskStatus.tsx';
 import { isCardClick, useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
@@ -141,6 +142,7 @@ export function MyTasksPage() {
           onError={(e) => (e.currentTarget.style.display = 'none')}
         />
       )}
+      <LabelChips labels={task.labels} />
       <div className="card-head">
         <Link {...taskLinks.link(task.id)} className="card-title">
           {task.title}
@@ -149,6 +151,7 @@ export function MyTasksPage() {
       <div className="card-meta">
         <span className="muted">{task.itemTitle}</span>
         <TaskStatus task={task} />
+        <TaskFlags task={task} />
         <ChecklistProgress checklist={task.checklist} />
       </div>
       <div className="card-bottom">

@@ -54,6 +54,8 @@ export interface BoardSummary {
   version: number;
   createdAt: string;
   archivedAt: string | null;
+  /** An optional end of the period the board covers, as YYYY-MM-DD. No rule hangs on it. */
+  endsOn: string | null;
 }
 
 export interface BoardView extends BoardSummary {
@@ -88,6 +90,7 @@ export interface UpdateBoardInput {
   version: number;
   name?: string;
   description?: string;
+  endsOn?: string | null;
 }
 
 export interface ArchiveBoardInput {
