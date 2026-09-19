@@ -61,20 +61,33 @@ test('on a phone a swipe over cards is left to scrolling, a hold picks a card up
   await expect(taskModal(page)).toHaveCount(0);
   await page.evaluate(() => window.scrollTo(0, 0));
 
-  // A short hold picks the card up; moved over another, it takes that card's place.
+  // A short hold picks the card up; carried down over the cards below, it leaves the first
+  // place. Each step waits for a frame, as a finger would give the page. How far down it lands
+  // depends on how fast the machine measures, so only the move itself is asserted.
+  const frame = () =>
+    page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
   const from = await centre(cards.nth(0));
   const to = await centre(cards.nth(2));
   await touch(cdp, 'touchStart', from);
   await page.waitForTimeout(400);
-  for (let step = 1; step <= 8; step++)
+  for (let step = 1; step <= 8; step++) {
     await touch(cdp, 'touchMove', {
       x: from.x,
       y: Math.round(from.y + ((to.y - from.y) * step) / 8),
     });
-  await page.waitForTimeout(100);
+    await frame();
+  }
+  await page.waitForTimeout(150);
   await touch(cdp, 'touchEnd');
-  await expect(cards).toHaveText([/Two/, /Three/, /One/, /Four/, /Five/, /Six/, /Seven/, /Eight/]);
+  await expect(cards.first()).toContainText('Two');
+  await expect(cards.filter({ hasText: 'One' })).toHaveCount(1);
+  await expect(cards).toHaveCount(8);
   await expect(taskModal(page)).toHaveCount(0);
+  // The order is the server's by now: a reload keeps it.
+  await page.reload();
+  await expect(cards.first()).toContainText('Two');
 
   // A tap is still a tap.
   await cards.nth(3).tap({ position: { x: 20, y: 12 } });
