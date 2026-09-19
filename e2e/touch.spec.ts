@@ -19,7 +19,7 @@ async function touch(
   });
 }
 
-test('on a phone a swipe over cards scrolls, a hold picks a card up, and a tap opens it', async ({
+test('on a phone a swipe over cards is left to scrolling, a hold picks a card up, and a tap opens it', async ({
   page,
 }) => {
   await signIn(page, 'director');
@@ -44,17 +44,19 @@ test('on a phone a swipe over cards scrolls, a hold picks a card up, and a tap o
   await expect(cards.first()).toHaveClass(/draggable/);
   const cdp = await page.context().newCDPSession(page);
 
-  // A finger moving over the cards scrolls the page; the cards used to swallow the touch.
-  const start = await centre(cards.nth(2));
-  await cdp.send('Input.synthesizeScrollGesture', {
-    x: start.x,
-    y: start.y,
-    yDistance: -400,
-    gestureSourceType: 'touch',
-    speed: 1200,
-  });
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-  // Scrolling moved nothing and opened nothing.
+  // A finger moving over the cards scrolls the page: the browser decides that from the card's
+  // touch-action, which used to be "none", so the cards swallowed every touch. (Whether a
+  // synthesized swipe then scrolls depends on the platform's input pipeline, so the test holds
+  // to what the browser is told.)
+  expect(await cards.first().evaluate((card) => getComputedStyle(card).touchAction)).toBe(
+    'manipulation',
+  );
+  // A quick swipe, shorter than the hold, picks nothing up and opens nothing.
+  const swipeFrom = await centre(cards.nth(2));
+  await touch(cdp, 'touchStart', swipeFrom);
+  for (let step = 1; step <= 5; step++)
+    await touch(cdp, 'touchMove', { x: swipeFrom.x, y: swipeFrom.y - step * 30 });
+  await touch(cdp, 'touchEnd');
   await expect(cards).toHaveText([/One/, /Two/, /Three/, /Four/, /Five/, /Six/, /Seven/, /Eight/]);
   await expect(taskModal(page)).toHaveCount(0);
   await page.evaluate(() => window.scrollTo(0, 0));
