@@ -289,6 +289,10 @@ Changing a description or adding a comment does not automatically reopen an item
 
 ### Consistency rules — Confirmed
 
+- Nothing is left stranded. An unfinished task of an item in the active Workboard's scope is on that board, however it came to be one: created in the Breakdown or on the board, reopened, restored, or moved under the item. It enters its category's To Do column, and the activity history says why.
+- A placement request only ever waits for a task that still needs it. When the task reaches the board another way the request is recorded as approved, and when the task is completed or deleted, or its item archived, as rejected, each with a note saying why.
+- An archived item keeps no place in a Workboard's scope and no cards on the board; its finished tasks leave with it, keeping their completion and history, as an accepted item's do.
+- When a member is removed from a project, their unfinished tasks become unassigned. Finished tasks keep the name of who did them.
 - Removing an item from board scope preserves its tasks. The Director must explicitly choose whether unfinished placed tasks return to Breakdown or remain as out-of-scope exceptions. A task returned to Breakdown from an intermediate column loses its column position and re-enters To Do when placed again; the activity history records the previous column.
 - Moving a task to another parent requires Director permission. The system recalculates readiness and out-of-scope status for the affected items and board.
 - Archiving a backlog item with unfinished board tasks requires resolving their placements first. The operation must not leave active cards attached to an inaccessible parent.

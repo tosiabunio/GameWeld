@@ -248,7 +248,8 @@ describe('out-of-scope work requests (Section 9)', () => {
       task: { placed: false },
     });
 
-    // Request again, then complete the task behind the Director's back: approval must refuse.
+    // Request again, then complete the task behind the Director's back. Finishing the task
+    // settles its request, so nothing is left to approve, and approving it anyway must refuse.
     const r2: WorkRequest = (await post(url(), { taskId: a }, developer)).json();
     await t.app.inject({
       method: 'POST',
@@ -257,7 +258,14 @@ describe('out-of-scope work requests (Section 9)', () => {
     });
     const stale = await post(url(`/${r2.id}/approve`), {}, director);
     expect(stale.statusCode).toBe(409);
-    expect(stale.json().message).toMatch(/completed in the meantime/);
+    expect(stale.json().message).toMatch(/already rejected/);
+    const list: WorkRequest[] = (
+      await t.app.inject({ method: 'GET', url: url(), headers: { cookie: developer } })
+    ).json();
+    expect(list.find((r) => r.id === r2.id)).toMatchObject({
+      status: 'rejected',
+      decisionNote: 'Task completed',
+    });
     expect((await task(a)).placement).toBeNull();
   });
 

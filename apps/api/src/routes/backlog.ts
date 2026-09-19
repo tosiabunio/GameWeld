@@ -13,6 +13,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import { clearItemFromBoards, settleRequests } from '../services/placement.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import { fetchAcceptances, fetchItemComments } from './acceptance.ts';
 import { fetchAttachments, fetchDependencies } from './collab.ts';
@@ -207,6 +208,13 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
     const projectId = req.access!.project.id;
 
     await withTransaction(db, async (tx) => {
+      // Archiving takes the item off the active board; lock the board before the item, as the
+      // routes that place tasks do.
+      if (archived === true)
+        await tx.query(
+          `SELECT 1 FROM workboards WHERE project_id = $1 AND state = 'active' FOR UPDATE`,
+          [projectId],
+        );
       if (coverAttachmentId) {
         const cover = await tx.query<{ content_type: string }>(
           'SELECT content_type FROM attachments WHERE item_id = $1 AND id = $2',
@@ -282,6 +290,33 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
           archived: next.archived_at !== null,
         },
       });
+      if (archived === true && current.archived_at === null) {
+        // An archived item is nobody's work. It must not keep a place in the scope, leave its
+        // finished cards on the board, or leave requests waiting for a Director to find.
+        const actorId = req.user!.id;
+        for (const board of await clearItemFromBoards(tx, projectId, itemId, 'item archived')) {
+          await recordActivity(tx, {
+            projectId,
+            actorId,
+            action: 'scope.removed',
+            entityType: 'backlog_item',
+            entityId: itemId,
+            next: {
+              boardId: board.boardId,
+              reason: 'item archived',
+              wasInScope: board.wasInScope,
+              removedTasks: board.removedTasks,
+            },
+          });
+        }
+        const waiting = await tx.query<{ task_id: string }>(
+          `SELECT DISTINCT r.task_id FROM work_requests r JOIN tasks t ON t.id = r.task_id
+            WHERE t.item_id = $1 AND r.status = 'pending'`,
+          [itemId],
+        );
+        for (const row of waiting.rows)
+          await settleRequests(tx, row.task_id, actorId, 'rejected', 'Backlog item archived');
+      }
     });
     return fetchItem(db, projectId, itemId);
   });

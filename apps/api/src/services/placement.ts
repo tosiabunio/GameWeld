@@ -1,5 +1,6 @@
 import { todoKindFor, type ColumnKind, type TaskCategory } from '@gameweld/domain';
 import { generateKeyBetween } from 'fractional-indexing';
+import { recordActivity } from '../activity.ts';
 import type { Queryable } from '../db.ts';
 
 /** Placement helpers shared by the board, request, and task routes. */
@@ -26,6 +27,74 @@ export async function columnOfKind(
 }
 
 /**
+ * A request is only ever waiting for a task that still needs it. When the task gets onto the
+ * board another way, or stops being work to place (finished, or its item archived), its pending
+ * requests are decided here, with a note saying why, rather than left for a Director to find.
+ */
+export async function settleRequests(
+  tx: Queryable,
+  taskId: string,
+  actorId: string | null,
+  status: 'approved' | 'rejected',
+  note: string,
+): Promise<void> {
+  const settled = await tx.query<{ id: string; board_id: string; project_id: string }>(
+    `UPDATE work_requests r SET status = $3, decided_by = $2, decided_at = now(),
+            decision_note = $4, version = r.version + 1
+       FROM tasks t
+      WHERE r.task_id = $1 AND t.id = r.task_id AND r.status = 'pending'
+  RETURNING r.id, r.board_id, t.project_id`,
+    [taskId, actorId, status, note],
+  );
+  for (const request of settled.rows) {
+    await recordActivity(tx, {
+      projectId: request.project_id,
+      actorId,
+      action: status === 'approved' ? 'request.approved' : 'request.rejected',
+      entityType: 'work_request',
+      entityId: request.id,
+      next: { taskId, boardId: request.board_id, note },
+    });
+  }
+}
+
+/**
+ * The rule that keeps tasks from being stranded: an unfinished task of an item in the active
+ * Workboard's scope is on that board. Creating the task there is one way to get into that
+ * state; reopening it, moving it under the item, and restoring it are others, and each calls
+ * this after its change. Returns the board the task was placed on, if it was.
+ */
+export async function placeIfInScope(
+  tx: Queryable,
+  taskId: string,
+  actorId: string,
+  reason: string,
+): Promise<string | null> {
+  const found = (
+    await tx.query<{ board_id: string; project_id: string; category: TaskCategory }>(
+      `SELECT w.id AS board_id, t.project_id, t.category
+         FROM tasks t
+         JOIN workboard_scope s ON s.item_id = t.item_id
+         JOIN workboards w ON w.id = s.board_id AND w.state = 'active'
+        WHERE t.id = $1 AND NOT t.completed AND t.archived_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM task_placements p WHERE p.task_id = t.id AND p.is_current)`,
+      [taskId],
+    )
+  ).rows[0];
+  if (!found) return null;
+  await placeTask(tx, found.board_id, { id: taskId, category: found.category }, actorId, false);
+  await recordActivity(tx, {
+    projectId: found.project_id,
+    actorId,
+    action: 'task.placed',
+    entityType: 'task',
+    entityId: taskId,
+    next: { boardId: found.board_id, reason },
+  });
+  return found.board_id;
+}
+
+/**
  * Places an unplaced task in its category's To Do column. A Director placing a task whose item is
  * outside scope is recorded as an approved exception (Section 9), so the Requests history shows it.
  */
@@ -43,6 +112,10 @@ export async function placeTask(
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [task.id, boardId, column.id, await rankAtEndOfColumn(tx, column.id), actorId, exception],
   );
+  // A task that is on the board because its item is in scope needs nobody's leave any more.
+  // (A Director approving a request records that decision themselves.)
+  if (!exception && options.recordApproval)
+    await settleRequests(tx, task.id, actorId, 'approved', 'Its item is in scope');
   if (exception && options.recordApproval) {
     // Any pending request for this task is superseded by the direct placement.
     await tx.query(
@@ -59,15 +132,17 @@ export async function placeTask(
   }
 }
 /**
- * Accepted work is finished work: the item leaves the scope of every active Workboard and all its
- * tasks leave with it, including ones that entered as out-of-scope exceptions. The tasks keep their
- * completion flag (R1) and their placement history (R5). Archived Workboards are history and stay
- * as they were. Returns what left each board, for the activity record.
+ * Accepted work is finished work, and an archived item is nobody's work: the item leaves the
+ * scope of every active Workboard and all its tasks leave with it, including ones that entered
+ * as out-of-scope exceptions. The tasks keep their completion flag (R1) and their placement
+ * history (R5). Archived Workboards are history and stay as they were. Returns what left each
+ * board, for the activity record.
  */
-export async function clearAcceptedItemFromBoards(
+export async function clearItemFromBoards(
   tx: Queryable,
   projectId: string,
   itemId: string,
+  reason: 'item accepted' | 'item archived',
 ): Promise<{ boardId: string; wasInScope: boolean; removedTasks: number }[]> {
   const boards = await tx.query<{ id: string }>(
     `SELECT id FROM workboards WHERE project_id = $1 AND state = 'active' ORDER BY id`,
@@ -81,11 +156,11 @@ export async function clearAcceptedItemFromBoards(
     );
     const placements = await tx.query(
       `UPDATE task_placements p
-          SET is_current = false, removed_at = now(), removed_reason = 'item accepted',
+          SET is_current = false, removed_at = now(), removed_reason = $3,
               last_column_id = p.column_id
          FROM tasks t
         WHERE p.task_id = t.id AND t.item_id = $2 AND p.board_id = $1 AND p.is_current`,
-      [board.id, itemId],
+      [board.id, itemId, reason],
     );
     if (scope.rowCount || placements.rowCount)
       left.push({

@@ -13,7 +13,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
-import { placeTask, returnTask } from '../services/placement.ts';
+import { placeIfInScope, placeTask, returnTask, settleRequests } from '../services/placement.ts';
 import { avatarUrl } from '../avatars.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
@@ -234,6 +234,10 @@ export async function setTaskCompleted(
       }
     }
   }
+  // Finished work is not waiting to be let onto a board; reopened work whose item is in the
+  // active board's scope belongs on it, whether it never was there or was on a board since archived.
+  if (completed) await settleRequests(tx, task.id, actorId, 'rejected', 'Task completed');
+  else await placeIfInScope(tx, task.id, actorId, reason);
   await recordActivity(tx, {
     projectId: task.projectId,
     actorId,
@@ -459,24 +463,6 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           [next.item_id],
         );
         if (parent.rows[0]?.archived_at) throw conflict('Restore the backlog item first.');
-        const active = boards.rows.find((b) => b.state === 'active');
-        if (active && !current.completed && !current.placement) {
-          const scope = await tx.query(
-            'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
-            [active.id, next.item_id],
-          );
-          if (scope.rowCount) {
-            await placeTask(tx, active.id, { id: taskId, category: next.category }, actorId, false);
-            await recordActivity(tx, {
-              projectId,
-              actorId,
-              action: 'task.placed',
-              entityType: 'task',
-              entityId: taskId,
-              next: { boardId: active.id, reason: 'restored under an item in scope' },
-            });
-          }
-        }
       }
       await tx.query(
         `UPDATE tasks SET title = $2, description = $3, category = $4, assignee_id = $5, item_id = $6,
@@ -529,6 +515,16 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           coverAttachmentId: next.cover_attachment_id,
         },
       });
+      // A task restored, or moved under another item, may now belong to an item in scope.
+      if (!next.archived_at)
+        await placeIfInScope(
+          tx,
+          taskId,
+          actorId,
+          action === 'task.restored'
+            ? 'restored under an item in scope'
+            : 'moved under an item in scope',
+        );
       // Section 12: reparenting and archival recalculate readiness for every affected item.
       await recalculateItemState(tx, current.itemId, actorId, action);
       if (next.item_id !== current.itemId)

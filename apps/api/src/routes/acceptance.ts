@@ -6,7 +6,7 @@ import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
 import { fetchComments } from './collab.ts';
-import { clearAcceptedItemFromBoards } from '../services/placement.ts';
+import { clearItemFromBoards } from '../services/placement.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 
 const acceptSchema = z.object({ note: z.string().max(5000).default('') });
@@ -102,7 +102,7 @@ export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
         previous: { state: 'ready_for_review' },
         next: { state: 'done', note: parsed.data.note },
       });
-      for (const board of await clearAcceptedItemFromBoards(tx, projectId, itemId)) {
+      for (const board of await clearItemFromBoards(tx, projectId, itemId, 'item accepted')) {
         await recordActivity(tx, {
           projectId,
           actorId,

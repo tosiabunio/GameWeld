@@ -151,6 +151,25 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
           projectId,
           userId,
         ]);
+        // Work still to do must not stay with someone who can no longer see the project: their
+        // unfinished tasks go back to nobody. Finished tasks keep the name of who did them.
+        const handedBack = await tx.query<{ id: string }>(
+          `UPDATE tasks SET assignee_id = NULL, version = version + 1, updated_at = now()
+            WHERE project_id = $1 AND assignee_id = $2 AND NOT completed RETURNING id`,
+          [projectId, userId],
+        );
+        for (const task of handedBack.rows) {
+          await tx.query('DELETE FROM my_task_ranks WHERE task_id = $1', [task.id]);
+          await recordActivity(tx, {
+            projectId,
+            actorId: req.user!.id,
+            action: 'task.updated',
+            entityType: 'task',
+            entityId: task.id,
+            previous: { assigneeId: userId },
+            next: { assigneeId: null, reason: 'member removed' },
+          });
+        }
         await recordActivity(tx, {
           projectId,
           actorId: req.user!.id,
