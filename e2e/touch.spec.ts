@@ -108,7 +108,10 @@ test('on a phone a swipe over cards is left to scrolling, a hold picks a card up
   await page.reload();
   await expect(cards.first()).toContainText('Two');
 
-  // A tap is still a tap.
-  await cards.nth(3).tap({ position: { x: 20, y: 12 } });
-  await expect(taskModal(page).getByRole('heading', { name: 'Four' })).toBeVisible();
+  // A tap is still a tap. The card is found by its name: how far down the carried card landed
+  // decides which card is fourth, and on a slow machine "One" can be.
+  await cards
+    .filter({ has: page.getByRole('link', { name: 'Six', exact: true }) })
+    .tap({ position: { x: 20, y: 12 } });
+  await expect(taskModal(page).getByRole('heading', { name: 'Six' })).toBeVisible();
 });
