@@ -157,6 +157,12 @@ export function History({
                     { 1: (s) => <strong>{s}</strong> },
                   )}
                   {extra && <span className="muted"> · {extra}</span>}
+                  {e.via && (
+                    <span className="muted" data-testid="history-via">
+                      {' · '}
+                      {t('via {token}', { token: e.via })}
+                    </span>
+                  )}
                 </li>
               );
             })}

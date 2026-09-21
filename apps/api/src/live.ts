@@ -1,7 +1,7 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ServerResponse } from 'node:http';
 import pg from 'pg';
 import type { Db, Queryable } from './db.ts';
+import { requestContext } from './requestContext.ts';
 
 /**
  * Live updates. A change announces itself with Postgres NOTIFY from inside its transaction, so
@@ -25,9 +25,6 @@ export interface LiveEvent {
   /** Members who have a new notification. Not passed on to browsers. */
   u?: string[];
 }
-
-/** The browser tab a request came from, for the events its changes cause. */
-export const requestContext = new AsyncLocalStorage<{ clientId: string | null }>();
 
 export async function emitLive(db: Queryable, event: LiveEvent): Promise<void> {
   const c = requestContext.getStore()?.clientId ?? null;

@@ -1,14 +1,15 @@
 # Roadmap: what GameWeld still lacks
 
-**Status: proposal, 19 September 2026.** This compares what is implemented with similar tools,
-especially the simpler ones: Trello, Planka, and Wekan, and then Taiga and Plane. The gaps below
-were checked against the code, not guessed. Nothing here is decided; an entry becomes a decision
-when it moves into the [specification](gameweld-production-specification-v0.2.md) or the
+**Status: proposal, 19 September 2026; last updated 21 September 2026.** This compares what is
+implemented with similar tools, especially the simpler ones: Trello, Planka, and Wekan, and then
+Taiga and Plane. The gaps below were checked against the code, not guessed. Nothing here is
+decided; an entry becomes a decision when it moves into the
+[specification](gameweld-production-specification-v0.2.md) or the
 [implementation plan](gameweld-implementation-plan.md).
 
-The short version: next to the simple tools, GameWeld most lacks notifications, live updates, and
-a handful of small things on a card (Markdown, checklists, labels, dates). Before a first real
-team, it needs real sign-in and backups.
+The short version: next to the simple tools, GameWeld most lacked notifications, live updates, and
+a handful of small things on a card (Markdown, checklists, labels, dates); those are done. What
+comes next is the one thing none of them has, AI tools, and before a first real team, backups.
 
 ## Where GameWeld stands
 
@@ -28,6 +29,13 @@ archived Workboards that can be opened and looked at, import from Trello and exp
 project, quick open on Cmd+K, a Polish interface, filters and title search, the task in a window over its board, dark mode, a phone layout,
 archive and restore instead of hard deletion, and continuous deployment.
 
+**The API.** Every route of the application is open to scripts and assistants through a member's
+own API token, read-only or read-write, which acts as that member under the same permissions and
+cannot manage tokens itself. Every change made through one is marked in the history and in
+notifications with the token's name. An OpenAPI 3.1 description of every route is served at
+`/api/openapi.json`, put together from the routes themselves and checked against every response
+the test suite sees ([api.md](api.md)).
+
 ## What is missing
 
 Each entry says who has it, so the comparison stays honest. "All five" means Trello, Planka,
@@ -38,7 +46,7 @@ Wekan, Taiga, and Plane.
 | Missing | Who has it | Notes |
 | --- | --- | --- |
 | Real sign-in and invitations | All five | Built (Phase 8): Google sign-in, access by invitation only ([google-sign-in.md](google-sign-in.md)). gameweld.eu still runs the open persona sign-in until it is switched over. |
-| Backups | n/a | [backup-plan.md](backup-plan.md) describes them; nothing is set up. |
+| Backups | n/a | [backup-plan.md](backup-plan.md) describes them; nothing is set up. Deferred (decided 21 September 2026): the AI tools come first, and gameweld.eu holds only demo data. Needed before gameweld.eu switches to Google sign-in or holds a pilot team's work. |
 | Notifications by e-mail | All five | The app has a bell (since 19 September 2026): events that concern the viewer, and what waits for their decision. It reaches only someone who has the app open. E-mail needs real addresses, so it follows real sign-in. |
 
 ### 2. Everyday comfort that even the simplest tools offer
@@ -63,15 +71,12 @@ Wekan, Taiga, and Plane.
   nothing reads it back yet; it is a copy to keep and to analyse.
 - **Webhooks, and notifications to Discord or Slack.** Game teams live on Discord, and it is the
   cheapest notification channel to build. Deferred for now (19 September 2026).
-- **API tokens and API documentation.** Today the API is reachable only with a browser session.
-  A member needs a token of their own that acts as they do, under the same permissions, named so
-  that it can be revoked, and either read-only or read-write; and the routes need a published
-  description (OpenAPI). Everything below about AI tools stands on these two.
 - **AI tools: changing a project and analysing its history with an assistant.** None of the five
   ships this. GameWeld is well placed for it: every rule is enforced on the server, so an
   assistant cannot leave a project in a state a person could not (scope limit, priority rule,
   completion permission, nothing stranded), and every change is already in the activity history
-  with who made it and what it was before and after.
+  with who made it, through which API token, and what it was before and after. API tokens and
+  the OpenAPI description, which the rest stands on, are done (see "Where GameWeld stands").
   - **An MCP server**, served by the application itself (streamable HTTP, a member's token),
     is the main way in, because one server works in every assistant that speaks MCP. Tools
     mirror what a member does: read the Backlog, a Breakdown, the Workboard, and "waiting for
@@ -87,9 +92,6 @@ Wekan, Taiga, and Plane.
     out-of-scope request, acceptance) and a few worked procedures, such as "break this item
     down into Code, Assets, and Content tasks" or "write the week's summary from the history".
     It calls the MCP server, or the API directly where MCP is not available.
-  - **What a change made through a token says about itself.** The activity entry keeps the
-    member as its actor and adds the token's name, so the history shows which changes came
-    through an assistant, and a notification can say so.
 - **A read-only role or a public link** for a publisher or stakeholder (Trello's observers,
   Plane's guests).
 - **Translated server messages.** The interface is in English and Polish; what the server says
@@ -117,7 +119,9 @@ dimension in the lanes.
 
 ## Proposed order
 
-1. **Phase 8:** real sign-in and backups.
+1. **Phase 8:** real sign-in and backups. Google sign-in by invitation is built (21 September
+   2026); gameweld.eu still runs the persona sign-in. Backups are deferred behind step 8 (decided
+   21 September 2026).
 2. **Notifications.** Done in the app: the bell, with what waits for the viewer (requests to
    decide, items to accept). E-mail follows real sign-in, which gives it real addresses. A
    Discord webhook is deferred (decided 19 September 2026); it stays listed under adoption.
@@ -128,9 +132,10 @@ dimension in the lanes.
 6. **Opening archived Workboards.** Done (19 September 2026). Swimlanes were part of this step
    and are now deliberately outside; see above.
 7. **Import from Trello, and export.** Done (20 September 2026).
-8. **AI tools:** API tokens and an OpenAPI description first, then the MCP server with the
-   history routes for analysis, then the skill. Tokens belong to real accounts, so this follows
-   step 1.
+8. **AI tools**, now first (decided 21 September 2026): API tokens and an OpenAPI description
+   first, then the MCP server with the history routes for analysis, then the skill. Tokens and the
+   description are done (21 September 2026), with every change made through a token marked in
+   the history. The MCP server is next.
 9. **Polish translation, the touch fix on phones, and Cmd+K.** Done (20 September 2026).
 
 Steps 2 to 4 do the most to make daily use feel like Trello. Steps 1 and 7 decide whether anyone

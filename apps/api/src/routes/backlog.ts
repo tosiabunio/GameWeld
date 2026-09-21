@@ -16,6 +16,7 @@ import { badRequest, conflict, notFound } from '../errors.ts';
 import { notifyOfMentions } from '../services/notifications.ts';
 import { clearItemFromBoards, settleRequests } from '../services/placement.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
+import * as schema from '../schemas.ts';
 import { fetchAcceptances, fetchItemComments } from './acceptance.ts';
 import { fetchAttachments, fetchDependencies } from './collab.ts';
 
@@ -135,45 +136,70 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
   const base = '/projects/:projectId/backlog';
 
-  app.get(base, projectRoute('project.view'), async (req): Promise<BacklogItem[]> => {
-    const res = await db.query<ItemRow>(
-      `${itemSelect} WHERE b.project_id = $1 AND b.archived_at IS NULL ORDER BY b.category, b.rank, b.id`,
-      [req.access!.project.id],
-    );
-    return res.rows.map(toItem);
-  });
-
-  app.post(base, projectRoute('backlog.manage'), async (req, reply) => {
-    const parsed = createSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid backlog item', parsed.error.flatten());
-    const input = parsed.data;
-    const projectId = req.access!.project.id;
-
-    const itemId = await withTransaction(db, async (tx) => {
-      await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
-      const rank = await rankAtEnd(tx, projectId, input.category);
-      const created = await tx.query<{ id: string }>(
-        `INSERT INTO backlog_items (project_id, title, description, category, rank)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [projectId, input.title, input.description, input.category, rank],
+  app.get(
+    base,
+    projectRoute('project.view', {
+      id: 'listBacklog',
+      summary: 'The Backlog: every item that is not archived',
+      description:
+        'Ordered by category and rank. Open items sit in their MoSCoW category; items Ready for Review and Done have their own lanes in the app.',
+      response: z.array(schema.BacklogItem),
+    }),
+    async (req): Promise<BacklogItem[]> => {
+      const res = await db.query<ItemRow>(
+        `${itemSelect} WHERE b.project_id = $1 AND b.archived_at IS NULL ORDER BY b.category, b.rank, b.id`,
+        [req.access!.project.id],
       );
-      const id = created.rows[0]!.id;
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'item.created',
-        entityType: 'backlog_item',
-        entityId: id,
-        next: { title: input.title, category: input.category },
+      return res.rows.map(toItem);
+    },
+  );
+
+  app.post(
+    base,
+    projectRoute('backlog.manage', {
+      id: 'createItem',
+      summary: 'Add an item to the Backlog',
+      description: 'It goes to the end of its category.',
+      body: createSchema,
+      response: { status: 201, schema: schema.BacklogItem },
+    }),
+    async (req, reply) => {
+      const parsed = createSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid backlog item', parsed.error.flatten());
+      const input = parsed.data;
+      const projectId = req.access!.project.id;
+
+      const itemId = await withTransaction(db, async (tx) => {
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        const rank = await rankAtEnd(tx, projectId, input.category);
+        const created = await tx.query<{ id: string }>(
+          `INSERT INTO backlog_items (project_id, title, description, category, rank)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [projectId, input.title, input.description, input.category, rank],
+        );
+        const id = created.rows[0]!.id;
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'item.created',
+          entityType: 'backlog_item',
+          entityId: id,
+          next: { title: input.title, category: input.category },
+        });
+        return id;
       });
-      return id;
-    });
-    return reply.status(201).send(await fetchItem(db, projectId, itemId));
-  });
+      return reply.status(201).send(await fetchItem(db, projectId, itemId));
+    },
+  );
 
   app.get(
     `${base}/:itemId`,
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'getItem',
+      summary: 'A Backlog item with its links, attachments, dependencies, acceptance, and comments',
+      description: 'Its tasks are listed by listItemTasks.',
+      response: schema.BacklogItemDetail,
+    }),
     async (req): Promise<BacklogItemDetail> => {
       const { itemId } = req.params as { itemId: string };
       const item = await fetchItem(db, req.access!.project.id, itemId);
@@ -201,236 +227,271 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.patch(`${base}/:itemId`, projectRoute('backlog.manage'), async (req) => {
-    const parsed = updateSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid backlog item update', parsed.error.flatten());
-    const { version, archived, coverAttachmentId, ...fields } = parsed.data;
-    const { itemId } = req.params as { itemId: string };
-    const projectId = req.access!.project.id;
+  app.patch(
+    `${base}/:itemId`,
+    projectRoute('backlog.manage', {
+      id: 'updateItem',
+      summary: 'Edit a Backlog item, archive or restore it, or set its cover',
+      description:
+        'An item whose unfinished tasks are on the active Workboard cannot be archived until they are resolved.',
+      body: updateSchema,
+      response: schema.BacklogItem,
+    }),
+    async (req) => {
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid backlog item update', parsed.error.flatten());
+      const { version, archived, coverAttachmentId, ...fields } = parsed.data;
+      const { itemId } = req.params as { itemId: string };
+      const projectId = req.access!.project.id;
 
-    await withTransaction(db, async (tx) => {
-      // Archiving takes the item off the active board; lock the board before the item, as the
-      // routes that place tasks do.
-      if (archived === true)
-        await tx.query(
-          `SELECT 1 FROM workboards WHERE project_id = $1 AND state = 'active' FOR UPDATE`,
-          [projectId],
-        );
-      if (coverAttachmentId) {
-        const cover = await tx.query<{ content_type: string }>(
-          'SELECT content_type FROM attachments WHERE item_id = $1 AND id = $2',
-          [itemId, coverAttachmentId],
-        );
-        if (!cover.rows[0]) throw badRequest('The cover must be an attachment of this item.');
-        if (!PREVIEW_IMAGE_TYPES.has(cover.rows[0].content_type))
-          throw badRequest('The cover must be a PNG, JPEG, GIF, or WebP image.');
-      }
-      const locked = await tx.query<ItemRow>(
-        `SELECT * FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE`,
-        [projectId, itemId],
-      );
-      const current = locked.rows[0];
-      if (!current) throw notFound('Backlog item not found');
-      if (current.version !== version) {
-        throw conflict('The item was changed by someone else. Reload and try again.', {
-          currentVersion: current.version,
-        });
-      }
-      if (archived === true && current.archived_at === null) {
-        // Section 12: unfinished board tasks must be resolved before the parent is archived.
-        const placed = await tx.query(
-          `SELECT 1 FROM task_placements p JOIN tasks t ON t.id = p.task_id
-            WHERE t.item_id = $1 AND p.is_current AND NOT t.completed LIMIT 1`,
-          [itemId],
-        );
-        if (placed.rowCount)
-          throw conflict(
-            'Return or finish the tasks placed on a Workboard before archiving this item.',
+      await withTransaction(db, async (tx) => {
+        // Archiving takes the item off the active board; lock the board before the item, as the
+        // routes that place tasks do.
+        if (archived === true)
+          await tx.query(
+            `SELECT 1 FROM workboards WHERE project_id = $1 AND state = 'active' FOR UPDATE`,
+            [projectId],
           );
-      }
-      const next = {
-        title: fields.title ?? current.title,
-        description: fields.description ?? current.description,
-        archived_at:
-          archived === undefined
-            ? current.archived_at
-            : archived
-              ? (current.archived_at ?? new Date())
-              : null,
-      };
-      await tx.query(
-        `UPDATE backlog_items SET title = $3, description = $4, archived_at = $5,
-                cover_attachment_id = CASE WHEN $6::boolean THEN $7::uuid ELSE cover_attachment_id END,
-                version = version + 1, updated_at = now()
-          WHERE project_id = $1 AND id = $2`,
-        [
-          projectId,
-          itemId,
-          next.title,
-          next.description,
-          next.archived_at,
-          coverAttachmentId !== undefined,
-          coverAttachmentId ?? null,
-        ],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action:
-          archived === undefined ? 'item.updated' : archived ? 'item.archived' : 'item.restored',
-        entityType: 'backlog_item',
-        entityId: itemId,
-        previous: {
-          title: current.title,
-          description: current.description,
-          archived: current.archived_at !== null,
-        },
-        next: {
-          title: next.title,
-          description: next.description,
-          archived: next.archived_at !== null,
-        },
-      });
-      if (next.description !== current.description)
-        await notifyOfMentions(tx, {
-          projectId,
-          actorId: req.user!.id,
-          taskId: null,
-          itemId,
-          text: next.description,
-          before: current.description,
-        });
-      if (archived === true && current.archived_at === null) {
-        // An archived item is nobody's work. It must not keep a place in the scope, leave its
-        // finished cards on the board, or leave requests waiting for a Director to find.
-        const actorId = req.user!.id;
-        for (const board of await clearItemFromBoards(tx, projectId, itemId, 'item archived')) {
-          await recordActivity(tx, {
-            projectId,
-            actorId,
-            action: 'scope.removed',
-            entityType: 'backlog_item',
-            entityId: itemId,
-            next: {
-              boardId: board.boardId,
-              reason: 'item archived',
-              wasInScope: board.wasInScope,
-              removedTasks: board.removedTasks,
-            },
+        if (coverAttachmentId) {
+          const cover = await tx.query<{ content_type: string }>(
+            'SELECT content_type FROM attachments WHERE item_id = $1 AND id = $2',
+            [itemId, coverAttachmentId],
+          );
+          if (!cover.rows[0]) throw badRequest('The cover must be an attachment of this item.');
+          if (!PREVIEW_IMAGE_TYPES.has(cover.rows[0].content_type))
+            throw badRequest('The cover must be a PNG, JPEG, GIF, or WebP image.');
+        }
+        const locked = await tx.query<ItemRow>(
+          `SELECT * FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE`,
+          [projectId, itemId],
+        );
+        const current = locked.rows[0];
+        if (!current) throw notFound('Backlog item not found');
+        if (current.version !== version) {
+          throw conflict('The item was changed by someone else. Reload and try again.', {
+            currentVersion: current.version,
           });
         }
-        const waiting = await tx.query<{ task_id: string }>(
-          `SELECT DISTINCT r.task_id FROM work_requests r JOIN tasks t ON t.id = r.task_id
-            WHERE t.item_id = $1 AND r.status = 'pending'`,
-          [itemId],
-        );
-        for (const row of waiting.rows)
-          await settleRequests(tx, row.task_id, actorId, 'rejected', 'Backlog item archived');
-      }
-    });
-    return fetchItem(db, projectId, itemId);
-  });
-
-  app.post(`${base}/:itemId/move`, projectRoute('backlog.manage'), async (req) => {
-    const parsed = moveSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
-    const { category, afterId, beforeId } = parsed.data;
-    const { itemId } = req.params as { itemId: string };
-    const projectId = req.access!.project.id;
-
-    await withTransaction(db, async (tx) => {
-      // Serialize every reorder in the project so concurrent moves see each other's ranks.
-      await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
-      const current = (
-        await tx.query<ItemRow>('SELECT * FROM backlog_items WHERE project_id = $1 AND id = $2', [
-          projectId,
-          itemId,
-        ])
-      ).rows[0];
-      if (!current || current.archived_at) throw notFound('Backlog item not found');
-      if (current.state !== 'open')
-        throw conflict('Only open items can be reordered; this item is awaiting review or done.');
-
-      const neighbor = async (id: string | null | undefined): Promise<string | null> => {
-        if (!id) return null;
-        if (id === itemId) throw badRequest('An item cannot be placed next to itself');
-        const row = await tx.query<{ rank: string }>(
-          `SELECT rank FROM backlog_items WHERE project_id = $1 AND id = $2 AND category = $3 AND state = 'open' AND archived_at IS NULL`,
-          [projectId, id, category],
-        );
-        if (!row.rows[0])
-          throw conflict('The neighboring item is no longer in that lane. Reload and try again.');
-        return row.rows[0].rank;
-      };
-      let after = await neighbor(afterId);
-      let before = await neighbor(beforeId);
-      let rank: string;
-      if (after === null && before === null) {
-        rank = await rankAtEnd(tx, projectId, category);
-      } else {
-        // An empty side means "start" or "end" of the lane: bound it by the lane's current
-        // extreme (excluding the moving item) so serialized concurrent moves never share a key.
-        const bounds = await tx.query<{ min: string | null; max: string | null }>(
-          `SELECT min(rank) AS min, max(rank) AS max FROM backlog_items
-            WHERE project_id = $1 AND category = $2 AND state = 'open' AND archived_at IS NULL AND id <> $3`,
-          [projectId, category, itemId],
-        );
-        const { min, max } = bounds.rows[0]!;
-        if (after === null && min !== null && (before === null || min < before)) before = min;
-        if (before === null && max !== null && (after === null || max > after)) after = max;
-        if (after !== null && before !== null && after >= before) {
-          throw conflict('Those items are no longer adjacent. Reload and try again.');
+        if (archived === true && current.archived_at === null) {
+          // Section 12: unfinished board tasks must be resolved before the parent is archived.
+          const placed = await tx.query(
+            `SELECT 1 FROM task_placements p JOIN tasks t ON t.id = p.task_id
+              WHERE t.item_id = $1 AND p.is_current AND NOT t.completed LIMIT 1`,
+            [itemId],
+          );
+          if (placed.rowCount)
+            throw conflict(
+              'Return or finish the tasks placed on a Workboard before archiving this item.',
+            );
         }
-        rank = generateKeyBetween(after, before);
-      }
-      await tx.query(
-        `UPDATE backlog_items SET category = $3, rank = $4, version = version + 1, updated_at = now()
-          WHERE project_id = $1 AND id = $2`,
-        [projectId, itemId, category, rank],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: current.category === category ? 'item.reordered' : 'item.recategorized',
-        entityType: 'backlog_item',
-        entityId: itemId,
-        previous: { category: current.category, rank: current.rank },
-        next: { category, rank },
+        const next = {
+          title: fields.title ?? current.title,
+          description: fields.description ?? current.description,
+          archived_at:
+            archived === undefined
+              ? current.archived_at
+              : archived
+                ? (current.archived_at ?? new Date())
+                : null,
+        };
+        await tx.query(
+          `UPDATE backlog_items SET title = $3, description = $4, archived_at = $5,
+                  cover_attachment_id = CASE WHEN $6::boolean THEN $7::uuid ELSE cover_attachment_id END,
+                  version = version + 1, updated_at = now()
+            WHERE project_id = $1 AND id = $2`,
+          [
+            projectId,
+            itemId,
+            next.title,
+            next.description,
+            next.archived_at,
+            coverAttachmentId !== undefined,
+            coverAttachmentId ?? null,
+          ],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action:
+            archived === undefined ? 'item.updated' : archived ? 'item.archived' : 'item.restored',
+          entityType: 'backlog_item',
+          entityId: itemId,
+          previous: {
+            title: current.title,
+            description: current.description,
+            archived: current.archived_at !== null,
+          },
+          next: {
+            title: next.title,
+            description: next.description,
+            archived: next.archived_at !== null,
+          },
+        });
+        if (next.description !== current.description)
+          await notifyOfMentions(tx, {
+            projectId,
+            actorId: req.user!.id,
+            taskId: null,
+            itemId,
+            text: next.description,
+            before: current.description,
+          });
+        if (archived === true && current.archived_at === null) {
+          // An archived item is nobody's work. It must not keep a place in the scope, leave its
+          // finished cards on the board, or leave requests waiting for a Director to find.
+          const actorId = req.user!.id;
+          for (const board of await clearItemFromBoards(tx, projectId, itemId, 'item archived')) {
+            await recordActivity(tx, {
+              projectId,
+              actorId,
+              action: 'scope.removed',
+              entityType: 'backlog_item',
+              entityId: itemId,
+              next: {
+                boardId: board.boardId,
+                reason: 'item archived',
+                wasInScope: board.wasInScope,
+                removedTasks: board.removedTasks,
+              },
+            });
+          }
+          const waiting = await tx.query<{ task_id: string }>(
+            `SELECT DISTINCT r.task_id FROM work_requests r JOIN tasks t ON t.id = r.task_id
+              WHERE t.item_id = $1 AND r.status = 'pending'`,
+            [itemId],
+          );
+          for (const row of waiting.rows)
+            await settleRequests(tx, row.task_id, actorId, 'rejected', 'Backlog item archived');
+        }
       });
-    });
-    return fetchItem(db, projectId, itemId);
-  });
+      return fetchItem(db, projectId, itemId);
+    },
+  );
 
-  app.post(`${base}/:itemId/links`, projectRoute('backlog.manage'), async (req, reply) => {
-    const parsed = linkSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid link', parsed.error.flatten());
-    const { itemId } = req.params as { itemId: string };
-    const projectId = req.access!.project.id;
-    const item = await fetchItem(db, projectId, itemId);
-    if (!item) throw notFound('Backlog item not found');
+  app.post(
+    `${base}/:itemId/move`,
+    projectRoute('backlog.manage', {
+      id: 'moveItem',
+      summary: 'Reorder an open item, or move it to another category',
+      description:
+        'The item goes between afterId and beforeId among the open items of the category; with neither, to the end.',
+      body: moveSchema,
+      response: schema.BacklogItem,
+    }),
+    async (req) => {
+      const parsed = moveSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
+      const { category, afterId, beforeId } = parsed.data;
+      const { itemId } = req.params as { itemId: string };
+      const projectId = req.access!.project.id;
 
-    const link = await withTransaction(db, async (tx) => {
-      const created = await tx.query<{ id: string; url: string; label: string }>(
-        `INSERT INTO links (project_id, item_id, url, label, created_by) VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, url, label`,
-        [projectId, itemId, parsed.data.url, parsed.data.label, req.user!.id],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'item.link_added',
-        entityType: 'backlog_item',
-        entityId: itemId,
-        next: parsed.data,
+      await withTransaction(db, async (tx) => {
+        // Serialize every reorder in the project so concurrent moves see each other's ranks.
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        const current = (
+          await tx.query<ItemRow>('SELECT * FROM backlog_items WHERE project_id = $1 AND id = $2', [
+            projectId,
+            itemId,
+          ])
+        ).rows[0];
+        if (!current || current.archived_at) throw notFound('Backlog item not found');
+        if (current.state !== 'open')
+          throw conflict('Only open items can be reordered; this item is awaiting review or done.');
+
+        const neighbor = async (id: string | null | undefined): Promise<string | null> => {
+          if (!id) return null;
+          if (id === itemId) throw badRequest('An item cannot be placed next to itself');
+          const row = await tx.query<{ rank: string }>(
+            `SELECT rank FROM backlog_items WHERE project_id = $1 AND id = $2 AND category = $3 AND state = 'open' AND archived_at IS NULL`,
+            [projectId, id, category],
+          );
+          if (!row.rows[0])
+            throw conflict('The neighboring item is no longer in that lane. Reload and try again.');
+          return row.rows[0].rank;
+        };
+        let after = await neighbor(afterId);
+        let before = await neighbor(beforeId);
+        let rank: string;
+        if (after === null && before === null) {
+          rank = await rankAtEnd(tx, projectId, category);
+        } else {
+          // An empty side means "start" or "end" of the lane: bound it by the lane's current
+          // extreme (excluding the moving item) so serialized concurrent moves never share a key.
+          const bounds = await tx.query<{ min: string | null; max: string | null }>(
+            `SELECT min(rank) AS min, max(rank) AS max FROM backlog_items
+              WHERE project_id = $1 AND category = $2 AND state = 'open' AND archived_at IS NULL AND id <> $3`,
+            [projectId, category, itemId],
+          );
+          const { min, max } = bounds.rows[0]!;
+          if (after === null && min !== null && (before === null || min < before)) before = min;
+          if (before === null && max !== null && (after === null || max > after)) after = max;
+          if (after !== null && before !== null && after >= before) {
+            throw conflict('Those items are no longer adjacent. Reload and try again.');
+          }
+          rank = generateKeyBetween(after, before);
+        }
+        await tx.query(
+          `UPDATE backlog_items SET category = $3, rank = $4, version = version + 1, updated_at = now()
+            WHERE project_id = $1 AND id = $2`,
+          [projectId, itemId, category, rank],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: current.category === category ? 'item.reordered' : 'item.recategorized',
+          entityType: 'backlog_item',
+          entityId: itemId,
+          previous: { category: current.category, rank: current.rank },
+          next: { category, rank },
+        });
       });
-      return created.rows[0]!;
-    });
-    return reply.status(201).send(link);
-  });
+      return fetchItem(db, projectId, itemId);
+    },
+  );
+
+  app.post(
+    `${base}/:itemId/links`,
+    projectRoute('backlog.manage', {
+      id: 'addItemLink',
+      summary: 'Add a link to a Backlog item',
+      body: linkSchema,
+      response: { status: 201, schema: schema.ItemLink },
+    }),
+    async (req, reply) => {
+      const parsed = linkSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid link', parsed.error.flatten());
+      const { itemId } = req.params as { itemId: string };
+      const projectId = req.access!.project.id;
+      const item = await fetchItem(db, projectId, itemId);
+      if (!item) throw notFound('Backlog item not found');
+
+      const link = await withTransaction(db, async (tx) => {
+        const created = await tx.query<{ id: string; url: string; label: string }>(
+          `INSERT INTO links (project_id, item_id, url, label, created_by) VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, url, label`,
+          [projectId, itemId, parsed.data.url, parsed.data.label, req.user!.id],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'item.link_added',
+          entityType: 'backlog_item',
+          entityId: itemId,
+          next: parsed.data,
+        });
+        return created.rows[0]!;
+      });
+      return reply.status(201).send(link);
+    },
+  );
 
   app.delete(
     `${base}/:itemId/links/:linkId`,
-    projectRoute('backlog.manage'),
+    projectRoute('backlog.manage', {
+      id: 'removeItemLink',
+      summary: 'Remove a link from a Backlog item',
+      response: null,
+    }),
     async (req, reply) => {
       const { itemId, linkId } = req.params as { itemId: string; linkId: string };
       const projectId = req.access!.project.id;

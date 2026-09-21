@@ -4,15 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api.ts';
 import { lang, LANGUAGES, setLang, t, type Lang } from '../i18n/index.ts';
 import { useCurrentUser, useSession } from '../session.tsx';
+import { ApiTokens } from './ApiTokens.tsx';
 import { AvatarCropper } from './AvatarCropper.tsx';
 import { Avatar } from './Brand.tsx';
 
 type Editing = { src: string; file: File } | { src: string; initial: AvatarCrop };
 
 /**
- * The signed-in user's own settings: the picture shown for them everywhere, and the language
- * of the interface, which is this browser's rather than the account's. A modal dialog over
- * whatever page it was opened from, so closing it leaves the viewer where they were.
+ * The signed-in user's own settings: the picture shown for them everywhere, the language of the
+ * interface, which is this browser's rather than the account's, and their API tokens. A modal
+ * dialog over whatever page it was opened from, so closing it leaves the viewer where they were.
  */
 export function ProfileDialog({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -208,6 +209,7 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
           {t('Kept in this browser. The page reloads in the new language.')}
         </p>
       </section>
+      <ApiTokens />
     </dialog>
   );
 }

@@ -252,6 +252,7 @@ function NotificationRow({
       </span>
       <span className="notification-meta">
         {n.project.name} · {ago(n.createdAt)}
+        {n.via && ` · ${t('via {token}', { token: n.via })}`}
         {!n.read && <span className="sr-only">{` · ${t('unread')}`}</span>}
       </span>
     </Link>

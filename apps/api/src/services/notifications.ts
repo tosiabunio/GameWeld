@@ -2,6 +2,7 @@ import type { NotificationKind } from '@gameweld/domain';
 import type { ActivityInput } from '../activity.ts';
 import type { Queryable } from '../db.ts';
 import { emitLive } from '../live.ts';
+import { viaToken } from '../requestContext.ts';
 
 interface NotifyInput {
   projectId: string;
@@ -20,8 +21,8 @@ export async function notify(db: Queryable, n: NotifyInput): Promise<void> {
   );
   if (recipients.length === 0) return;
   await db.query(
-    `INSERT INTO notifications (user_id, project_id, actor_id, kind, task_id, item_id, detail)
-     SELECT m.user_id, $1, $2, $3, $4, $5, $6
+    `INSERT INTO notifications (user_id, project_id, actor_id, kind, task_id, item_id, detail, via_token)
+     SELECT m.user_id, $1, $2, $3, $4, $5, $6, $8
        FROM project_memberships m
       WHERE m.project_id = $1 AND m.user_id = ANY($7::uuid[])`,
     [
@@ -32,6 +33,7 @@ export async function notify(db: Queryable, n: NotifyInput): Promise<void> {
       n.itemId ?? null,
       (n.detail ?? '').slice(0, 300),
       recipients,
+      viaToken(n.actorId),
     ],
   );
   // Their bells ring at once. After the rows exist: outside a transaction this goes out now.

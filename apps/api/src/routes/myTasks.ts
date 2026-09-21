@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import * as schema from '../schemas.ts';
 import { taskSelect, toTask, type TaskRow } from './tasks.ts';
 
 const uuid = z.string().uuid();
@@ -48,58 +49,79 @@ export const myTaskRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
   const base = '/projects/:projectId/my-tasks';
 
-  app.get(base, projectRoute('project.view'), async (req): Promise<MyTask[]> =>
-    (await fetchMyTasks(db, req.access!.project.id, req.user!.id)).map(toMyTask),
+  app.get(
+    base,
+    projectRoute('project.view', {
+      id: 'listMyTasks',
+      summary: 'The viewer’s unfinished tasks, in their own order',
+      response: z.array(schema.MyTask),
+    }),
+    async (req): Promise<MyTask[]> =>
+      (await fetchMyTasks(db, req.access!.project.id, req.user!.id)).map(toMyTask),
   );
 
-  app.post(`${base}/:taskId/move`, projectRoute('project.view'), async (req): Promise<MyTask[]> => {
-    const parsed = moveSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
-    const { taskId } = req.params as { taskId: string };
-    const { afterId, beforeId } = parsed.data;
-    const projectId = req.access!.project.id;
-    const userId = req.user!.id;
-    if (afterId === taskId || beforeId === taskId)
-      throw badRequest('A task cannot be placed next to itself');
+  app.post(
+    `${base}/:taskId/move`,
+    projectRoute('project.view', {
+      id: 'moveMyTask',
+      summary: 'Reorder a task among the viewer’s own tasks',
+      description:
+        'The order is the viewer’s alone. Between afterId and beforeId; with neither, to the end.',
+      body: moveSchema,
+      response: z.array(schema.MyTask),
+    }),
+    async (req): Promise<MyTask[]> => {
+      const parsed = moveSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
+      const { taskId } = req.params as { taskId: string };
+      const { afterId, beforeId } = parsed.data;
+      const projectId = req.access!.project.id;
+      const userId = req.user!.id;
+      if (afterId === taskId || beforeId === taskId)
+        throw badRequest('A task cannot be placed next to itself');
 
-    await withTransaction(db, async (tx) => {
-      // Serialize this member's moves, so two drops never share a rank.
-      await tx.query(
-        'SELECT 1 FROM project_memberships WHERE project_id = $1 AND user_id = $2 FOR UPDATE',
-        [projectId, userId],
-      );
-      const mine = await fetchMyTasks(tx, projectId, userId);
-      if (!mine.some((t) => t.id === taskId))
-        throw notFound('That task is not among the tasks assigned to you.');
-
-      // Tasks never ordered before get their places first, so every neighbour has a rank.
-      const unranked = mine.filter((t) => t.my_rank === null);
-      const lastRank = mine[mine.length - unranked.length - 1]?.my_rank ?? null;
-      const keys = generateNKeysBetween(lastRank, null, unranked.length);
-      for (const [i, t] of unranked.entries()) {
-        t.my_rank = keys[i]!;
+      await withTransaction(db, async (tx) => {
+        // Serialize this member's moves, so two drops never share a rank.
         await tx.query(
-          `INSERT INTO my_task_ranks (user_id, task_id, rank) VALUES ($1, $2, $3)
-           ON CONFLICT (user_id, task_id) DO UPDATE SET rank = EXCLUDED.rank`,
-          [userId, t.id, t.my_rank],
+          'SELECT 1 FROM project_memberships WHERE project_id = $1 AND user_id = $2 FOR UPDATE',
+          [projectId, userId],
         );
-      }
+        const mine = await fetchMyTasks(tx, projectId, userId);
+        if (!mine.some((t) => t.id === taskId))
+          throw notFound('That task is not among the tasks assigned to you.');
 
-      const others = mine.filter((t) => t.id !== taskId);
-      const indexOf = (id: string) => {
-        const index = others.findIndex((t) => t.id === id);
-        if (index === -1)
-          throw conflict('The neighboring task is no longer in your list. Reload and try again.');
-        return index;
-      };
-      const at = afterId ? indexOf(afterId) + 1 : beforeId ? indexOf(beforeId) : others.length;
-      const rank = generateKeyBetween(others[at - 1]?.my_rank ?? null, others[at]?.my_rank ?? null);
-      await tx.query('UPDATE my_task_ranks SET rank = $3 WHERE user_id = $1 AND task_id = $2', [
-        userId,
-        taskId,
-        rank,
-      ]);
-    });
-    return (await fetchMyTasks(db, projectId, userId)).map(toMyTask);
-  });
+        // Tasks never ordered before get their places first, so every neighbour has a rank.
+        const unranked = mine.filter((t) => t.my_rank === null);
+        const lastRank = mine[mine.length - unranked.length - 1]?.my_rank ?? null;
+        const keys = generateNKeysBetween(lastRank, null, unranked.length);
+        for (const [i, t] of unranked.entries()) {
+          t.my_rank = keys[i]!;
+          await tx.query(
+            `INSERT INTO my_task_ranks (user_id, task_id, rank) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, task_id) DO UPDATE SET rank = EXCLUDED.rank`,
+            [userId, t.id, t.my_rank],
+          );
+        }
+
+        const others = mine.filter((t) => t.id !== taskId);
+        const indexOf = (id: string) => {
+          const index = others.findIndex((t) => t.id === id);
+          if (index === -1)
+            throw conflict('The neighboring task is no longer in your list. Reload and try again.');
+          return index;
+        };
+        const at = afterId ? indexOf(afterId) + 1 : beforeId ? indexOf(beforeId) : others.length;
+        const rank = generateKeyBetween(
+          others[at - 1]?.my_rank ?? null,
+          others[at]?.my_rank ?? null,
+        );
+        await tx.query('UPDATE my_task_ranks SET rank = $3 WHERE user_id = $1 AND task_id = $2', [
+          userId,
+          taskId,
+          rank,
+        ]);
+      });
+      return (await fetchMyTasks(db, projectId, userId)).map(toMyTask);
+    },
+  );
 };

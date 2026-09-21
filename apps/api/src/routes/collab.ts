@@ -10,6 +10,7 @@ import { notifyOfComment, notifyOfMentions } from '../services/notifications.ts'
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { PayloadTooLarge, PREVIEW_IMAGE_TYPES } from '../storage.ts';
+import * as schema from '../schemas.ts';
 
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 const commentSchema = z.object({ body: z.string().trim().min(1).max(20_000) });
@@ -195,7 +196,13 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
   for (const owner of ['backlog/:itemId', 'tasks/:taskId'] as const) {
     app.post(
       `/projects/:projectId/${owner}/comments`,
-      projectRoute('task.work'),
+      projectRoute('task.work', {
+        id: owner === 'tasks/:taskId' ? 'addTaskComment' : 'addItemComment',
+        summary: owner === 'tasks/:taskId' ? 'Comment on a task' : 'Comment on a Backlog item',
+        description: 'Markdown. Members named with @ are notified.',
+        body: commentSchema,
+        response: { status: 201, schema: schema.Comment },
+      }),
       async (req, reply) => {
         const parsed = commentSchema.safeParse(req.body);
         if (!parsed.success) throw badRequest('Invalid comment', parsed.error.flatten());
@@ -232,7 +239,17 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
   /** Authors edit their own comments; authors and Directors delete. Rejection comments are history and stay. */
   app.patch(
     '/projects/:projectId/comments/:commentId',
-    projectRoute('task.work', { ownerScoped: true }),
+    projectRoute(
+      'task.work',
+      {
+        id: 'editComment',
+        summary: 'Edit a comment',
+        description: 'Only its author may.',
+        body: commentSchema,
+        response: schema.Comment,
+      },
+      { ownerScoped: true },
+    ),
     async (req) => {
       const parsed = commentSchema.safeParse(req.body);
       if (!parsed.success) throw badRequest('Invalid comment', parsed.error.flatten());
@@ -284,7 +301,16 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete(
     '/projects/:projectId/comments/:commentId',
-    projectRoute('task.work', { ownerScoped: true }),
+    projectRoute(
+      'task.work',
+      {
+        id: 'deleteComment',
+        summary: 'Delete a comment',
+        description: 'Only its author may.',
+        response: null,
+      },
+      { ownerScoped: true },
+    ),
     async (req, reply) => {
       const { commentId } = req.params as { commentId: string };
       const projectId = req.access!.project.id;
@@ -320,7 +346,12 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/projects/:projectId/tasks/:taskId/links',
-    projectRoute('task.work'),
+    projectRoute('task.work', {
+      id: 'addTaskLink',
+      summary: 'Add a link to a task',
+      body: linkSchema,
+      response: { status: 201, schema: schema.ItemLink },
+    }),
     async (req, reply) => {
       const parsed = linkSchema.safeParse(req.body);
       if (!parsed.success) throw badRequest('Invalid link', parsed.error.flatten());
@@ -336,7 +367,11 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete(
     '/projects/:projectId/tasks/:taskId/links/:linkId',
-    projectRoute('task.work'),
+    projectRoute('task.work', {
+      id: 'removeTaskLink',
+      summary: 'Remove a link from a task',
+      response: null,
+    }),
     async (req, reply) => {
       const { taskId, linkId } = req.params as { taskId: string; linkId: string };
       if (!isUuid(linkId) || !isUuid(taskId)) throw notFound('Link not found');
@@ -354,7 +389,14 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
   for (const owner of ['backlog/:itemId', 'tasks/:taskId'] as const) {
     app.post(
       `/projects/:projectId/${owner}/attachments`,
-      projectRoute('task.work'),
+      projectRoute('task.work', {
+        id: owner === 'tasks/:taskId' ? 'uploadTaskAttachment' : 'uploadItemAttachment',
+        summary:
+          owner === 'tasks/:taskId' ? 'Attach a file to a task' : 'Attach a file to a Backlog item',
+        description: `Any kind of file, up to ${Math.round(config.attachmentMaxBytes / 1024 / 1024)} MB.`,
+        upload: true,
+        response: { status: 201, schema: schema.Attachment },
+      }),
       async (req, reply) => {
         const projectId = req.access!.project.id;
         const target = await resolveOwner(
@@ -432,7 +474,19 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
   /** Download: enforced on the server through project membership (Section 14). */
   app.get(
     '/projects/:projectId/attachments/:attachmentId',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'downloadAttachment',
+      summary: 'Download an attachment',
+      description:
+        'As a download, or with inline=1 shown in the browser, which only PNG, JPEG, GIF, and WebP pictures are.',
+      query: z.object({
+        inline: z
+          .enum(['1'])
+          .optional()
+          .describe('1 to show a picture inline rather than download it.'),
+      }),
+      response: { content: 'application/octet-stream', description: 'The file' },
+    }),
     async (req, reply) => {
       const { attachmentId } = req.params as { attachmentId: string };
       if (!isUuid(attachmentId)) throw notFound('Attachment not found');
@@ -470,7 +524,11 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
   /** A card-sized rendition of an image attachment: a 16:9 WebP, rendered once and kept. */
   app.get(
     '/projects/:projectId/attachments/:attachmentId/cover',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'getAttachmentCover',
+      summary: 'A picture attachment as a card cover: 800×450, WebP',
+      response: { content: 'image/webp', description: 'The cover' },
+    }),
     async (req, reply) => {
       const { attachmentId } = req.params as { attachmentId: string };
       if (!isUuid(attachmentId)) throw notFound('Attachment not found');
@@ -503,7 +561,16 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete(
     '/projects/:projectId/attachments/:attachmentId',
-    projectRoute('task.work', { ownerScoped: true }),
+    projectRoute(
+      'task.work',
+      {
+        id: 'deleteAttachment',
+        summary: 'Delete an attachment',
+        description: 'Only whoever uploaded it may.',
+        response: null,
+      },
+      { ownerScoped: true },
+    ),
     async (req, reply) => {
       const { attachmentId } = req.params as { attachmentId: string };
       const projectId = req.access!.project.id;
@@ -570,7 +637,20 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/projects/:projectId/backlog/:itemId/dependencies',
-    projectRoute('backlog.manage'),
+    projectRoute('backlog.manage', {
+      id: 'addDependency',
+      summary: 'Note that a Backlog item depends on another',
+      description: 'For information: a dependency blocks nothing.',
+      tag: 'Backlog',
+      body: dependencySchema,
+      response: {
+        status: 201,
+        schema: z.object({
+          dependsOn: z.array(schema.Dependency),
+          dependents: z.array(schema.Dependency),
+        }),
+      },
+    }),
     async (req, reply) => {
       const parsed = dependencySchema.safeParse(req.body);
       if (!parsed.success) throw badRequest('Invalid dependency', parsed.error.flatten());
@@ -603,7 +683,15 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete(
     '/projects/:projectId/backlog/:itemId/dependencies/:dependsOnItemId',
-    projectRoute('backlog.manage'),
+    projectRoute('backlog.manage', {
+      id: 'removeDependency',
+      summary: 'Remove a dependency between Backlog items',
+      tag: 'Backlog',
+      response: z.object({
+        dependsOn: z.array(schema.Dependency),
+        dependents: z.array(schema.Dependency),
+      }),
+    }),
     async (req) => {
       const { itemId, dependsOnItemId } = req.params as { itemId: string; dependsOnItemId: string };
       const projectId = req.access!.project.id;
@@ -634,7 +722,25 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/projects/:projectId/activity',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'listActivity',
+      summary: 'The project’s history, newest first',
+      description:
+        'Every change, with who made it and through which API token. With entityType and entityId, only what concerns one item (with its tasks), one task (with its requests), or one Workboard (with its columns, cards, scope, and requests).',
+      tag: 'History',
+      query: z.object({
+        entityType: z.enum(['backlog_item', 'task', 'workboard']).optional(),
+        entityId: z.string().uuid().optional(),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(500)
+          .optional()
+          .describe('At most this many; 100 unless given.'),
+      }),
+      response: z.array(schema.ActivityEntry),
+    }),
     async (req): Promise<ActivityEntry[]> => {
       const q = req.query as { entityType?: string; entityId?: string; limit?: string };
       const projectId = req.access!.project.id;
@@ -672,11 +778,12 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
         entity_id: string;
         actor_id: string | null;
         display_name: string | null;
-        previous: unknown;
-        next: unknown;
+        via_token: string | null;
+        previous: Record<string, unknown> | null;
+        next: Record<string, unknown> | null;
         created_at: Date;
       }>(
-        `SELECT a.id, a.action, a.entity_type, a.entity_id, a.actor_id, u.display_name, a.previous, a.next, a.created_at
+        `SELECT a.id, a.action, a.entity_type, a.entity_id, a.actor_id, u.display_name, a.via_token, a.previous, a.next, a.created_at
          FROM activity a LEFT JOIN users u ON u.id = a.actor_id
         WHERE ${where} ORDER BY a.id DESC LIMIT $2`,
         params,
@@ -688,6 +795,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
         entityId: r.entity_id,
         actor:
           r.actor_id && r.display_name ? { id: r.actor_id, displayName: r.display_name } : null,
+        via: r.via_token,
         previous: r.previous,
         next: r.next,
         createdAt: r.created_at.toISOString(),

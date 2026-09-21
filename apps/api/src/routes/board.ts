@@ -21,6 +21,7 @@ import { withTransaction, type Db, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import { placeTask, rankAtEndOfColumn, returnTask } from '../services/placement.ts';
+import * as schema from '../schemas.ts';
 import {
   CHECKLIST_COUNTS,
   fetchTask,
@@ -355,7 +356,12 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
   /** The project's active board, or null (D1: at most one). */
   app.get(
     '/projects/:projectId/board',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'getActiveBoard',
+      summary: 'The active Workboard, with its columns, cards, and scope',
+      description: 'Null when the project has no active Workboard.',
+      response: schema.BoardView.nullable(),
+    }),
     async (req): Promise<BoardView | null> => {
       const res = await db.query<{ id: string }>(
         `SELECT id FROM workboards WHERE project_id = $1 AND state = 'active'`,
@@ -365,343 +371,435 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.get(base, projectRoute('project.view'), async (req): Promise<BoardSummary[]> => {
-    const res = await db.query<BoardRow>(
-      `SELECT ${BOARD_COLUMNS}
-         FROM workboards WHERE project_id = $1 ORDER BY state, created_at DESC`,
-      [req.access!.project.id],
-    );
-    return res.rows.map(toSummary);
-  });
-
-  app.get(`${base}/:boardId`, projectRoute('project.view'), async (req) =>
-    view(req, (req.params as { boardId: string }).boardId),
+  app.get(
+    base,
+    projectRoute('project.view', {
+      id: 'listBoards',
+      summary: 'All of the project’s Workboards, the archived ones included',
+      response: z.array(schema.BoardSummary),
+    }),
+    async (req): Promise<BoardSummary[]> => {
+      const res = await db.query<BoardRow>(
+        `SELECT ${BOARD_COLUMNS}
+           FROM workboards WHERE project_id = $1 ORDER BY state, created_at DESC`,
+        [req.access!.project.id],
+      );
+      return res.rows.map(toSummary);
+    },
   );
 
-  app.post(base, projectRoute('board.manage'), async (req, reply) => {
-    const parsed = createBoardSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid Workboard', parsed.error.flatten());
-    const projectId = req.access!.project.id;
-    const boardId = await withTransaction(db, async (tx) => {
-      await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
-      const active = await tx.query(
-        `SELECT 1 FROM workboards WHERE project_id = $1 AND state = 'active'`,
-        [projectId],
-      );
-      if (active.rowCount)
-        throw conflict('This project already has an active Workboard. Archive it first.');
-      const created = await tx.query<{ id: string }>(
-        'INSERT INTO workboards (project_id, name, description) VALUES ($1, $2, $3) RETURNING id',
-        [projectId, parsed.data.name, parsed.data.description],
-      );
-      const id = created.rows[0]!.id;
-      let rank: string | null = null;
-      for (const [kind, name] of [
-        ['todo_code', 'To Do · Code'],
-        ['todo_assets', 'To Do · Assets'],
-        ['todo_content', 'To Do · Content'],
-        ['done', 'Done'],
-      ] as const) {
-        rank = generateKeyBetween(rank, null);
-        await tx.query(
-          'INSERT INTO board_columns (board_id, name, kind, rank) VALUES ($1, $2, $3, $4)',
-          [id, name, kind, rank],
-        );
-      }
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'board.created',
-        entityType: 'workboard',
-        entityId: id,
-        next: parsed.data,
-      });
-      return id;
-    });
-    return reply.status(201).send(await view(req, boardId));
-  });
+  app.get(
+    `${base}/:boardId`,
+    projectRoute('project.view', {
+      id: 'getBoard',
+      summary: 'A Workboard, active or archived, with its columns, cards, and scope',
+      response: schema.BoardView,
+    }),
+    async (req) => view(req, (req.params as { boardId: string }).boardId),
+  );
 
-  app.patch(`${base}/:boardId`, projectRoute('board.manage'), async (req) => {
-    const parsed = updateBoardSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid Workboard update', parsed.error.flatten());
-    const { boardId } = req.params as { boardId: string };
-    const projectId = req.access!.project.id;
-    await withTransaction(db, async (tx) => {
-      const board = await fetchBoardRow(tx, projectId, boardId, true);
-      if (!board) throw notFound('Workboard not found');
-      if (board.version !== parsed.data.version)
-        throw conflict('The Workboard was changed by someone else. Reload and try again.', {
-          currentVersion: board.version,
-        });
-      const endsOn = parsed.data.endsOn === undefined ? board.ends_on : parsed.data.endsOn;
-      await tx.query(
-        `UPDATE workboards SET name = $2, description = $3, ends_on = $4::date, version = version + 1
-          WHERE id = $1`,
-        [
-          boardId,
-          parsed.data.name ?? board.name,
-          parsed.data.description ?? board.description,
-          endsOn,
-        ],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'board.updated',
-        entityType: 'workboard',
-        entityId: boardId,
-        previous: { name: board.name, endsOn: board.ends_on },
-        next: { name: parsed.data.name ?? board.name, endsOn },
-      });
-    });
-    return view(req, boardId);
-  });
-
-  // D12: archival never completes anything; unfinished placed tasks must be explicitly returned.
-  app.post(`${base}/:boardId/archive`, projectRoute('board.manage'), async (req) => {
-    const parsed = archiveSchema.safeParse(req.body ?? {});
-    if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
-    const { boardId } = req.params as { boardId: string };
-    const projectId = req.access!.project.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      const unfinished = await tx.query<{ id: string; item_id: string }>(
-        `SELECT t.id, t.item_id FROM task_placements p JOIN tasks t ON t.id = p.task_id
-          WHERE p.board_id = $1 AND p.is_current AND NOT t.completed`,
-        [boardId],
-      );
-      if (unfinished.rowCount && !parsed.data.returnUnfinished) {
-        throw conflict(
-          `${unfinished.rowCount} unfinished task(s) are still on this Workboard. Return them to Breakdown to archive.`,
-          {
-            unfinishedTasks: unfinished.rowCount,
-          },
+  app.post(
+    base,
+    projectRoute('board.manage', {
+      id: 'createBoard',
+      summary: 'Start a Workboard',
+      description:
+        'A project has one active Workboard at a time. It starts with a To Do column for each task category and a Done column.',
+      body: createBoardSchema,
+      response: { status: 201, schema: schema.BoardView },
+    }),
+    async (req, reply) => {
+      const parsed = createBoardSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid Workboard', parsed.error.flatten());
+      const projectId = req.access!.project.id;
+      const boardId = await withTransaction(db, async (tx) => {
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        const active = await tx.query(
+          `SELECT 1 FROM workboards WHERE project_id = $1 AND state = 'active'`,
+          [projectId],
         );
-      }
-      for (const t of unfinished.rows) await returnTask(tx, t.id, 'board archived');
-      const rejected = await tx.query<{ id: string; task_id: string }>(
-        `UPDATE work_requests SET status = 'rejected', decided_by = $2, decided_at = now(),
-           decision_note = 'Workboard archived', version = version + 1
-         WHERE board_id = $1 AND status = 'pending' RETURNING id, task_id`,
-        [boardId, req.user!.id],
-      );
-      for (const request of rejected.rows) {
+        if (active.rowCount)
+          throw conflict('This project already has an active Workboard. Archive it first.');
+        const created = await tx.query<{ id: string }>(
+          'INSERT INTO workboards (project_id, name, description) VALUES ($1, $2, $3) RETURNING id',
+          [projectId, parsed.data.name, parsed.data.description],
+        );
+        const id = created.rows[0]!.id;
+        let rank: string | null = null;
+        for (const [kind, name] of [
+          ['todo_code', 'To Do · Code'],
+          ['todo_assets', 'To Do · Assets'],
+          ['todo_content', 'To Do · Content'],
+          ['done', 'Done'],
+        ] as const) {
+          rank = generateKeyBetween(rank, null);
+          await tx.query(
+            'INSERT INTO board_columns (board_id, name, kind, rank) VALUES ($1, $2, $3, $4)',
+            [id, name, kind, rank],
+          );
+        }
         await recordActivity(tx, {
           projectId,
           actorId: req.user!.id,
-          action: 'request.rejected',
-          entityType: 'work_request',
-          entityId: request.id,
-          next: { taskId: request.task_id, boardId, note: 'Workboard archived' },
+          action: 'board.created',
+          entityType: 'workboard',
+          entityId: id,
+          next: parsed.data,
         });
-      }
-      await tx.query(
-        `UPDATE workboards SET state = 'archived', archived_at = now(), version = version + 1 WHERE id = $1`,
-        [boardId],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'board.archived',
-        entityType: 'workboard',
-        entityId: boardId,
-        next: { returnedTasks: unfinished.rowCount },
+        return id;
       });
-    });
-    return view(req, boardId);
-  });
+      return reply.status(201).send(await view(req, boardId));
+    },
+  );
+
+  app.patch(
+    `${base}/:boardId`,
+    projectRoute('board.manage', {
+      id: 'updateBoard',
+      summary: 'Rename a Workboard, or change its description or end date',
+      body: updateBoardSchema,
+      response: schema.BoardView,
+    }),
+    async (req) => {
+      const parsed = updateBoardSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid Workboard update', parsed.error.flatten());
+      const { boardId } = req.params as { boardId: string };
+      const projectId = req.access!.project.id;
+      await withTransaction(db, async (tx) => {
+        const board = await fetchBoardRow(tx, projectId, boardId, true);
+        if (!board) throw notFound('Workboard not found');
+        if (board.version !== parsed.data.version)
+          throw conflict('The Workboard was changed by someone else. Reload and try again.', {
+            currentVersion: board.version,
+          });
+        const endsOn = parsed.data.endsOn === undefined ? board.ends_on : parsed.data.endsOn;
+        await tx.query(
+          `UPDATE workboards SET name = $2, description = $3, ends_on = $4::date, version = version + 1
+            WHERE id = $1`,
+          [
+            boardId,
+            parsed.data.name ?? board.name,
+            parsed.data.description ?? board.description,
+            endsOn,
+          ],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'board.updated',
+          entityType: 'workboard',
+          entityId: boardId,
+          previous: { name: board.name, endsOn: board.ends_on },
+          next: { name: parsed.data.name ?? board.name, endsOn },
+        });
+      });
+      return view(req, boardId);
+    },
+  );
+
+  // D12: archival never completes anything; unfinished placed tasks must be explicitly returned.
+  app.post(
+    `${base}/:boardId/archive`,
+    projectRoute('board.manage', {
+      id: 'archiveBoard',
+      summary: 'Archive the active Workboard',
+      description:
+        'Unfinished tasks on it must go back to Breakdown first: send returnUnfinished: true to do that, or it is refused while there are any.',
+      body: archiveSchema.optional(),
+      response: schema.BoardView,
+    }),
+    async (req) => {
+      const parsed = archiveSchema.safeParse(req.body ?? {});
+      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      const { boardId } = req.params as { boardId: string };
+      const projectId = req.access!.project.id;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        const unfinished = await tx.query<{ id: string; item_id: string }>(
+          `SELECT t.id, t.item_id FROM task_placements p JOIN tasks t ON t.id = p.task_id
+            WHERE p.board_id = $1 AND p.is_current AND NOT t.completed`,
+          [boardId],
+        );
+        if (unfinished.rowCount && !parsed.data.returnUnfinished) {
+          throw conflict(
+            `${unfinished.rowCount} unfinished task(s) are still on this Workboard. Return them to Breakdown to archive.`,
+            {
+              unfinishedTasks: unfinished.rowCount,
+            },
+          );
+        }
+        for (const t of unfinished.rows) await returnTask(tx, t.id, 'board archived');
+        const rejected = await tx.query<{ id: string; task_id: string }>(
+          `UPDATE work_requests SET status = 'rejected', decided_by = $2, decided_at = now(),
+             decision_note = 'Workboard archived', version = version + 1
+           WHERE board_id = $1 AND status = 'pending' RETURNING id, task_id`,
+          [boardId, req.user!.id],
+        );
+        for (const request of rejected.rows) {
+          await recordActivity(tx, {
+            projectId,
+            actorId: req.user!.id,
+            action: 'request.rejected',
+            entityType: 'work_request',
+            entityId: request.id,
+            next: { taskId: request.task_id, boardId, note: 'Workboard archived' },
+          });
+        }
+        await tx.query(
+          `UPDATE workboards SET state = 'archived', archived_at = now(), version = version + 1 WHERE id = $1`,
+          [boardId],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'board.archived',
+          entityType: 'workboard',
+          entityId: boardId,
+          next: { returnedTasks: unfinished.rowCount },
+        });
+      });
+      return view(req, boardId);
+    },
+  );
 
   // Columns ---------------------------------------------------------------------------------
 
-  app.post(`${base}/:boardId/columns`, projectRoute('board.manage'), async (req, reply) => {
-    const parsed = createColumnSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid column', parsed.error.flatten());
-    const { boardId } = req.params as { boardId: string };
-    const projectId = req.access!.project.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      const rank = await intermediateRank(
-        tx,
-        boardId,
-        parsed.data.afterColumnId ?? null,
-        null,
-        null,
-      );
-      const created = await tx.query<{ id: string }>(
-        `INSERT INTO board_columns (board_id, name, kind, rank) VALUES ($1, $2, 'intermediate', $3) RETURNING id`,
-        [boardId, parsed.data.name, rank],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'column.created',
-        entityType: 'board_column',
-        entityId: created.rows[0]!.id,
-        next: { name: parsed.data.name },
-      });
-    });
-    return reply.status(201).send(await view(req, boardId));
-  });
-
-  app.patch(`${base}/:boardId/columns/:columnId`, projectRoute('board.manage'), async (req) => {
-    const parsed = updateColumnSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid column update', parsed.error.flatten());
-    const { boardId, columnId } = req.params as { boardId: string; columnId: string };
-    const projectId = req.access!.project.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      const col = (
-        await tx.query<BoardColumn>(
-          'SELECT id, name, kind, rank, version FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE',
-          [boardId, columnId],
-        )
-      ).rows[0];
-      if (!col) throw notFound('Column not found');
-      if (col.version !== parsed.data.version)
-        throw conflict('The column was changed by someone else. Reload and try again.', {
-          currentVersion: col.version,
-        });
-      let rank = col.rank;
-      if (parsed.data.afterColumnId !== undefined || parsed.data.beforeColumnId !== undefined) {
-        if (col.kind !== 'intermediate')
-          throw conflict('To Do and Done columns keep their positions.');
-        rank = await intermediateRank(
+  app.post(
+    `${base}/:boardId/columns`,
+    projectRoute('board.manage', {
+      id: 'createColumn',
+      summary: 'Add an intermediate column',
+      description: 'After afterColumnId, or else just before Done.',
+      body: createColumnSchema,
+      response: { status: 201, schema: schema.BoardView },
+    }),
+    async (req, reply) => {
+      const parsed = createColumnSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid column', parsed.error.flatten());
+      const { boardId } = req.params as { boardId: string };
+      const projectId = req.access!.project.id;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        const rank = await intermediateRank(
           tx,
           boardId,
           parsed.data.afterColumnId ?? null,
-          parsed.data.beforeColumnId ?? null,
-          columnId,
+          null,
+          null,
         );
-      }
-      // Renaming any column never changes rules or permissions (Section 8): only the kind matters.
-      await tx.query(
-        'UPDATE board_columns SET name = $2, rank = $3, version = version + 1 WHERE id = $1',
-        [columnId, parsed.data.name ?? col.name, rank],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'column.updated',
-        entityType: 'board_column',
-        entityId: columnId,
-        previous: { name: col.name, rank: col.rank },
-        next: { name: parsed.data.name ?? col.name, rank },
+        const created = await tx.query<{ id: string }>(
+          `INSERT INTO board_columns (board_id, name, kind, rank) VALUES ($1, $2, 'intermediate', $3) RETURNING id`,
+          [boardId, parsed.data.name, rank],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'column.created',
+          entityType: 'board_column',
+          entityId: created.rows[0]!.id,
+          next: { name: parsed.data.name },
+        });
       });
-    });
-    return view(req, boardId);
-  });
+      return reply.status(201).send(await view(req, boardId));
+    },
+  );
 
-  app.delete(`${base}/:boardId/columns/:columnId`, projectRoute('board.manage'), async (req) => {
-    const { boardId, columnId } = req.params as { boardId: string; columnId: string };
-    const projectId = req.access!.project.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      if (!isUuid(columnId)) throw notFound('Column not found');
-      const col = (
-        await tx.query<BoardColumn>(
-          'SELECT id, name, kind FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE',
-          [boardId, columnId],
-        )
-      ).rows[0];
-      if (!col) throw notFound('Column not found');
-      if (col.kind !== 'intermediate') throw conflict('To Do and Done columns cannot be deleted.');
-      const occupied = await tx.query(
-        'SELECT 1 FROM task_placements WHERE column_id = $1 AND is_current LIMIT 1',
-        [columnId],
-      );
-      if (occupied.rowCount)
-        throw conflict('Move the tasks out of this column before deleting it.');
-      // Historical placements keep their column references and names.
-      await tx.query('UPDATE board_columns SET deleted_at = now() WHERE id = $1', [columnId]);
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'column.deleted',
-        entityType: 'board_column',
-        entityId: columnId,
-        previous: { name: col.name },
+  app.patch(
+    `${base}/:boardId/columns/:columnId`,
+    projectRoute('board.manage', {
+      id: 'updateColumn',
+      summary: 'Rename an intermediate column, or move it',
+      body: updateColumnSchema,
+      response: schema.BoardView,
+    }),
+    async (req) => {
+      const parsed = updateColumnSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid column update', parsed.error.flatten());
+      const { boardId, columnId } = req.params as { boardId: string; columnId: string };
+      const projectId = req.access!.project.id;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        const col = (
+          await tx.query<BoardColumn>(
+            'SELECT id, name, kind, rank, version FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE',
+            [boardId, columnId],
+          )
+        ).rows[0];
+        if (!col) throw notFound('Column not found');
+        if (col.version !== parsed.data.version)
+          throw conflict('The column was changed by someone else. Reload and try again.', {
+            currentVersion: col.version,
+          });
+        let rank = col.rank;
+        if (parsed.data.afterColumnId !== undefined || parsed.data.beforeColumnId !== undefined) {
+          if (col.kind !== 'intermediate')
+            throw conflict('To Do and Done columns keep their positions.');
+          rank = await intermediateRank(
+            tx,
+            boardId,
+            parsed.data.afterColumnId ?? null,
+            parsed.data.beforeColumnId ?? null,
+            columnId,
+          );
+        }
+        // Renaming any column never changes rules or permissions (Section 8): only the kind matters.
+        await tx.query(
+          'UPDATE board_columns SET name = $2, rank = $3, version = version + 1 WHERE id = $1',
+          [columnId, parsed.data.name ?? col.name, rank],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'column.updated',
+          entityType: 'board_column',
+          entityId: columnId,
+          previous: { name: col.name, rank: col.rank },
+          next: { name: parsed.data.name ?? col.name, rank },
+        });
       });
-    });
-    return view(req, boardId);
-  });
+      return view(req, boardId);
+    },
+  );
+
+  app.delete(
+    `${base}/:boardId/columns/:columnId`,
+    projectRoute('board.manage', {
+      id: 'deleteColumn',
+      summary: 'Delete an empty intermediate column',
+      description: 'The To Do and Done columns stay.',
+      response: schema.BoardView,
+    }),
+    async (req) => {
+      const { boardId, columnId } = req.params as { boardId: string; columnId: string };
+      const projectId = req.access!.project.id;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        if (!isUuid(columnId)) throw notFound('Column not found');
+        const col = (
+          await tx.query<BoardColumn>(
+            'SELECT id, name, kind FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE',
+            [boardId, columnId],
+          )
+        ).rows[0];
+        if (!col) throw notFound('Column not found');
+        if (col.kind !== 'intermediate')
+          throw conflict('To Do and Done columns cannot be deleted.');
+        const occupied = await tx.query(
+          'SELECT 1 FROM task_placements WHERE column_id = $1 AND is_current LIMIT 1',
+          [columnId],
+        );
+        if (occupied.rowCount)
+          throw conflict('Move the tasks out of this column before deleting it.');
+        // Historical placements keep their column references and names.
+        await tx.query('UPDATE board_columns SET deleted_at = now() WHERE id = $1', [columnId]);
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'column.deleted',
+          entityType: 'board_column',
+          entityId: columnId,
+          previous: { name: col.name },
+        });
+      });
+      return view(req, boardId);
+    },
+  );
 
   // Scope -----------------------------------------------------------------------------------
 
-  app.post(`${base}/:boardId/scope`, projectRoute('board.select_scope'), async (req, reply) => {
-    const parsed = scopeSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
-    const { boardId } = req.params as { boardId: string };
-    const { project } = req.access!;
-    const actorId = req.user!.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, project.id, boardId);
-      const item = (
-        await tx.query<{ id: string; title: string; state: ItemState; archived_at: Date | null }>(
-          'SELECT id, title, state, archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
-          [project.id, parsed.data.itemId],
-        )
-      ).rows[0];
-      if (!item) throw notFound('Backlog item not found');
-      const already = await tx.query(
-        'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
-        [boardId, item.id],
-      );
-      if (already.rowCount) throw conflict('That item is already in scope.');
-      // D6: every included item counts until it is accepted or the Director removes it.
-      const count = Number(
-        (
-          await tx.query<{ n: string }>(
-            'SELECT count(*) AS n FROM workboard_scope WHERE board_id = $1',
-            [boardId],
+  app.post(
+    `${base}/:boardId/scope`,
+    projectRoute('board.select_scope', {
+      id: 'addToScope',
+      summary: 'Bring a Backlog item into the Workboard’s scope',
+      description:
+        'Within the scope limit, and by the priority rule: an item may come in only when no open item of a higher category is waiting. Its unplaced tasks go to their To Do columns.',
+      body: scopeSchema,
+      response: { status: 201, schema: schema.BoardView },
+    }),
+    async (req, reply) => {
+      const parsed = scopeSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      const { boardId } = req.params as { boardId: string };
+      const { project } = req.access!;
+      const actorId = req.user!.id;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, project.id, boardId);
+        const item = (
+          await tx.query<{ id: string; title: string; state: ItemState; archived_at: Date | null }>(
+            'SELECT id, title, state, archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
+            [project.id, parsed.data.itemId],
           )
-        ).rows[0]!.n,
-      );
-      if (count >= project.scope_limit) {
-        throw conflict(
-          `The Workboard already holds ${count} of ${project.scope_limit} items. Remove an item from scope to add another.`,
-          {
-            scopeItems: count,
-            scopeLimit: project.scope_limit,
-          },
+        ).rows[0];
+        if (!item) throw notFound('Backlog item not found');
+        const already = await tx.query(
+          'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
+          [boardId, item.id],
         );
-      }
-      // D7: full-item activation follows the priority rule; exceptions go through individual tasks.
-      const next = await nextEligible(tx, project.id, boardId);
-      if (!next) throw conflict('No open item is eligible for activation.');
-      if (next.id !== item.id) {
-        throw conflict(
-          `"${next.title}" is next in priority. Activate it first, or bring individual tasks in as out-of-scope work.`,
-          {
-            nextEligible: next,
-          },
+        if (already.rowCount) throw conflict('That item is already in scope.');
+        // D6: every included item counts until it is accepted or the Director removes it.
+        const count = Number(
+          (
+            await tx.query<{ n: string }>(
+              'SELECT count(*) AS n FROM workboard_scope WHERE board_id = $1',
+              [boardId],
+            )
+          ).rows[0]!.n,
         );
-      }
-      await tx.query(
-        'INSERT INTO workboard_scope (board_id, item_id, added_by) VALUES ($1, $2, $3)',
-        [boardId, item.id, actorId],
-      );
-      // Section 8: existing unfinished, unplaced tasks enter their To Do columns; completed ones stay complete.
-      const tasks = await tx.query<{ id: string; category: BoardCard['category'] }>(
-        `SELECT t.id, t.category FROM tasks t WHERE t.item_id = $1 AND t.archived_at IS NULL AND NOT t.completed
-            AND NOT EXISTS (SELECT 1 FROM task_placements p WHERE p.task_id = t.id AND p.is_current) ORDER BY t.created_at`,
-        [item.id],
-      );
-      for (const t of tasks.rows) await placeTask(tx, boardId, t, actorId, false);
-      await recordActivity(tx, {
-        projectId: project.id,
-        actorId,
-        action: 'scope.added',
-        entityType: 'backlog_item',
-        entityId: item.id,
-        next: { boardId, placedTasks: tasks.rowCount },
+        if (count >= project.scope_limit) {
+          throw conflict(
+            `The Workboard already holds ${count} of ${project.scope_limit} items. Remove an item from scope to add another.`,
+            {
+              scopeItems: count,
+              scopeLimit: project.scope_limit,
+            },
+          );
+        }
+        // D7: full-item activation follows the priority rule; exceptions go through individual tasks.
+        const next = await nextEligible(tx, project.id, boardId);
+        if (!next) throw conflict('No open item is eligible for activation.');
+        if (next.id !== item.id) {
+          throw conflict(
+            `"${next.title}" is next in priority. Activate it first, or bring individual tasks in as out-of-scope work.`,
+            {
+              nextEligible: next,
+            },
+          );
+        }
+        await tx.query(
+          'INSERT INTO workboard_scope (board_id, item_id, added_by) VALUES ($1, $2, $3)',
+          [boardId, item.id, actorId],
+        );
+        // Section 8: existing unfinished, unplaced tasks enter their To Do columns; completed ones stay complete.
+        const tasks = await tx.query<{ id: string; category: BoardCard['category'] }>(
+          `SELECT t.id, t.category FROM tasks t WHERE t.item_id = $1 AND t.archived_at IS NULL AND NOT t.completed
+              AND NOT EXISTS (SELECT 1 FROM task_placements p WHERE p.task_id = t.id AND p.is_current) ORDER BY t.created_at`,
+          [item.id],
+        );
+        for (const t of tasks.rows) await placeTask(tx, boardId, t, actorId, false);
+        await recordActivity(tx, {
+          projectId: project.id,
+          actorId,
+          action: 'scope.added',
+          entityType: 'backlog_item',
+          entityId: item.id,
+          next: { boardId, placedTasks: tasks.rowCount },
+        });
       });
-    });
-    return reply.status(201).send(await view(req, boardId));
-  });
+      return reply.status(201).send(await view(req, boardId));
+    },
+  );
 
   app.post(
     `${base}/:boardId/scope/:itemId/remove`,
-    projectRoute('board.select_scope'),
+    projectRoute('board.select_scope', {
+      id: 'removeFromScope',
+      summary: 'Take an item out of the Workboard’s scope',
+      description:
+        'Its unfinished tasks on the board either go back to Breakdown (returnTasks: true) or stay as out-of-scope work.',
+      body: removeScopeSchema,
+      response: schema.BoardView,
+    }),
     async (req) => {
       const parsed = removeScopeSchema.safeParse(req.body);
       if (!parsed.success)
@@ -754,189 +852,225 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
   // Placements ------------------------------------------------------------------------------
 
   /** Places an unplaced task from Breakdown (D8). Out-of-scope parents need Director approval. */
-  app.post(`${base}/:boardId/placements`, projectRoute('task.work'), async (req, reply) => {
-    const parsed = placeSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
-    const { boardId } = req.params as { boardId: string };
-    const projectId = req.access!.project.id;
-    const actorId = req.user!.id;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [parsed.data.taskId]);
-      const task = await fetchTask(tx, projectId, parsed.data.taskId);
-      if (!task) throw notFound('Task not found');
-      if (task.archived) throw conflict('Restore the task before placing it.');
-      if (task.completed) throw conflict('The task is already complete.');
-      if (task.placement) throw conflict(`The task is already on ${task.placement.boardName}.`);
-      const inScope = await tx.query(
-        'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
-        [boardId, task.itemId],
-      );
-      const exception = !inScope.rowCount;
-      if (exception) {
-        requireAction(
-          req,
-          'out_of_scope.approve',
-          'This task’s item is outside the Workboard scope. Ask a Game Director to place it.',
+  app.post(
+    `${base}/:boardId/placements`,
+    projectRoute('task.work', {
+      id: 'placeTask',
+      summary: 'Put a task of an item in scope on the Workboard',
+      description:
+        'It goes to its category’s To Do column. A task of an item outside the scope needs an approved out-of-scope request instead.',
+      body: placeSchema,
+      response: { status: 201, schema: schema.BoardView },
+    }),
+    async (req, reply) => {
+      const parsed = placeSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      const { boardId } = req.params as { boardId: string };
+      const projectId = req.access!.project.id;
+      const actorId = req.user!.id;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [parsed.data.taskId]);
+        const task = await fetchTask(tx, projectId, parsed.data.taskId);
+        if (!task) throw notFound('Task not found');
+        if (task.archived) throw conflict('Restore the task before placing it.');
+        if (task.completed) throw conflict('The task is already complete.');
+        if (task.placement) throw conflict(`The task is already on ${task.placement.boardName}.`);
+        const inScope = await tx.query(
+          'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
+          [boardId, task.itemId],
         );
-      }
-      await placeTask(tx, boardId, task, actorId, exception);
-      await recordActivity(tx, {
-        projectId,
-        actorId,
-        action: exception ? 'task.placed_as_exception' : 'task.placed',
-        entityType: 'task',
-        entityId: task.id,
-        next: { boardId },
+        const exception = !inScope.rowCount;
+        if (exception) {
+          requireAction(
+            req,
+            'out_of_scope.approve',
+            'This task’s item is outside the Workboard scope. Ask a Game Director to place it.',
+          );
+        }
+        await placeTask(tx, boardId, task, actorId, exception);
+        await recordActivity(tx, {
+          projectId,
+          actorId,
+          action: exception ? 'task.placed_as_exception' : 'task.placed',
+          entityType: 'task',
+          entityId: task.id,
+          next: { boardId },
+        });
       });
-    });
-    return reply.status(201).send(await view(req, boardId));
-  });
+      return reply.status(201).send(await view(req, boardId));
+    },
+  );
 
   /** Creates a task directly on the board (Section 8 parent rules) and places it. */
-  app.post(`${base}/:boardId/tasks`, projectRoute('task.work'), async (req, reply) => {
-    const parsed = boardTaskSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid task', parsed.error.flatten());
-    const { boardId } = req.params as { boardId: string };
-    const projectId = req.access!.project.id;
-    const actorId = req.user!.id;
-    const input = parsed.data;
-    await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      const scope = await tx.query<{ item_id: string }>(
-        'SELECT item_id FROM workboard_scope WHERE board_id = $1',
-        [boardId],
-      );
-      let itemId = input.itemId;
-      if (!itemId) {
-        if (scope.rowCount === 1) itemId = scope.rows[0]!.item_id;
-        else if (scope.rowCount === 0)
-          throw badRequest('No item is in scope. Choose the backlog item this task belongs to.');
-        else
-          throw badRequest(
-            'Several items are in scope. Choose the backlog item this task belongs to.',
-            { scopeItems: scope.rowCount },
-          );
-      }
-      const item = (
-        await tx.query<{ archived_at: Date | null }>(
-          'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
-          [projectId, itemId],
-        )
-      ).rows[0];
-      if (!item) throw notFound('Backlog item not found');
-      if (item.archived_at) throw conflict('That backlog item is archived.');
-      const exception = !scope.rows.some((s) => s.item_id === itemId);
-      if (exception) {
-        requireAction(
-          req,
-          'out_of_scope.approve',
-          'That item is outside the Workboard scope. Create the task in Breakdown and ask a Game Director to place it.',
+  app.post(
+    `${base}/:boardId/tasks`,
+    projectRoute('task.work', {
+      id: 'createBoardTask',
+      summary: 'Create a task from the Workboard',
+      description:
+        'Under an item in scope, and placed in its To Do column at once. itemId may be left out while exactly one item is in scope.',
+      body: boardTaskSchema,
+      response: { status: 201, schema: schema.BoardView },
+    }),
+    async (req, reply) => {
+      const parsed = boardTaskSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid task', parsed.error.flatten());
+      const { boardId } = req.params as { boardId: string };
+      const projectId = req.access!.project.id;
+      const actorId = req.user!.id;
+      const input = parsed.data;
+      await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        const scope = await tx.query<{ item_id: string }>(
+          'SELECT item_id FROM workboard_scope WHERE board_id = $1',
+          [boardId],
         );
-      }
-      const created = await tx.query<{ id: string }>(
-        'INSERT INTO tasks (project_id, item_id, category, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [projectId, itemId, input.category, input.title, input.description],
-      );
-      const taskId = created.rows[0]!.id;
-      await recordActivity(tx, {
-        projectId,
-        actorId,
-        action: 'task.created',
-        entityType: 'task',
-        entityId: taskId,
-        next: { itemId, category: input.category, title: input.title, onBoard: boardId },
-      });
-      await placeTask(tx, boardId, { id: taskId, category: input.category }, actorId, exception);
-      await recalculateItemState(tx, itemId, actorId, 'task created on board');
-    });
-    return reply.status(201).send(await view(req, boardId));
-  });
-
-  app.post(`${base}/:boardId/placements/:taskId/move`, projectRoute('task.work'), async (req) => {
-    const parsed = moveSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
-    const { boardId, taskId } = req.params as { boardId: string; taskId: string };
-    const { columnId, afterId, beforeId } = parsed.data;
-    const projectId = req.access!.project.id;
-    const actorId = req.user!.id;
-    await withTransaction(db, async (tx) => {
-      // Serialize moves per board so concurrent drops never share a rank.
-      await activeBoardFor(tx, projectId, boardId);
-      await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
-      const task = await fetchTask(tx, projectId, taskId);
-      if (!task?.placement || task.placement.boardId !== boardId)
-        throw notFound('The task is not on this Workboard.');
-      const target = (
-        await tx.query<{ id: string; kind: ColumnKind }>(
-          'SELECT id, kind FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL',
-          [boardId, columnId],
-        )
-      ).rows[0];
-      if (!target) throw notFound('Column not found');
-      // Section 8: the three To Do columns are category-specific.
-      if (target.kind.startsWith('todo_') && target.kind !== todoKindFor(task.category)) {
-        throw conflict(`A ${task.category} task can only wait in its own To Do column.`);
-      }
-      const enteringDone = target.kind === 'done' && !task.placement.inDone;
-      const leavingDone = task.placement.inDone && target.kind !== 'done';
-      if (enteringDone || leavingDone) {
-        // Invariant 4 and R2: both directions need the completion permission under the restriction.
-        requireAction(
-          req,
-          'task.complete',
-          'Only members with the completion permission can move tasks into or out of Done.',
-        );
-      }
-
-      const neighbor = async (id: string | null | undefined) => {
-        if (!id) return null;
-        if (id === taskId) throw badRequest('A task cannot be placed next to itself');
-        const row = await tx.query<{ rank: string }>(
-          'SELECT rank FROM task_placements WHERE task_id = $1 AND board_id = $2 AND column_id = $3 AND is_current',
-          [id, boardId, columnId],
-        );
-        if (!row.rows[0])
-          throw conflict('The neighboring card is no longer in that column. Reload and try again.');
-        return row.rows[0].rank;
-      };
-      let after = await neighbor(afterId);
-      let before = await neighbor(beforeId);
-      let rank: string;
-      if (after === null && before === null) rank = await rankAtEndOfColumn(tx, columnId);
-      else {
-        const bounds = (
-          await tx.query<{ min: string | null; max: string | null }>(
-            'SELECT min(rank), max(rank) FROM task_placements WHERE column_id = $1 AND is_current AND task_id <> $2',
-            [columnId, taskId],
+        let itemId = input.itemId;
+        if (!itemId) {
+          if (scope.rowCount === 1) itemId = scope.rows[0]!.item_id;
+          else if (scope.rowCount === 0)
+            throw badRequest('No item is in scope. Choose the backlog item this task belongs to.');
+          else
+            throw badRequest(
+              'Several items are in scope. Choose the backlog item this task belongs to.',
+              { scopeItems: scope.rowCount },
+            );
+        }
+        const item = (
+          await tx.query<{ archived_at: Date | null }>(
+            'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
+            [projectId, itemId],
           )
-        ).rows[0]!;
-        if (after === null && bounds.min !== null && (before === null || bounds.min < before))
-          before = bounds.min;
-        if (before === null && bounds.max !== null && (after === null || bounds.max > after))
-          after = bounds.max;
-        if (after !== null && before !== null && after >= before)
-          throw conflict('Those cards are no longer adjacent. Reload and try again.');
-        rank = generateKeyBetween(after, before);
-      }
-      await tx.query(
-        'UPDATE task_placements SET column_id = $2, rank = $3 WHERE task_id = $1 AND is_current',
-        [taskId, columnId, rank],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId,
-        action: 'task.moved',
-        entityType: 'task',
-        entityId: taskId,
-        previous: { columnId: task.placement.columnId },
-        next: { columnId },
+        ).rows[0];
+        if (!item) throw notFound('Backlog item not found');
+        if (item.archived_at) throw conflict('That backlog item is archived.');
+        const exception = !scope.rows.some((s) => s.item_id === itemId);
+        if (exception) {
+          requireAction(
+            req,
+            'out_of_scope.approve',
+            'That item is outside the Workboard scope. Create the task in Breakdown and ask a Game Director to place it.',
+          );
+        }
+        const created = await tx.query<{ id: string }>(
+          'INSERT INTO tasks (project_id, item_id, category, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+          [projectId, itemId, input.category, input.title, input.description],
+        );
+        const taskId = created.rows[0]!.id;
+        await recordActivity(tx, {
+          projectId,
+          actorId,
+          action: 'task.created',
+          entityType: 'task',
+          entityId: taskId,
+          next: { itemId, category: input.category, title: input.title, onBoard: boardId },
+        });
+        await placeTask(tx, boardId, { id: taskId, category: input.category }, actorId, exception);
+        await recalculateItemState(tx, itemId, actorId, 'task created on board');
       });
-      if (enteringDone) await setTaskCompleted(tx, task, true, actorId, 'moved into Done', false);
-      if (leavingDone) await setTaskCompleted(tx, task, false, actorId, 'moved out of Done', false);
-    });
-    return view(req, boardId);
-  });
+      return reply.status(201).send(await view(req, boardId));
+    },
+  );
+
+  app.post(
+    `${base}/:boardId/placements/:taskId/move`,
+    projectRoute('task.work', {
+      id: 'moveCard',
+      summary: 'Move a card to a column, or within one',
+      description:
+        'Between afterId and beforeId in the column; with neither, to the end. Moving into or out of Done completes or reopens the task, and needs the task.complete permission.',
+      body: moveSchema,
+      response: schema.BoardView,
+    }),
+    async (req) => {
+      const parsed = moveSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
+      const { boardId, taskId } = req.params as { boardId: string; taskId: string };
+      const { columnId, afterId, beforeId } = parsed.data;
+      const projectId = req.access!.project.id;
+      const actorId = req.user!.id;
+      await withTransaction(db, async (tx) => {
+        // Serialize moves per board so concurrent drops never share a rank.
+        await activeBoardFor(tx, projectId, boardId);
+        await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
+        const task = await fetchTask(tx, projectId, taskId);
+        if (!task?.placement || task.placement.boardId !== boardId)
+          throw notFound('The task is not on this Workboard.');
+        const target = (
+          await tx.query<{ id: string; kind: ColumnKind }>(
+            'SELECT id, kind FROM board_columns WHERE board_id = $1 AND id = $2 AND deleted_at IS NULL',
+            [boardId, columnId],
+          )
+        ).rows[0];
+        if (!target) throw notFound('Column not found');
+        // Section 8: the three To Do columns are category-specific.
+        if (target.kind.startsWith('todo_') && target.kind !== todoKindFor(task.category)) {
+          throw conflict(`A ${task.category} task can only wait in its own To Do column.`);
+        }
+        const enteringDone = target.kind === 'done' && !task.placement.inDone;
+        const leavingDone = task.placement.inDone && target.kind !== 'done';
+        if (enteringDone || leavingDone) {
+          // Invariant 4 and R2: both directions need the completion permission under the restriction.
+          requireAction(
+            req,
+            'task.complete',
+            'Only members with the completion permission can move tasks into or out of Done.',
+          );
+        }
+
+        const neighbor = async (id: string | null | undefined) => {
+          if (!id) return null;
+          if (id === taskId) throw badRequest('A task cannot be placed next to itself');
+          const row = await tx.query<{ rank: string }>(
+            'SELECT rank FROM task_placements WHERE task_id = $1 AND board_id = $2 AND column_id = $3 AND is_current',
+            [id, boardId, columnId],
+          );
+          if (!row.rows[0])
+            throw conflict(
+              'The neighboring card is no longer in that column. Reload and try again.',
+            );
+          return row.rows[0].rank;
+        };
+        let after = await neighbor(afterId);
+        let before = await neighbor(beforeId);
+        let rank: string;
+        if (after === null && before === null) rank = await rankAtEndOfColumn(tx, columnId);
+        else {
+          const bounds = (
+            await tx.query<{ min: string | null; max: string | null }>(
+              'SELECT min(rank), max(rank) FROM task_placements WHERE column_id = $1 AND is_current AND task_id <> $2',
+              [columnId, taskId],
+            )
+          ).rows[0]!;
+          if (after === null && bounds.min !== null && (before === null || bounds.min < before))
+            before = bounds.min;
+          if (before === null && bounds.max !== null && (after === null || bounds.max > after))
+            after = bounds.max;
+          if (after !== null && before !== null && after >= before)
+            throw conflict('Those cards are no longer adjacent. Reload and try again.');
+          rank = generateKeyBetween(after, before);
+        }
+        await tx.query(
+          'UPDATE task_placements SET column_id = $2, rank = $3 WHERE task_id = $1 AND is_current',
+          [taskId, columnId, rank],
+        );
+        await recordActivity(tx, {
+          projectId,
+          actorId,
+          action: 'task.moved',
+          entityType: 'task',
+          entityId: taskId,
+          previous: { columnId: task.placement.columnId },
+          next: { columnId },
+        });
+        if (enteringDone) await setTaskCompleted(tx, task, true, actorId, 'moved into Done', false);
+        if (leavingDone)
+          await setTaskCompleted(tx, task, false, actorId, 'moved out of Done', false);
+      });
+      return view(req, boardId);
+    },
+  );
 };
 
 /** Rank for an intermediate column between two others (or at the end, just before Done). */

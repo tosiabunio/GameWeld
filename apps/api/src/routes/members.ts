@@ -11,6 +11,7 @@ import { projectRoute } from '../authz.ts';
 import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import * as schema from '../schemas.ts';
 
 const rolesSchema = z
   .array(z.enum(PROJECT_ROLES))
@@ -105,62 +106,80 @@ async function assertDirectorRemains(
 export const memberRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
 
-  app.post('/projects/:projectId/members', projectRoute('members.manage'), async (req, reply) => {
-    const parsed = addSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid member', parsed.error.flatten());
-    const { email, roles, canAccept } = parsed.data;
-    const projectId = req.access!.project.id;
+  app.post(
+    '/projects/:projectId/members',
+    projectRoute('members.manage', {
+      id: 'addMember',
+      summary: 'Add a member, or invite an address that has no account yet',
+      description:
+        'An address that has an account on this instance becomes a member at once (201). Any other address is invited (202): its first sign-in with that address makes it a member. GameWeld sends no e-mail.',
+      body: addSchema,
+      response: [
+        { status: 201, schema: schema.ProjectMember, description: 'Added' },
+        { status: 202, schema: schema.ProjectInvitation, description: 'Invited' },
+      ],
+    }),
+    async (req, reply) => {
+      const parsed = addSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid member', parsed.error.flatten());
+      const { email, roles, canAccept } = parsed.data;
+      const projectId = req.access!.project.id;
 
-    // Someone who has signed in before becomes a member now (201). Anyone else gets an
-    // invitation (202), which their first sign-in with that address turns into a membership.
-    const result = await withTransaction(db, async (tx) => {
-      const user = await tx.query<{ id: string }>(
-        'SELECT id FROM users WHERE lower(email) = $1 ORDER BY created_at LIMIT 1',
-        [email],
-      );
-      const userId = user.rows[0]?.id;
-      if (!userId) {
-        const invited = await tx.query<{ id: string }>(
-          `INSERT INTO project_invitations (project_id, email, roles, can_accept, invited_by)
-           VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id`,
-          [projectId, email, roles, canAccept, req.user!.id],
+      // Someone who has signed in before becomes a member now (201). Anyone else gets an
+      // invitation (202), which their first sign-in with that address turns into a membership.
+      const result = await withTransaction(db, async (tx) => {
+        const user = await tx.query<{ id: string }>(
+          'SELECT id FROM users WHERE lower(email) = $1 ORDER BY created_at LIMIT 1',
+          [email],
         );
-        const invitationId = invited.rows[0]?.id;
-        if (!invitationId) throw conflict('That address is already invited.');
+        const userId = user.rows[0]?.id;
+        if (!userId) {
+          const invited = await tx.query<{ id: string }>(
+            `INSERT INTO project_invitations (project_id, email, roles, can_accept, invited_by)
+             VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id`,
+            [projectId, email, roles, canAccept, req.user!.id],
+          );
+          const invitationId = invited.rows[0]?.id;
+          if (!invitationId) throw conflict('That address is already invited.');
+          await recordActivity(tx, {
+            projectId,
+            actorId: req.user!.id,
+            action: 'member.invited',
+            entityType: 'invitation',
+            entityId: invitationId,
+            next: { email, roles, canAccept },
+          });
+          return { invitation: (await projectInvitations(tx, projectId, invitationId))[0]! };
+        }
+        const inserted = await tx.query(
+          `INSERT INTO project_memberships (project_id, user_id, roles, can_accept)
+           VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+          [projectId, userId, roles, canAccept],
+        );
+        if (!inserted.rowCount) throw conflict('That user is already a member.');
         await recordActivity(tx, {
           projectId,
           actorId: req.user!.id,
-          action: 'member.invited',
-          entityType: 'invitation',
-          entityId: invitationId,
-          next: { email, roles, canAccept },
+          action: 'member.added',
+          entityType: 'user',
+          entityId: userId,
+          next: { roles, canAccept },
         });
-        return { invitation: (await projectInvitations(tx, projectId, invitationId))[0]! };
-      }
-      const inserted = await tx.query(
-        `INSERT INTO project_memberships (project_id, user_id, roles, can_accept)
-         VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-        [projectId, userId, roles, canAccept],
-      );
-      if (!inserted.rowCount) throw conflict('That user is already a member.');
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'member.added',
-        entityType: 'user',
-        entityId: userId,
-        next: { roles, canAccept },
+        return { member: (await memberById(tx, projectId, userId))! };
       });
-      return { member: (await memberById(tx, projectId, userId))! };
-    });
-    return 'member' in result
-      ? reply.status(201).send(result.member)
-      : reply.status(202).send(result.invitation);
-  });
+      return 'member' in result
+        ? reply.status(201).send(result.member)
+        : reply.status(202).send(result.invitation);
+    },
+  );
 
   app.delete(
     '/projects/:projectId/invitations/:invitationId',
-    projectRoute('members.manage'),
+    projectRoute('members.manage', {
+      id: 'cancelInvitation',
+      summary: 'Cancel an invitation',
+      response: null,
+    }),
     async (req, reply) => {
       const projectId = req.access!.project.id;
       const { invitationId } = req.params as { invitationId: string };
@@ -185,42 +204,58 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.patch('/projects/:projectId/members/:userId', projectRoute('members.manage'), async (req) => {
-    const parsed = updateSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid member update', parsed.error.flatten());
-    const { roles, canAccept } = parsed.data;
-    const projectId = req.access!.project.id;
-    const { userId } = req.params as { userId: string };
+  app.patch(
+    '/projects/:projectId/members/:userId',
+    projectRoute('members.manage', {
+      id: 'updateMember',
+      summary: 'Change a member’s roles, or whether they may accept items',
+      description: 'A project always keeps at least one Game Director.',
+      body: updateSchema,
+      response: schema.ProjectMember,
+    }),
+    async (req) => {
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid member update', parsed.error.flatten());
+      const { roles, canAccept } = parsed.data;
+      const projectId = req.access!.project.id;
+      const { userId } = req.params as { userId: string };
 
-    return withTransaction(db, async (tx) => {
-      await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
-      const before = await memberById(tx, projectId, userId);
-      if (!before) throw notFound('Member not found');
-      const nextRoles = roles ?? before.roles;
-      if (before.roles.includes('director') && !nextRoles.includes('director')) {
-        await assertDirectorRemains(tx, projectId, userId);
-      }
-      await tx.query(
-        'UPDATE project_memberships SET roles = $3, can_accept = $4 WHERE project_id = $1 AND user_id = $2',
-        [projectId, userId, nextRoles, canAccept ?? before.canAccept],
-      );
-      const after = (await memberById(tx, projectId, userId))!;
-      await recordActivity(tx, {
-        projectId,
-        actorId: req.user!.id,
-        action: 'member.updated',
-        entityType: 'user',
-        entityId: userId,
-        previous: { roles: before.roles, canAccept: before.canAccept },
-        next: { roles: after.roles, canAccept: after.canAccept },
+      return withTransaction(db, async (tx) => {
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        const before = await memberById(tx, projectId, userId);
+        if (!before) throw notFound('Member not found');
+        const nextRoles = roles ?? before.roles;
+        if (before.roles.includes('director') && !nextRoles.includes('director')) {
+          await assertDirectorRemains(tx, projectId, userId);
+        }
+        await tx.query(
+          'UPDATE project_memberships SET roles = $3, can_accept = $4 WHERE project_id = $1 AND user_id = $2',
+          [projectId, userId, nextRoles, canAccept ?? before.canAccept],
+        );
+        const after = (await memberById(tx, projectId, userId))!;
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'member.updated',
+          entityType: 'user',
+          entityId: userId,
+          previous: { roles: before.roles, canAccept: before.canAccept },
+          next: { roles: after.roles, canAccept: after.canAccept },
+        });
+        return after;
       });
-      return after;
-    });
-  });
+    },
+  );
 
   app.delete(
     '/projects/:projectId/members/:userId',
-    projectRoute('members.manage'),
+    projectRoute('members.manage', {
+      id: 'removeMember',
+      summary: 'Remove a member from the project',
+      description:
+        'Their unfinished tasks are left unassigned. A project always keeps at least one Game Director.',
+      response: null,
+    }),
     async (req, reply) => {
       const projectId = req.access!.project.id;
       const { userId } = req.params as { userId: string };

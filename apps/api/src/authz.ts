@@ -10,6 +10,7 @@ import {
 import type { FastifyReply, FastifyRequest, RouteShorthandOptions } from 'fastify';
 import { requireUser } from './auth.ts';
 import type { Queryable } from './db.ts';
+import type { RouteDoc } from './openapi.ts';
 
 export interface ProjectRow {
   id: string;
@@ -85,13 +86,17 @@ export async function checkProjectAction(req: FastifyRequest, reply: FastifyRepl
   req.access = access;
 }
 
-/** Route options that declare the permission a project-scoped route requires. */
+/**
+ * Route options that declare the permission a project-scoped route requires, and describe the
+ * route for the OpenAPI description.
+ */
 export function projectRoute(
   action: ProjectAction,
+  doc: RouteDoc,
   options: { ownerScoped?: boolean } = {},
 ): RouteShorthandOptions {
   return {
-    config: { projectAction: action, ...(options.ownerScoped ? { ownerScoped: true } : {}) },
+    config: { projectAction: action, doc, ...(options.ownerScoped ? { ownerScoped: true } : {}) },
     preHandler: [requireUser, checkProjectAction],
   };
 }

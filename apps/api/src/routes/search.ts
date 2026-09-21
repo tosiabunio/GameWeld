@@ -1,6 +1,8 @@
 import type { SearchResults } from '@gameweld/domain';
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import { projectRoute } from '../authz.ts';
+import * as schema from '../schemas.ts';
 
 const LIMIT = 8;
 /** `%` and `_` in what was typed are letters to look for, not wildcards. */
@@ -14,7 +16,18 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
   app.get(
     '/projects/:projectId/search',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'search',
+      summary: 'Find items and tasks by title or description',
+      description: 'At most 8 of each, for quick open.',
+      query: z.object({
+        q: z
+          .string()
+          .optional()
+          .describe('What to look for: the first 100 characters; case does not matter.'),
+      }),
+      response: schema.SearchResults,
+    }),
     async (req): Promise<SearchResults> => {
       const q = String((req.query as { q?: unknown }).q ?? '')
         .trim()

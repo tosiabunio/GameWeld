@@ -1,13 +1,15 @@
 import fastifyCookie from '@fastify/cookie';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
-import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyError, type FastifyInstance, type FastifyPluginAsync } from 'fastify';
 import path from 'node:path';
 import type { CustomFetch } from 'openid-client';
 import { registerAuth } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
-import { LiveHub, requestContext } from './live.ts';
+import { LiveHub } from './live.ts';
+import { ApiDescription, checkResponses, publicRoute } from './openapi.ts';
+import { requestContext } from './requestContext.ts';
 import { FilesystemStorage, type Storage } from './storage.ts';
 import { currentVersion } from './migrate.ts';
 import { acceptanceRoutes } from './routes/acceptance.ts';
@@ -25,9 +27,11 @@ import { projectRoutes } from './routes/projects.ts';
 import { requestRoutes } from './routes/requests.ts';
 import { searchRoutes } from './routes/search.ts';
 import { taskRoutes } from './routes/tasks.ts';
+import { tokenRoutes } from './routes/tokens.ts';
 import { transferRoutes } from './routes/transfer.ts';
 import { userRoutes } from './routes/users.ts';
 import { HttpError } from './errors.ts';
+import { z } from 'zod';
 
 export interface AppContext {
   config: Config;
@@ -78,10 +82,14 @@ export async function buildApp(
   app.addHook('onRequest', (req, _reply, done) => {
     const header = req.headers['x-client-id'];
     const clientId = typeof header === 'string' && /^[\w-]{1,64}$/.test(header) ? header : null;
-    requestContext.run({ clientId }, done);
+    requestContext.run({ clientId, token: null }, done);
   });
   // Before the server waits for requests in flight: a stream is one, and never ends by itself.
   app.addHook('preClose', () => ctx.live.stop());
+  const description = new ApiDescription();
+  description.collect(app);
+  // The test suite holds every response to the description of its route.
+  if (ctx.config.appEnv === 'test') checkResponses(app);
   beforeRoutes?.(app);
 
   // Must precede route registration: child contexts inherit the handler that exists at that time.
@@ -94,31 +102,60 @@ export async function buildApp(
     });
   });
 
-  app.get('/api/health', async () => ({
-    ok: true,
-    env: ctx.config.appEnv,
-    schemaVersion: await currentVersion(ctx.db),
-  }));
+  app.get(
+    '/api/health',
+    publicRoute({
+      id: 'getHealth',
+      summary: 'Whether the instance is up, and its database schema version',
+      tag: 'Instance',
+      response: z.object({
+        ok: z.literal(true),
+        env: z.string(),
+        schemaVersion: z.string().nullable(),
+      }),
+    }),
+    async () => ({
+      ok: true as const,
+      env: ctx.config.appEnv,
+      schemaVersion: await currentVersion(ctx.db),
+    }),
+  );
+  app.get(
+    '/api/openapi.json',
+    publicRoute({
+      id: 'getOpenApi',
+      summary: 'This description of the API',
+      tag: 'Instance',
+      response: { content: 'application/json', description: 'An OpenAPI 3.1 document' },
+    }),
+    async () => description.document(ctx.config.publicUrl),
+  );
 
+  // Not a group of its own: it signs in every request, and its routes name their own tag.
   await registerAuth(app);
   app.decorateRequest('access', null);
-  await app.register(projectRoutes, { prefix: '/api' });
-  await app.register(memberRoutes, { prefix: '/api' });
-  await app.register(userRoutes, { prefix: '/api' });
-  await app.register(notificationRoutes, { prefix: '/api' });
-  await app.register(liveRoutes, { prefix: '/api' });
-  await app.register(avatarRoutes, { prefix: '/api' });
-  await app.register(backlogRoutes, { prefix: '/api' });
-  await app.register(taskRoutes, { prefix: '/api' });
-  await app.register(checklistRoutes, { prefix: '/api' });
-  await app.register(labelRoutes, { prefix: '/api' });
-  await app.register(transferRoutes, { prefix: '/api' });
-  await app.register(searchRoutes, { prefix: '/api' });
-  await app.register(myTaskRoutes, { prefix: '/api' });
-  await app.register(boardRoutes, { prefix: '/api' });
-  await app.register(acceptanceRoutes, { prefix: '/api' });
-  await app.register(requestRoutes, { prefix: '/api' });
-  await app.register(collabRoutes, { prefix: '/api' });
+  // Each group of routes, and the name the API's description lists it under.
+  const groups: [FastifyPluginAsync, string][] = [
+    [projectRoutes, 'Projects'],
+    [memberRoutes, 'Members'],
+    [userRoutes, 'Members'],
+    [tokenRoutes, 'API tokens'],
+    [notificationRoutes, 'Notifications'],
+    [liveRoutes, 'Live updates'],
+    [avatarRoutes, 'Profile'],
+    [backlogRoutes, 'Backlog'],
+    [taskRoutes, 'Tasks'],
+    [checklistRoutes, 'Tasks'],
+    [labelRoutes, 'Labels'],
+    [transferRoutes, 'Import and export'],
+    [searchRoutes, 'Search'],
+    [myTaskRoutes, 'My tasks'],
+    [boardRoutes, 'Workboards'],
+    [acceptanceRoutes, 'Backlog'],
+    [requestRoutes, 'Out-of-scope requests'],
+    [collabRoutes, 'Comments, links, and attachments'],
+  ];
+  for (const [routes, tag] of groups) await app.register(tagged(routes, tag), { prefix: '/api' });
 
   if (ctx.config.webDist) {
     const root = path.resolve(ctx.config.webDist);
@@ -131,4 +168,14 @@ export async function buildApp(
   }
 
   return app;
+}
+
+/** A group of routes, each listed under the tag in the API's description unless it names its own. */
+function tagged(routes: FastifyPluginAsync, tag: string): FastifyPluginAsync {
+  return async (scope) => {
+    scope.addHook('onRoute', (route) => {
+      route.config = { ...route.config, tag };
+    });
+    await scope.register(routes);
+  };
 }

@@ -2,13 +2,14 @@ import type { ProjectDetail, ProjectRole, ProjectSummary } from '@gameweld/domai
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
-import { requireUser } from '../auth.ts';
 import { loadAccess, projectRoute, type ProjectRow } from '../authz.ts';
 import { avatarUrl } from '../avatars.ts';
 import { fetchLabels } from './labels.ts';
 import { projectInvitations } from './members.ts';
 import { withTransaction } from '../db.ts';
 import { badRequest, conflict } from '../errors.ts';
+import { memberRoute } from '../openapi.ts';
+import * as schema from '../schemas.ts';
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -57,52 +58,83 @@ const summarySelect = `
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
 
-  app.get('/projects', { preHandler: requireUser }, async (req): Promise<ProjectSummary[]> => {
-    const query = req.query as { archived?: string };
-    const archived = query.archived === 'true';
-    const res = await db.query<SummaryRow>(
-      `${summarySelect} WHERE p.archived_at IS ${archived ? 'NOT NULL' : 'NULL'} ORDER BY p.created_at`,
-      [req.user!.id],
-    );
-    return res.rows.map(toSummary);
-  });
+  app.get(
+    '/projects',
+    memberRoute({
+      id: 'listProjects',
+      summary: 'The projects the viewer is a member of',
+      query: z.object({
+        archived: z
+          .enum(['true', 'false'])
+          .optional()
+          .describe('true lists the archived projects instead of the active ones.'),
+      }),
+      response: z.array(schema.ProjectSummary),
+    }),
+    async (req): Promise<ProjectSummary[]> => {
+      const query = req.query as { archived?: string };
+      const archived = query.archived === 'true';
+      const res = await db.query<SummaryRow>(
+        `${summarySelect} WHERE p.archived_at IS ${archived ? 'NOT NULL' : 'NULL'} ORDER BY p.created_at`,
+        [req.user!.id],
+      );
+      return res.rows.map(toSummary);
+    },
+  );
 
   // Any signed-in user may create a project and becomes its first Game Director.
-  app.post('/projects', { preHandler: requireUser }, async (req, reply) => {
-    const parsed = createSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid project', parsed.error.flatten());
-    const input = parsed.data;
-    const userId = req.user!.id;
+  app.post(
+    '/projects',
+    memberRoute({
+      id: 'createProject',
+      summary: 'Create a project',
+      description: 'Anyone signed in may; they become its first Game Director.',
+      body: createSchema,
+      response: { status: 201, schema: schema.ProjectSummary },
+    }),
+    async (req, reply) => {
+      const parsed = createSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid project', parsed.error.flatten());
+      const input = parsed.data;
+      const userId = req.user!.id;
 
-    const projectId = await withTransaction(db, async (tx) => {
-      const created = await tx.query<{ id: string }>(
-        `INSERT INTO projects (name, description, done_restricted, scope_limit)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [input.name, input.description, input.doneRestricted, input.scopeLimit],
-      );
-      const id = created.rows[0]!.id;
-      await tx.query(
-        `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, '{director}')`,
-        [id, userId],
-      );
-      await recordActivity(tx, {
-        projectId: id,
-        actorId: userId,
-        action: 'project.created',
-        entityType: 'project',
-        entityId: id,
-        next: input,
+      const projectId = await withTransaction(db, async (tx) => {
+        const created = await tx.query<{ id: string }>(
+          `INSERT INTO projects (name, description, done_restricted, scope_limit)
+           VALUES ($1, $2, $3, $4) RETURNING id`,
+          [input.name, input.description, input.doneRestricted, input.scopeLimit],
+        );
+        const id = created.rows[0]!.id;
+        await tx.query(
+          `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, '{director}')`,
+          [id, userId],
+        );
+        await recordActivity(tx, {
+          projectId: id,
+          actorId: userId,
+          action: 'project.created',
+          entityType: 'project',
+          entityId: id,
+          next: input,
+        });
+        return id;
       });
-      return id;
-    });
 
-    const res = await db.query<SummaryRow>(`${summarySelect} WHERE p.id = $2`, [userId, projectId]);
-    return reply.status(201).send(toSummary(res.rows[0]!));
-  });
+      const res = await db.query<SummaryRow>(`${summarySelect} WHERE p.id = $2`, [
+        userId,
+        projectId,
+      ]);
+      return reply.status(201).send(toSummary(res.rows[0]!));
+    },
+  );
 
   app.get(
     '/projects/:projectId',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'getProject',
+      summary: 'A project, with its members, invitations, labels, and what the viewer may do',
+      response: schema.ProjectDetail,
+    }),
     async (req): Promise<ProjectDetail> => {
       const { project, permissions } = req.access!;
       const [summary, members] = await Promise.all([
@@ -138,66 +170,75 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.patch('/projects/:projectId', projectRoute('project.settings'), async (req) => {
-    const parsed = updateSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid settings', parsed.error.flatten());
-    const { version, archived, ...fields } = parsed.data;
-    const { project } = req.access!;
-    const userId = req.user!.id;
+  app.patch(
+    '/projects/:projectId',
+    projectRoute('project.settings', {
+      id: 'updateProject',
+      summary: 'Change a project’s settings, or archive or restore it',
+      body: updateSchema,
+      response: schema.ProjectSummary.extend({ permissions: schema.Permissions }),
+    }),
+    async (req) => {
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid settings', parsed.error.flatten());
+      const { version, archived, ...fields } = parsed.data;
+      const { project } = req.access!;
+      const userId = req.user!.id;
 
-    await withTransaction(db, async (tx) => {
-      const locked = await tx.query<ProjectRow>(
-        'SELECT id, name, description, done_restricted, scope_limit, archived_at, version FROM projects WHERE id = $1 FOR UPDATE',
-        [project.id],
-      );
-      const current = locked.rows[0]!;
-      if (current.version !== version) {
-        throw conflict('The project was changed by someone else. Reload and try again.', {
-          currentVersion: current.version,
+      await withTransaction(db, async (tx) => {
+        const locked = await tx.query<ProjectRow>(
+          'SELECT id, name, description, done_restricted, scope_limit, archived_at, version FROM projects WHERE id = $1 FOR UPDATE',
+          [project.id],
+        );
+        const current = locked.rows[0]!;
+        if (current.version !== version) {
+          throw conflict('The project was changed by someone else. Reload and try again.', {
+            currentVersion: current.version,
+          });
+        }
+        const next = {
+          name: fields.name ?? current.name,
+          description: fields.description ?? current.description,
+          done_restricted: fields.doneRestricted ?? current.done_restricted,
+          scope_limit: fields.scopeLimit ?? current.scope_limit,
+          archived_at:
+            archived === undefined
+              ? current.archived_at
+              : archived
+                ? (current.archived_at ?? new Date())
+                : null,
+        };
+        await tx.query(
+          `UPDATE projects SET name = $2, description = $3, done_restricted = $4, scope_limit = $5,
+                               archived_at = $6, version = version + 1 WHERE id = $1`,
+          [
+            project.id,
+            next.name,
+            next.description,
+            next.done_restricted,
+            next.scope_limit,
+            next.archived_at,
+          ],
+        );
+        await recordActivity(tx, {
+          projectId: project.id,
+          actorId: userId,
+          action: 'project.updated',
+          entityType: 'project',
+          entityId: project.id,
+          previous: pick(current),
+          next: pick({ ...current, ...next }),
         });
-      }
-      const next = {
-        name: fields.name ?? current.name,
-        description: fields.description ?? current.description,
-        done_restricted: fields.doneRestricted ?? current.done_restricted,
-        scope_limit: fields.scopeLimit ?? current.scope_limit,
-        archived_at:
-          archived === undefined
-            ? current.archived_at
-            : archived
-              ? (current.archived_at ?? new Date())
-              : null,
-      };
-      await tx.query(
-        `UPDATE projects SET name = $2, description = $3, done_restricted = $4, scope_limit = $5,
-                             archived_at = $6, version = version + 1 WHERE id = $1`,
-        [
-          project.id,
-          next.name,
-          next.description,
-          next.done_restricted,
-          next.scope_limit,
-          next.archived_at,
-        ],
-      );
-      await recordActivity(tx, {
-        projectId: project.id,
-        actorId: userId,
-        action: 'project.updated',
-        entityType: 'project',
-        entityId: project.id,
-        previous: pick(current),
-        next: pick({ ...current, ...next }),
       });
-    });
 
-    const access = (await loadAccess(db, project.id, userId))!;
-    const res = await db.query<SummaryRow>(`${summarySelect} WHERE p.id = $2`, [
-      userId,
-      project.id,
-    ]);
-    return { ...toSummary(res.rows[0]!), permissions: access.permissions };
-  });
+      const access = (await loadAccess(db, project.id, userId))!;
+      const res = await db.query<SummaryRow>(`${summarySelect} WHERE p.id = $2`, [
+        userId,
+        project.id,
+      ]);
+      return { ...toSummary(res.rows[0]!), permissions: access.permissions };
+    },
+  );
 };
 
 function pick(p: ProjectRow) {

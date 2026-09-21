@@ -3287,3 +3287,60 @@ html.modal-open {
   font-size: 0.87rem;
   text-align: center;
 }
+
+/* API tokens, in the profile */
+.token-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.token-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.token-list li:last-child {
+  border-bottom: 1px solid var(--border);
+}
+.token-list li > div {
+  min-width: 0;
+}
+.token-list p {
+  margin-top: 2px;
+}
+.token-created {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+}
+.token-created > p {
+  margin: 0 0 8px;
+}
+.token-secret {
+  flex: 1 1 280px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--r-sm, 6px);
+  background: var(--surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.token-form {
+  grid-template-columns: 1fr auto;
+  align-items: end;
+}
+.token-form > button {
+  grid-column: 1 / -1;
+}
+@media (max-width: 760px) {
+  .token-form {
+    grid-template-columns: 1fr;
+  }
+}

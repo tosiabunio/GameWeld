@@ -320,7 +320,13 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/projects/:projectId/export.json',
-    projectRoute('project.settings'),
+    projectRoute('project.settings', {
+      id: 'exportProject',
+      summary: 'Download the whole project as JSON',
+      description:
+        'Items, tasks, checklists, comments, links, the names of attachments, Workboards with their placements, requests, and the full history, with people named by name and address.',
+      response: { content: 'application/json', description: 'The project, as a file to keep' },
+    }),
     async (req, reply) => {
       const { project } = req.access!;
       const name = project.name.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '') || 'project';
@@ -333,7 +339,12 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/projects/:projectId/export/tasks.csv',
-    projectRoute('project.settings'),
+    projectRoute('project.settings', {
+      id: 'exportTasks',
+      summary: 'Download the project’s tasks as CSV',
+      description: 'One row per task, for a spreadsheet.',
+      response: { content: 'text/csv', description: 'The tasks' },
+    }),
     async (req, reply) => {
       const { project } = req.access!;
       const name = project.name.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '') || 'project';
@@ -359,7 +370,28 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
    */
   app.post(
     '/projects/:projectId/import/trello',
-    { ...projectRoute('project.settings'), bodyLimit: 25 * 1024 * 1024 },
+    {
+      ...projectRoute('project.settings', {
+        id: 'importTrello',
+        summary: 'Import a Trello board from its JSON export',
+        description:
+          'Lists become items and cards their tasks (cards_as_tasks), or cards become items (cards_as_items). Labels, dates, checklists, comments, and links come along; members and attachments do not. Up to 25 MB.',
+        body: trelloSchema,
+        response: {
+          status: 201,
+          schema: z.object({
+            items: z.number().int(),
+            tasks: z.number().int(),
+            labels: z.number().int(),
+            checklistItems: z.number().int(),
+            comments: z.number().int(),
+            links: z.number().int(),
+          }),
+          description: 'What was imported',
+        },
+      }),
+      bodyLimit: 25 * 1024 * 1024,
+    },
     async (req, reply) => {
       const parsed = trelloSchema.safeParse(req.body);
       if (!parsed.success)

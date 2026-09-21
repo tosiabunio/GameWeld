@@ -6,9 +6,10 @@ import type {
 } from '@gameweld/domain';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { requireUser } from '../auth.ts';
 import { avatarUrl } from '../avatars.ts';
 import { badRequest } from '../errors.ts';
+import { memberRoute } from '../openapi.ts';
+import * as schema from '../schemas.ts';
 
 const readSchema = z.object({ ids: z.array(z.string().uuid()).max(500).optional() });
 const LISTED = 50;
@@ -23,7 +24,12 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/notifications',
-    { preHandler: requireUser },
+    memberRoute({
+      id: 'getNotifications',
+      summary: 'The viewer’s notifications, and what waits for their decision',
+      description: `Across the viewer's projects: the newest ${LISTED} notifications, read ones included; the number unread; and the requests and items waiting for the viewer to decide on.`,
+      response: schema.NotificationSummary,
+    }),
     async (req): Promise<NotificationSummary> => {
       const userId = req.user!.id;
       const listed = await db.query<{
@@ -34,6 +40,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
         actor_id: string | null;
         actor_name: string | null;
         actor_avatar_id: string | null;
+        via_token: string | null;
         task_id: string | null;
         task_title: string | null;
         item_id: string | null;
@@ -43,7 +50,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
         read_at: Date | null;
       }>(
         `SELECT n.id, n.kind, n.project_id, p.name AS project_name, n.actor_id,
-              u.display_name AS actor_name, u.avatar_id AS actor_avatar_id,
+              u.display_name AS actor_name, u.avatar_id AS actor_avatar_id, n.via_token,
               n.task_id, t.title AS task_title, n.item_id, b.title AS item_title,
               n.detail, n.created_at, n.read_at
          FROM notifications n
@@ -69,6 +76,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
                 avatarUrl: avatarUrl(r.actor_id, r.actor_avatar_id),
               }
             : null,
+        via: r.via_token,
         task: r.task_id && r.task_title !== null ? { id: r.task_id, title: r.task_title } : null,
         item: r.item_id && r.item_title !== null ? { id: r.item_id, title: r.item_title } : null,
         detail: r.detail,
@@ -142,14 +150,24 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   );
 
   /** Marks the named notifications read, or all of the member's when none are named. */
-  app.post('/notifications/read', { preHandler: requireUser }, async (req, reply) => {
-    const parsed = readSchema.safeParse(req.body ?? {});
-    if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
-    await db.query(
-      `UPDATE notifications SET read_at = now()
-        WHERE user_id = $1 AND read_at IS NULL AND ($2::uuid[] IS NULL OR id = ANY($2::uuid[]))`,
-      [req.user!.id, parsed.data.ids ?? null],
-    );
-    return reply.status(204).send();
-  });
+  app.post(
+    '/notifications/read',
+    memberRoute({
+      id: 'markNotificationsRead',
+      summary: 'Mark notifications read',
+      description: 'Without ids, marks all of the viewer’s notifications read.',
+      body: readSchema.optional(),
+      response: null,
+    }),
+    async (req, reply) => {
+      const parsed = readSchema.safeParse(req.body ?? {});
+      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      await db.query(
+        `UPDATE notifications SET read_at = now()
+          WHERE user_id = $1 AND read_at IS NULL AND ($2::uuid[] IS NULL OR id = ANY($2::uuid[]))`,
+        [req.user!.id, parsed.data.ids ?? null],
+      );
+      return reply.status(204).send();
+    },
+  );
 };

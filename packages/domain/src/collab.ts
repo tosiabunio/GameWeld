@@ -51,8 +51,11 @@ export interface ActivityEntry {
   entityType: string;
   entityId: string;
   actor: { id: string; displayName: string } | null;
-  previous: unknown;
-  next: unknown;
+  /** The name of the API token the change came through, or null when it was made in the app. */
+  via: string | null;
+  /** The fields the change touched, as they were before and after it; null when not recorded. */
+  previous: Record<string, unknown> | null;
+  next: Record<string, unknown> | null;
   createdAt: string;
 }
 

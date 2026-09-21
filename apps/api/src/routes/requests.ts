@@ -7,6 +7,7 @@ import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { placeTask } from '../services/placement.ts';
 import { recalculateItemState } from '../services/readiness.ts';
+import * as schema from '../schemas.ts';
 import { activeBoardFor } from './board.ts';
 import { fetchTask } from './tasks.ts';
 
@@ -107,101 +108,129 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
   const base = '/projects/:projectId/boards/:boardId/requests';
 
   /** Pending requests first, then decided ones, newest first. */
-  app.get(base, projectRoute('project.view'), async (req): Promise<WorkRequest[]> => {
-    const { boardId } = req.params as { boardId: string };
-    if (!isUuid(boardId)) throw notFound('Workboard not found');
-    const owned = await db.query('SELECT 1 FROM workboards WHERE project_id = $1 AND id = $2', [
-      req.access!.project.id,
-      boardId,
-    ]);
-    if (!owned.rowCount) throw notFound('Workboard not found');
-    const res = await db.query<RequestRow>(
-      `${requestSelect} WHERE r.board_id = $1 ORDER BY (r.status = 'pending') DESC, r.created_at DESC`,
-      [boardId],
-    );
-    return res.rows.map(toRequest);
-  });
+  app.get(
+    base,
+    projectRoute('project.view', {
+      id: 'listRequests',
+      summary: 'Out-of-scope requests on a Workboard',
+      response: z.array(schema.WorkRequest),
+    }),
+    async (req): Promise<WorkRequest[]> => {
+      const { boardId } = req.params as { boardId: string };
+      if (!isUuid(boardId)) throw notFound('Workboard not found');
+      const owned = await db.query('SELECT 1 FROM workboards WHERE project_id = $1 AND id = $2', [
+        req.access!.project.id,
+        boardId,
+      ]);
+      if (!owned.rowCount) throw notFound('Workboard not found');
+      const res = await db.query<RequestRow>(
+        `${requestSelect} WHERE r.board_id = $1 ORDER BY (r.status = 'pending') DESC, r.created_at DESC`,
+        [boardId],
+      );
+      return res.rows.map(toRequest);
+    },
+  );
 
   /**
    * Section 9 step 2: a member asks for an unplaced task of an out-of-scope item to be placed.
    * Asking from the Workboard may be the moment the work is first written down, so the task can
    * be created with the request; both happen or neither does.
    */
-  app.post(base, projectRoute('task.work'), async (req, reply) => {
-    const parsed = createSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
-    const { boardId } = req.params as { boardId: string };
-    const projectId = req.access!.project.id;
-    const actorId = req.user!.id;
+  app.post(
+    base,
+    projectRoute('task.work', {
+      id: 'createRequest',
+      summary: 'Ask for a task of an item outside the scope to be placed on the Workboard',
+      description:
+        'Name an unplaced task (taskId), or describe a new one (newTask), which is created under its item with the request. A Game Director approves or rejects it.',
+      body: createSchema,
+      response: { status: 201, schema: schema.WorkRequest },
+    }),
+    async (req, reply) => {
+      const parsed = createSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      const { boardId } = req.params as { boardId: string };
+      const projectId = req.access!.project.id;
+      const actorId = req.user!.id;
 
-    const requestId = await withTransaction(db, async (tx) => {
-      await activeBoardFor(tx, projectId, boardId);
-      let taskId = parsed.data.taskId;
-      const { newTask } = parsed.data;
-      if (newTask) {
-        const item = (
-          await tx.query<{ archived_at: Date | null }>(
-            'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
-            [projectId, newTask.itemId],
-          )
-        ).rows[0];
-        if (!item) throw notFound('Backlog item not found');
-        if (item.archived_at) throw conflict('That backlog item is archived.');
-        const scoped = await tx.query(
+      const requestId = await withTransaction(db, async (tx) => {
+        await activeBoardFor(tx, projectId, boardId);
+        let taskId = parsed.data.taskId;
+        const { newTask } = parsed.data;
+        if (newTask) {
+          const item = (
+            await tx.query<{ archived_at: Date | null }>(
+              'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
+              [projectId, newTask.itemId],
+            )
+          ).rows[0];
+          if (!item) throw notFound('Backlog item not found');
+          if (item.archived_at) throw conflict('That backlog item is archived.');
+          const scoped = await tx.query(
+            'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
+            [boardId, newTask.itemId],
+          );
+          if (scoped.rowCount)
+            throw conflict('That item is in scope: create the task on the Workboard directly.');
+          const created = await tx.query<{ id: string }>(
+            'INSERT INTO tasks (project_id, item_id, category, title) VALUES ($1, $2, $3, $4) RETURNING id',
+            [projectId, newTask.itemId, newTask.category, newTask.title],
+          );
+          taskId = created.rows[0]!.id;
+          await recordActivity(tx, {
+            projectId,
+            actorId,
+            action: 'task.created',
+            entityType: 'task',
+            entityId: taskId,
+            next: { ...newTask, requestedFor: boardId },
+          });
+          await recalculateItemState(tx, newTask.itemId, actorId, 'task created with a request');
+        }
+        await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
+        const task = await fetchTask(tx, projectId, taskId!);
+        if (!task) throw notFound('Task not found');
+        if (task.archived) throw conflict('Restore the task before requesting placement.');
+        if (task.completed) throw conflict('The task is already complete.');
+        if (task.placement) throw conflict(`The task is already on ${task.placement.boardName}.`);
+        const inScope = await tx.query(
           'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
-          [boardId, newTask.itemId],
+          [boardId, task.itemId],
         );
-        if (scoped.rowCount)
-          throw conflict('That item is in scope: create the task on the Workboard directly.');
+        if (inScope.rowCount)
+          throw conflict('This task’s item is in scope: add it to the Workboard directly.');
+        if (task.pendingRequest)
+          throw conflict('A placement request for this task is already pending.');
         const created = await tx.query<{ id: string }>(
-          'INSERT INTO tasks (project_id, item_id, category, title) VALUES ($1, $2, $3, $4) RETURNING id',
-          [projectId, newTask.itemId, newTask.category, newTask.title],
+          'INSERT INTO work_requests (task_id, board_id, requester_id, reason) VALUES ($1, $2, $3, $4) RETURNING id',
+          [task.id, boardId, actorId, parsed.data.reason],
         );
-        taskId = created.rows[0]!.id;
         await recordActivity(tx, {
           projectId,
           actorId,
-          action: 'task.created',
-          entityType: 'task',
-          entityId: taskId,
-          next: { ...newTask, requestedFor: boardId },
+          action: 'request.created',
+          entityType: 'work_request',
+          entityId: created.rows[0]!.id,
+          next: { taskId: task.id, boardId, reason: parsed.data.reason },
         });
-        await recalculateItemState(tx, newTask.itemId, actorId, 'task created with a request');
-      }
-      await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
-      const task = await fetchTask(tx, projectId, taskId!);
-      if (!task) throw notFound('Task not found');
-      if (task.archived) throw conflict('Restore the task before requesting placement.');
-      if (task.completed) throw conflict('The task is already complete.');
-      if (task.placement) throw conflict(`The task is already on ${task.placement.boardName}.`);
-      const inScope = await tx.query(
-        'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
-        [boardId, task.itemId],
-      );
-      if (inScope.rowCount)
-        throw conflict('This task’s item is in scope: add it to the Workboard directly.');
-      if (task.pendingRequest)
-        throw conflict('A placement request for this task is already pending.');
-      const created = await tx.query<{ id: string }>(
-        'INSERT INTO work_requests (task_id, board_id, requester_id, reason) VALUES ($1, $2, $3, $4) RETURNING id',
-        [task.id, boardId, actorId, parsed.data.reason],
-      );
-      await recordActivity(tx, {
-        projectId,
-        actorId,
-        action: 'request.created',
-        entityType: 'work_request',
-        entityId: created.rows[0]!.id,
-        next: { taskId: task.id, boardId, reason: parsed.data.reason },
+        return created.rows[0]!.id;
       });
-      return created.rows[0]!.id;
-    });
-    return reply.status(201).send(await fetchRequest(db, boardId, requestId));
-  });
+      return reply.status(201).send(await fetchRequest(db, boardId, requestId));
+    },
+  );
 
   app.post(
     `${base}/:requestId/withdraw`,
-    projectRoute('task.work', { ownerScoped: true }),
+    projectRoute(
+      'task.work',
+      {
+        id: 'withdrawRequest',
+        summary: 'Withdraw a pending request',
+        description: 'Only its requester may.',
+        response: schema.WorkRequest,
+      },
+      { ownerScoped: true },
+    ),
     async (req) => {
       const { boardId, requestId } = req.params as { boardId: string; requestId: string };
       const projectId = req.access!.project.id;
@@ -230,49 +259,66 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
   );
 
   for (const verb of ['approve', 'reject'] as const) {
-    app.post(`${base}/:requestId/${verb}`, projectRoute('out_of_scope.approve'), async (req) => {
-      const parsed = decideSchema.safeParse(req.body ?? {});
-      if (!parsed.success) throw badRequest('Invalid decision', parsed.error.flatten());
-      const { boardId, requestId } = req.params as { boardId: string; requestId: string };
-      const projectId = req.access!.project.id;
-      const actorId = req.user!.id;
-      await withTransaction(db, async (tx) => {
-        await activeBoardFor(tx, projectId, boardId);
-        // The row lock serializes two Directors deciding at once: the second sees a decided request.
-        const request = await fetchRequest(tx, boardId, requestId, true);
-        if (!request) throw notFound('Request not found');
-        if (request.status !== 'pending') {
-          throw conflict(
-            `This request was already ${request.status}${request.decidedBy ? ` by ${request.decidedBy.displayName}` : ''}.`,
+    app.post(
+      `${base}/:requestId/${verb}`,
+      projectRoute('out_of_scope.approve', {
+        id: `${verb}Request`,
+        summary:
+          verb === 'approve' ? 'Approve an out-of-scope request' : 'Reject an out-of-scope request',
+        description:
+          verb === 'approve'
+            ? 'The task is placed on the Workboard as out-of-scope work.'
+            : 'The note tells the requester why.',
+        body: decideSchema.optional(),
+        response: schema.WorkRequest,
+      }),
+      async (req) => {
+        const parsed = decideSchema.safeParse(req.body ?? {});
+        if (!parsed.success) throw badRequest('Invalid decision', parsed.error.flatten());
+        const { boardId, requestId } = req.params as { boardId: string; requestId: string };
+        const projectId = req.access!.project.id;
+        const actorId = req.user!.id;
+        await withTransaction(db, async (tx) => {
+          await activeBoardFor(tx, projectId, boardId);
+          // The row lock serializes two Directors deciding at once: the second sees a decided request.
+          const request = await fetchRequest(tx, boardId, requestId, true);
+          if (!request) throw notFound('Request not found');
+          if (request.status !== 'pending') {
+            throw conflict(
+              `This request was already ${request.status}${request.decidedBy ? ` by ${request.decidedBy.displayName}` : ''}.`,
+            );
+          }
+          if (verb === 'approve') {
+            // Invariant 9: recheck before placing; never overwrite a newer placement silently.
+            await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [request.task.id]);
+            const task = await fetchTask(tx, projectId, request.task.id);
+            if (!task || task.archived) throw conflict('The task no longer exists or is archived.');
+            if (task.completed) throw conflict('The task was completed in the meantime.');
+            if (task.placement)
+              throw conflict(`The task is already on ${task.placement.boardName}.`);
+            const inScope = await tx.query(
+              'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
+              [boardId, task.itemId],
+            );
+            await placeTask(tx, boardId, task, actorId, !inScope.rowCount, {
+              recordApproval: false,
+            });
+          }
+          await tx.query(
+            `UPDATE work_requests SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4, version = version + 1 WHERE id = $1`,
+            [requestId, verb === 'approve' ? 'approved' : 'rejected', actorId, parsed.data.note],
           );
-        }
-        if (verb === 'approve') {
-          // Invariant 9: recheck before placing; never overwrite a newer placement silently.
-          await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [request.task.id]);
-          const task = await fetchTask(tx, projectId, request.task.id);
-          if (!task || task.archived) throw conflict('The task no longer exists or is archived.');
-          if (task.completed) throw conflict('The task was completed in the meantime.');
-          if (task.placement) throw conflict(`The task is already on ${task.placement.boardName}.`);
-          const inScope = await tx.query(
-            'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
-            [boardId, task.itemId],
-          );
-          await placeTask(tx, boardId, task, actorId, !inScope.rowCount, { recordApproval: false });
-        }
-        await tx.query(
-          `UPDATE work_requests SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4, version = version + 1 WHERE id = $1`,
-          [requestId, verb === 'approve' ? 'approved' : 'rejected', actorId, parsed.data.note],
-        );
-        await recordActivity(tx, {
-          projectId,
-          actorId,
-          action: `request.${verb === 'approve' ? 'approved' : 'rejected'}`,
-          entityType: 'work_request',
-          entityId: requestId,
-          next: { taskId: request.task.id, note: parsed.data.note },
+          await recordActivity(tx, {
+            projectId,
+            actorId,
+            action: `request.${verb === 'approve' ? 'approved' : 'rejected'}`,
+            entityType: 'work_request',
+            entityId: requestId,
+            next: { taskId: request.task.id, note: parsed.data.note },
+          });
         });
-      });
-      return fetchRequest(db, boardId, requestId);
-    });
+        return fetchRequest(db, boardId, requestId);
+      },
+    );
   }
 };

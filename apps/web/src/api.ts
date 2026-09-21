@@ -1,5 +1,8 @@
 import type {
   AcceptItemInput,
+  ApiToken,
+  CreatedToken,
+  CreateTokenInput,
   AvatarCrop,
   MyAvatar,
   ActivityEntry,
@@ -130,6 +133,10 @@ export const api = {
   },
   cropAvatar: (crop: AvatarCrop) => request<MyAvatar>('/api/me/avatar', json('PATCH', crop)),
   deleteAvatar: () => request<void>('/api/me/avatar', { method: 'DELETE' }),
+  tokens: () => request<ApiToken[]>('/api/me/tokens'),
+  createToken: (input: CreateTokenInput) =>
+    request<CreatedToken>('/api/me/tokens', json('POST', input)),
+  revokeToken: (id: string) => request<void>(`/api/me/tokens/${id}`, { method: 'DELETE' }),
   mockSignIn: (persona: string) =>
     request<void>('/api/auth/mock/sign-in', json('POST', { persona })),
   signOut: () => request<void>('/api/auth/sign-out', { method: 'POST' }),

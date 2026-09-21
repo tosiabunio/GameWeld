@@ -73,6 +73,28 @@ export const texts: Record<string, string> = {
   'Kept in this browser. The page reloads in the new language.':
     'Zapamiętywany w tej przeglądarce. Strona wczyta się ponownie w nowym języku.',
 
+  // API tokens, in the profile
+  'API tokens': 'Tokeny API',
+  'A token lets a script or an AI assistant use GameWeld as you, with your permissions, through the <1>API</1>. Anyone who has it can do what it allows, so keep it as you would a password.':
+    'Token pozwala skryptowi albo asystentowi AI korzystać z GameWeld w Twoim imieniu, z Twoimi uprawnieniami, przez <1>API</1>. Kto go ma, może zrobić wszystko, na co token pozwala, więc chroń go jak hasło.',
+  'Your new token “{name}”. Copy it now: it is not shown again.':
+    'Twój nowy token „{name}”. Skopiuj go teraz: nie zostanie pokazany ponownie.',
+  Copy: 'Kopiuj',
+  Copied: 'Skopiowano',
+  'Your tokens': 'Twoje tokeny',
+  'Read only': 'Tylko odczyt',
+  'Read and write': 'Odczyt i zapis',
+  'Made {date}': 'Utworzony {date}',
+  'last used {date}': 'ostatnio użyty {date}',
+  'never used': 'jeszcze nieużyty',
+  Revoke: 'Unieważnij',
+  'Revoke {name}': 'Unieważnij „{name}”',
+  'What it is for, such as “Claude on my laptop”': 'Do czego służy, np. „Claude na moim laptopie”',
+  Access: 'Dostęp',
+  'Make a token': 'Utwórz token',
+  // A change made through a token, in the history and the bell.
+  'via {token}': 'przez {token}',
+
   // Cropping the picture
   'This picture could not be shown. Try another file.':
     'Nie udało się pokazać tego obrazu. Spróbuj użyć innego pliku.',

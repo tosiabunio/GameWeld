@@ -19,6 +19,7 @@ import { notifyOfMentions } from '../services/notifications.ts';
 import { placeIfInScope, placeTask, returnTask, settleRequests } from '../services/placement.ts';
 import { avatarUrl } from '../avatars.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
+import * as schema from '../schemas.ts';
 import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
 
 const uuid = z.string().uuid();
@@ -313,7 +314,12 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/projects/:projectId/backlog/:itemId/tasks',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'listItemTasks',
+      summary: 'The tasks of a Backlog item',
+      description: 'Archived tasks are included, last.',
+      response: z.array(schema.Task),
+    }),
     async (req): Promise<Task[]> => {
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
@@ -335,7 +341,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   // in the active Workboard's scope, the new task is placed in its To Do column right away.
   app.post(
     '/projects/:projectId/backlog/:itemId/tasks',
-    projectRoute('task.work'),
+    projectRoute('task.work', {
+      id: 'createTask',
+      summary: 'Add a task to a Backlog item',
+      description:
+        'When the item is in the active Workboard’s scope, the task is placed in its category’s To Do column at once. A Done item returns to Open.',
+      body: createSchema,
+      response: { status: 201, schema: schema.Task },
+    }),
     async (req, reply) => {
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) throw badRequest('Invalid task', parsed.error.flatten());
@@ -419,7 +432,11 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/projects/:projectId/tasks/:taskId',
-    projectRoute('project.view'),
+    projectRoute('project.view', {
+      id: 'getTask',
+      summary: 'A task with its item, checklist, comments, attachments, and links',
+      response: schema.TaskDetail,
+    }),
     async (req): Promise<TaskDetail> => {
       const { taskId } = req.params as { taskId: string };
       const task = await fetchDetail(db, req.access!.project.id, taskId);
@@ -428,223 +445,234 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.patch('/projects/:projectId/tasks/:taskId', projectRoute('task.work'), async (req) => {
-    const parsed = updateSchema.safeParse(req.body);
-    if (!parsed.success) throw badRequest('Invalid task update', parsed.error.flatten());
-    const {
-      version,
-      itemId: newItemId,
-      archived,
-      assigneeId,
-      coverAttachmentId,
-      labelIds,
-      dueDate,
-      blocked,
-      blockedReason,
-      ...fields
-    } = parsed.data;
-    const { taskId } = req.params as { taskId: string };
-    const projectId = req.access!.project.id;
-    const actorId = req.user!.id;
-    if (newItemId !== undefined) requireDirector(req, 'move a task to another backlog item');
-    if (archived !== undefined) requireDirector(req, 'archive or restore a task');
+  app.patch(
+    '/projects/:projectId/tasks/:taskId',
+    projectRoute('task.work', {
+      id: 'updateTask',
+      summary: 'Edit a task',
+      description:
+        'Send only what changes, with the version it was read at. labelIds replaces all of its labels. Moving it to another item (itemId) or archiving it needs the backlog.manage permission; its category can change only while it is not on a Workboard.',
+      body: updateSchema,
+      response: schema.TaskDetail,
+    }),
+    async (req) => {
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) throw badRequest('Invalid task update', parsed.error.flatten());
+      const {
+        version,
+        itemId: newItemId,
+        archived,
+        assigneeId,
+        coverAttachmentId,
+        labelIds,
+        dueDate,
+        blocked,
+        blockedReason,
+        ...fields
+      } = parsed.data;
+      const { taskId } = req.params as { taskId: string };
+      const projectId = req.access!.project.id;
+      const actorId = req.user!.id;
+      if (newItemId !== undefined) requireDirector(req, 'move a task to another backlog item');
+      if (archived !== undefined) requireDirector(req, 'archive or restore a task');
 
-    await withTransaction(db, async (tx) => {
-      // Serialize deletion/restoration with placement, moves, scope changes and archival.
-      const boards = await tx.query<{ id: string; state: string }>(
-        `SELECT w.id, w.state FROM workboards w WHERE w.project_id = $1
-           AND (w.state = 'active' OR EXISTS (
-             SELECT 1 FROM task_placements p WHERE p.board_id = w.id AND p.task_id = $2 AND p.is_current
-           )) ORDER BY w.id FOR UPDATE OF w`,
-        [projectId, taskId],
-      );
-      await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
-      const current = await fetchTask(tx, projectId, taskId);
-      if (!current) throw notFound('Task not found');
-      if (current.placement && !boards.rows.some((b) => b.id === current.placement!.boardId)) {
-        throw conflict('The task’s Workboard changed. Reload and try again.');
-      }
-      if (current.version !== version) {
-        throw conflict('The task was changed by someone else. Reload and try again.', {
-          currentVersion: current.version,
-        });
-      }
-      if (
-        fields.category !== undefined &&
-        fields.category !== current.category &&
-        current.placement
-      ) {
-        throw conflict('Category cannot be changed while the task is on a Workboard.');
-      }
-      if (assigneeId) await assertMember(tx, projectId, assigneeId);
-      if (coverAttachmentId) {
-        const cover = await tx.query<{ content_type: string }>(
-          'SELECT content_type FROM attachments WHERE task_id = $1 AND id = $2',
-          [taskId, coverAttachmentId],
+      await withTransaction(db, async (tx) => {
+        // Serialize deletion/restoration with placement, moves, scope changes and archival.
+        const boards = await tx.query<{ id: string; state: string }>(
+          `SELECT w.id, w.state FROM workboards w WHERE w.project_id = $1
+             AND (w.state = 'active' OR EXISTS (
+               SELECT 1 FROM task_placements p WHERE p.board_id = w.id AND p.task_id = $2 AND p.is_current
+             )) ORDER BY w.id FOR UPDATE OF w`,
+          [projectId, taskId],
         );
-        if (!cover.rows[0]) throw badRequest('The cover must be an attachment of this task.');
-        if (!PREVIEW_IMAGE_TYPES.has(cover.rows[0].content_type))
-          throw badRequest('The cover must be a PNG, JPEG, GIF, or WebP image.');
-      }
-      if (newItemId !== undefined && newItemId !== current.itemId) {
-        const target = await tx.query<{ archived_at: Date | null }>(
-          'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
-          [projectId, newItemId],
-        );
-        if (!target.rows[0]) throw notFound('Target backlog item not found');
-        if (target.rows[0].archived_at) throw conflict('The target backlog item is archived.');
-      }
-
-      const next = {
-        title: fields.title ?? current.title,
-        description: fields.description ?? current.description,
-        category: fields.category ?? current.category,
-        assignee_id: assigneeId === undefined ? (current.assignee?.id ?? null) : assigneeId,
-        item_id: newItemId ?? current.itemId,
-        archived_at: archived === undefined ? current.archived : archived,
-        cover_attachment_id:
-          coverAttachmentId === undefined ? current.coverAttachmentId : coverAttachmentId,
-        due_date: dueDate === undefined ? current.dueDate : dueDate,
-        blocked: blocked ?? current.blocked,
-        blocked_reason: '',
-      };
-      // A reason belongs to a block: it is kept while the task is blocked and goes with it.
-      if (next.blocked) next.blocked_reason = blockedReason ?? current.blockedReason;
-      if (next.blocked && current.completed)
-        throw conflict('A completed task cannot be blocked. Reopen it first.');
-      let labelsAfter = current.labels.map((l) => l.id);
-      if (labelIds !== undefined) {
-        const known = await tx.query<{ id: string }>(
-          'SELECT id FROM project_labels WHERE project_id = $1 AND id = ANY($2::uuid[])',
-          [projectId, labelIds],
-        );
-        if (known.rowCount !== new Set(labelIds).size)
-          throw badRequest('A label does not belong to this project.');
-        labelsAfter = known.rows.map((l) => l.id);
-        await tx.query(
-          'DELETE FROM task_labels WHERE task_id = $1 AND NOT (label_id = ANY($2::uuid[]))',
-          [taskId, labelsAfter],
-        );
-        await tx.query(
-          `INSERT INTO task_labels (task_id, label_id) SELECT $1, unnest($2::uuid[])
-           ON CONFLICT DO NOTHING`,
-          [taskId, labelsAfter],
-        );
-      }
-      if (archived === true && !current.archived) {
-        await returnTask(tx, taskId, 'task deleted');
-        const rejected = await tx.query<{ id: string; board_id: string }>(
-          `UPDATE work_requests SET status = 'rejected', decided_by = $2, decided_at = now(),
-             decision_note = 'Task deleted', version = version + 1
-           WHERE task_id = $1 AND status = 'pending' RETURNING id, board_id`,
-          [taskId, actorId],
-        );
-        for (const request of rejected.rows) {
-          await recordActivity(tx, {
-            projectId,
-            actorId,
-            action: 'request.rejected',
-            entityType: 'work_request',
-            entityId: request.id,
-            next: { boardId: request.board_id, taskId, note: 'Task deleted' },
+        await tx.query('SELECT 1 FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
+        const current = await fetchTask(tx, projectId, taskId);
+        if (!current) throw notFound('Task not found');
+        if (current.placement && !boards.rows.some((b) => b.id === current.placement!.boardId)) {
+          throw conflict('The task’s Workboard changed. Reload and try again.');
+        }
+        if (current.version !== version) {
+          throw conflict('The task was changed by someone else. Reload and try again.', {
+            currentVersion: current.version,
           });
         }
-      }
-      if (archived === false && current.archived) {
-        const parent = await tx.query<{ archived_at: Date | null }>(
-          'SELECT archived_at FROM backlog_items WHERE id = $1 FOR UPDATE',
-          [next.item_id],
+        if (
+          fields.category !== undefined &&
+          fields.category !== current.category &&
+          current.placement
+        ) {
+          throw conflict('Category cannot be changed while the task is on a Workboard.');
+        }
+        if (assigneeId) await assertMember(tx, projectId, assigneeId);
+        if (coverAttachmentId) {
+          const cover = await tx.query<{ content_type: string }>(
+            'SELECT content_type FROM attachments WHERE task_id = $1 AND id = $2',
+            [taskId, coverAttachmentId],
+          );
+          if (!cover.rows[0]) throw badRequest('The cover must be an attachment of this task.');
+          if (!PREVIEW_IMAGE_TYPES.has(cover.rows[0].content_type))
+            throw badRequest('The cover must be a PNG, JPEG, GIF, or WebP image.');
+        }
+        if (newItemId !== undefined && newItemId !== current.itemId) {
+          const target = await tx.query<{ archived_at: Date | null }>(
+            'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
+            [projectId, newItemId],
+          );
+          if (!target.rows[0]) throw notFound('Target backlog item not found');
+          if (target.rows[0].archived_at) throw conflict('The target backlog item is archived.');
+        }
+
+        const next = {
+          title: fields.title ?? current.title,
+          description: fields.description ?? current.description,
+          category: fields.category ?? current.category,
+          assignee_id: assigneeId === undefined ? (current.assignee?.id ?? null) : assigneeId,
+          item_id: newItemId ?? current.itemId,
+          archived_at: archived === undefined ? current.archived : archived,
+          cover_attachment_id:
+            coverAttachmentId === undefined ? current.coverAttachmentId : coverAttachmentId,
+          due_date: dueDate === undefined ? current.dueDate : dueDate,
+          blocked: blocked ?? current.blocked,
+          blocked_reason: '',
+        };
+        // A reason belongs to a block: it is kept while the task is blocked and goes with it.
+        if (next.blocked) next.blocked_reason = blockedReason ?? current.blockedReason;
+        if (next.blocked && current.completed)
+          throw conflict('A completed task cannot be blocked. Reopen it first.');
+        let labelsAfter = current.labels.map((l) => l.id);
+        if (labelIds !== undefined) {
+          const known = await tx.query<{ id: string }>(
+            'SELECT id FROM project_labels WHERE project_id = $1 AND id = ANY($2::uuid[])',
+            [projectId, labelIds],
+          );
+          if (known.rowCount !== new Set(labelIds).size)
+            throw badRequest('A label does not belong to this project.');
+          labelsAfter = known.rows.map((l) => l.id);
+          await tx.query(
+            'DELETE FROM task_labels WHERE task_id = $1 AND NOT (label_id = ANY($2::uuid[]))',
+            [taskId, labelsAfter],
+          );
+          await tx.query(
+            `INSERT INTO task_labels (task_id, label_id) SELECT $1, unnest($2::uuid[])
+             ON CONFLICT DO NOTHING`,
+            [taskId, labelsAfter],
+          );
+        }
+        if (archived === true && !current.archived) {
+          await returnTask(tx, taskId, 'task deleted');
+          const rejected = await tx.query<{ id: string; board_id: string }>(
+            `UPDATE work_requests SET status = 'rejected', decided_by = $2, decided_at = now(),
+               decision_note = 'Task deleted', version = version + 1
+             WHERE task_id = $1 AND status = 'pending' RETURNING id, board_id`,
+            [taskId, actorId],
+          );
+          for (const request of rejected.rows) {
+            await recordActivity(tx, {
+              projectId,
+              actorId,
+              action: 'request.rejected',
+              entityType: 'work_request',
+              entityId: request.id,
+              next: { boardId: request.board_id, taskId, note: 'Task deleted' },
+            });
+          }
+        }
+        if (archived === false && current.archived) {
+          const parent = await tx.query<{ archived_at: Date | null }>(
+            'SELECT archived_at FROM backlog_items WHERE id = $1 FOR UPDATE',
+            [next.item_id],
+          );
+          if (parent.rows[0]?.archived_at) throw conflict('Restore the backlog item first.');
+        }
+        await tx.query(
+          `UPDATE tasks SET title = $2, description = $3, category = $4, assignee_id = $5, item_id = $6,
+                            archived_at = CASE WHEN $7::boolean THEN coalesce(archived_at, now()) ELSE NULL END,
+                            cover_attachment_id = $8, due_date = $9::date, blocked = $10,
+                            blocked_reason = $11, version = version + 1, updated_at = now()
+            WHERE id = $1`,
+          [
+            taskId,
+            next.title,
+            next.description,
+            next.category,
+            next.assignee_id,
+            next.item_id,
+            next.archived_at,
+            next.cover_attachment_id,
+            next.due_date,
+            next.blocked,
+            next.blocked_reason,
+          ],
         );
-        if (parent.rows[0]?.archived_at) throw conflict('Restore the backlog item first.');
-      }
-      await tx.query(
-        `UPDATE tasks SET title = $2, description = $3, category = $4, assignee_id = $5, item_id = $6,
-                          archived_at = CASE WHEN $7::boolean THEN coalesce(archived_at, now()) ELSE NULL END,
-                          cover_attachment_id = $8, due_date = $9::date, blocked = $10,
-                          blocked_reason = $11, version = version + 1, updated_at = now()
-          WHERE id = $1`,
-        [
-          taskId,
-          next.title,
-          next.description,
-          next.category,
-          next.assignee_id,
-          next.item_id,
-          next.archived_at,
-          next.cover_attachment_id,
-          next.due_date,
-          next.blocked,
-          next.blocked_reason,
-        ],
-      );
-      // A task that changes hands starts unordered on its new assignee's "My tasks".
-      if (next.assignee_id !== (current.assignee?.id ?? null))
-        await tx.query('DELETE FROM my_task_ranks WHERE task_id = $1', [taskId]);
-      const action =
-        newItemId !== undefined && newItemId !== current.itemId
-          ? 'task.reparented'
-          : archived !== undefined && archived !== current.archived
-            ? archived
-              ? 'task.archived'
-              : 'task.restored'
-            : 'task.updated';
-      await recordActivity(tx, {
-        projectId,
-        actorId,
-        action,
-        entityType: 'task',
-        entityId: taskId,
-        previous: {
-          title: current.title,
-          category: current.category,
-          assigneeId: current.assignee?.id ?? null,
-          itemId: current.itemId,
-          archived: current.archived,
-          placement: current.placement,
-          coverAttachmentId: current.coverAttachmentId,
-          labelIds: current.labels.map((l) => l.id),
-          dueDate: current.dueDate,
-          blocked: current.blocked,
-        },
-        next: {
-          title: next.title,
-          category: next.category,
-          assigneeId: next.assignee_id,
-          itemId: next.item_id,
-          archived: next.archived_at,
-          coverAttachmentId: next.cover_attachment_id,
-          labelIds: labelsAfter,
-          dueDate: next.due_date,
-          blocked: next.blocked,
-          blockedReason: next.blocked_reason,
-        },
-      });
-      if (next.description !== current.description)
-        await notifyOfMentions(tx, {
+        // A task that changes hands starts unordered on its new assignee's "My tasks".
+        if (next.assignee_id !== (current.assignee?.id ?? null))
+          await tx.query('DELETE FROM my_task_ranks WHERE task_id = $1', [taskId]);
+        const action =
+          newItemId !== undefined && newItemId !== current.itemId
+            ? 'task.reparented'
+            : archived !== undefined && archived !== current.archived
+              ? archived
+                ? 'task.archived'
+                : 'task.restored'
+              : 'task.updated';
+        await recordActivity(tx, {
           projectId,
           actorId,
-          taskId,
-          itemId: next.item_id,
-          text: next.description,
-          before: current.description,
+          action,
+          entityType: 'task',
+          entityId: taskId,
+          previous: {
+            title: current.title,
+            category: current.category,
+            assigneeId: current.assignee?.id ?? null,
+            itemId: current.itemId,
+            archived: current.archived,
+            placement: current.placement,
+            coverAttachmentId: current.coverAttachmentId,
+            labelIds: current.labels.map((l) => l.id),
+            dueDate: current.dueDate,
+            blocked: current.blocked,
+          },
+          next: {
+            title: next.title,
+            category: next.category,
+            assigneeId: next.assignee_id,
+            itemId: next.item_id,
+            archived: next.archived_at,
+            coverAttachmentId: next.cover_attachment_id,
+            labelIds: labelsAfter,
+            dueDate: next.due_date,
+            blocked: next.blocked,
+            blockedReason: next.blocked_reason,
+          },
         });
-      // A task restored, or moved under another item, may now belong to an item in scope.
-      if (!next.archived_at)
-        await placeIfInScope(
-          tx,
-          taskId,
-          actorId,
-          action === 'task.restored'
-            ? 'restored under an item in scope'
-            : 'moved under an item in scope',
-        );
-      // Section 12: reparenting and archival recalculate readiness for every affected item.
-      await recalculateItemState(tx, current.itemId, actorId, action);
-      if (next.item_id !== current.itemId)
-        await recalculateItemState(tx, next.item_id, actorId, action);
-    });
-    return fetchDetail(db, projectId, taskId);
-  });
+        if (next.description !== current.description)
+          await notifyOfMentions(tx, {
+            projectId,
+            actorId,
+            taskId,
+            itemId: next.item_id,
+            text: next.description,
+            before: current.description,
+          });
+        // A task restored, or moved under another item, may now belong to an item in scope.
+        if (!next.archived_at)
+          await placeIfInScope(
+            tx,
+            taskId,
+            actorId,
+            action === 'task.restored'
+              ? 'restored under an item in scope'
+              : 'moved under an item in scope',
+          );
+        // Section 12: reparenting and archival recalculate readiness for every affected item.
+        await recalculateItemState(tx, current.itemId, actorId, action);
+        if (next.item_id !== current.itemId)
+          await recalculateItemState(tx, next.item_id, actorId, action);
+      });
+      return fetchDetail(db, projectId, taskId);
+    },
+  );
 
   for (const [verb, completed] of [
     ['complete', true],
@@ -653,7 +681,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     // Both directions require the completion permission (R2: leaving Done needs the same right).
     app.post(
       `/projects/:projectId/tasks/:taskId/${verb}`,
-      projectRoute('task.complete'),
+      projectRoute('task.complete', {
+        id: `${verb}Task`,
+        summary: completed ? 'Complete a task' : 'Reopen a completed task',
+        description: completed
+          ? 'On a Workboard, the card moves to Done. When every task of its item is complete, the item becomes Ready for Review.'
+          : 'On a Workboard, the card moves back out of Done. An item that was Ready for Review or Done returns to Open, and an acceptance no longer stands.',
+        response: schema.TaskDetail,
+      }),
       async (req) => {
         const { taskId } = req.params as { taskId: string };
         const projectId = req.access!.project.id;
