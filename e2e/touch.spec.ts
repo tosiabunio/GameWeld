@@ -59,11 +59,25 @@ test('on a phone a swipe over cards is left to scrolling, a hold picks a card up
   await touch(cdp, 'touchEnd');
   await expect(cards).toHaveText([/One/, /Two/, /Three/, /Four/, /Five/, /Six/, /Seven/, /Eight/]);
   await expect(taskModal(page)).toHaveCount(0);
-  await page.evaluate(() => window.scrollTo(0, 0));
+  // The swipe can leave the page scrolling on its own momentum, which scrollTo does not stop,
+  // and a slow machine has more of it left. The cards are measured only once the page has come
+  // to rest at the top; measured while it moves, the finger lands on another card.
+  await expect
+    .poll(
+      async () => {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(250);
+        return page.evaluate(() => window.scrollY);
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(0);
 
   // A short hold picks the card up; carried down over the cards below, it leaves the first
-  // place. Each step waits for a frame, as a finger would give the page. How far down it lands
-  // depends on how fast the machine measures, so only the move itself is asserted.
+  // place. The test waits for the page, not the clock: the finger moves only once the card is
+  // picked up (a move before the hold registers cancels it), each step waits for a frame as a
+  // finger would give the page, and it lifts once the card below has made room. How far down
+  // the card lands depends on how fast the machine measures, so only the move is asserted.
   const frame = () =>
     page.evaluate(
       () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
@@ -71,7 +85,7 @@ test('on a phone a swipe over cards is left to scrolling, a hold picks a card up
   const from = await centre(cards.nth(0));
   const to = await centre(cards.nth(2));
   await touch(cdp, 'touchStart', from);
-  await page.waitForTimeout(400);
+  await expect(cards.first()).toHaveClass(/\bdragging\b/, { timeout: 15_000 });
   for (let step = 1; step <= 8; step++) {
     await touch(cdp, 'touchMove', {
       x: from.x,
@@ -79,7 +93,12 @@ test('on a phone a swipe over cards is left to scrolling, a hold picks a card up
     });
     await frame();
   }
-  await page.waitForTimeout(150);
+  await expect
+    .poll(
+      () => cards.nth(1).evaluate((card) => new DOMMatrix(getComputedStyle(card).transform).m42),
+      { timeout: 15_000 },
+    )
+    .toBeLessThan(0);
   await touch(cdp, 'touchEnd');
   await expect(cards.first()).toContainText('Two');
   await expect(cards.filter({ hasText: 'One' })).toHaveCount(1);
