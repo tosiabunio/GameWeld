@@ -81,24 +81,28 @@ export function squarify<T>(items: Weighted<T>[], rect: Rect): Placed<T>[] {
 
 /**
  * Groups as bands, in order, along the rectangle's longer side, each as wide as its share of the
- * total; the items of each group squarified inside its band.
+ * total; the items of each group squarified inside its band. A gap between bands comes out of
+ * the side before it is shared, so areas stay proportional across bands.
  */
 export function bandedTreemap<G, T>(
   groups: { key: G; items: Weighted<T>[] }[],
   rect: Rect,
+  gap = 0,
 ): { key: G; band: Rect; cells: Placed<T>[] }[] {
   const sums = groups.map((g) => g.items.reduce((s, i) => s + i.value, 0));
   const total = sums.reduce((s, v) => s + v, 0);
   if (total <= 0) return [];
   const across = rect.w >= rect.h;
+  const gaps = gap * (sums.filter((s) => s > 0).length - 1);
+  const side = Math.max(0, (across ? rect.w : rect.h) - gaps);
   let offset = 0;
   return groups.flatMap((group, i) => {
     if (sums[i]! <= 0) return [];
-    const share = sums[i]! / total;
+    const length = side * (sums[i]! / total);
     const band: Rect = across
-      ? { x: rect.x + offset, y: rect.y, w: rect.w * share, h: rect.h }
-      : { x: rect.x, y: rect.y + offset, w: rect.w, h: rect.h * share };
-    offset += across ? band.w : band.h;
+      ? { x: rect.x + offset, y: rect.y, w: length, h: rect.h }
+      : { x: rect.x, y: rect.y + offset, w: rect.w, h: length };
+    offset += length + gap;
     return [{ key: group.key, band, cells: squarify(group.items, band) }];
   });
 }

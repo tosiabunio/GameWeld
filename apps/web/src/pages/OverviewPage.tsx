@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { t, tp } from '../i18n/index.ts';
-import { bandedTreemap, squarify, type Rect } from '../treemap.ts';
+import { bandedTreemap, type Rect } from '../treemap.ts';
 import { useProject } from './ProjectPage.tsx';
 
 const EMPTY: TaskProgress = {
@@ -39,7 +39,7 @@ const percent = (part: number, whole: number) => (whole ? Math.round((part / who
 /**
  * The project at a glance: how many items and tasks there are and where they stand, how far each
  * priority and each kind of work is, and a map of the Backlog in which every item's area is its
- * number of tasks, its colour its priority, and its fill how far its tasks are.
+ * number of tasks, its colour its priority (or Done, apart), and its fill how far its tasks are.
  */
 export function OverviewPage() {
   const { project, dataVersion } = useProject();
@@ -212,9 +212,16 @@ function Meter({ part, whole }: { part: number; whole: number }) {
 
 // The map ------------------------------------------------------------------------------------
 
-/** Room between neighbours, and between one priority's band and the next. */
+/** Room between neighbours, between one priority's band and the next, and before what is done. */
 const GAP = 2;
 const BAND_GAP = 4;
+const PART_GAP = 14;
+
+/** Won't Have items will not change, so the map gives them no room. */
+const MAPPED = MOSCOW_CATEGORIES.filter((category) => category !== 'wont');
+
+const weigh = (item: OverviewItem) => ({ value: Math.max(1, item.tasks.total), data: item });
+const tasksOf = (items: OverviewItem[]) => items.reduce((n, i) => n + i.tasks.total, 0);
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -256,10 +263,39 @@ function describe(item: OverviewItem) {
 }
 
 /**
- * Every Backlog item as a rectangle whose area is its number of tasks (an item without tasks as
- * one), in bands by priority. The hue is the priority; the fill rises with the share of its tasks
- * complete, pale below, strong above, as on the meters. A full item waiting for review carries an
- * hourglass, an accepted one a tick.
+ * The work still to do in bands by priority, then what is accepted as Done, set apart at the end.
+ * Both parts share one scale, so every area stays proportional to its tasks.
+ */
+function layout(
+  open: { key: MoscowCategory; items: OverviewItem[] }[],
+  done: OverviewItem[],
+  rect: Rect,
+) {
+  const parts = bandedTreemap(
+    [
+      { key: 'open', items: open.flatMap((g) => g.items).map(weigh) },
+      { key: 'done', items: done.map(weigh) },
+    ],
+    rect,
+    PART_GAP,
+  );
+  return parts.flatMap((part) =>
+    part.key === 'done'
+      ? part.cells
+      : bandedTreemap(
+          open.map((g) => ({ key: g.key, items: g.items.map(weigh) })),
+          part.band,
+          BAND_GAP,
+        ).flatMap((band) => band.cells),
+  );
+}
+
+/**
+ * Every Backlog item but the Won't Have ones as a rectangle whose area is its number of tasks (an
+ * item without tasks as one). Open items stand in bands by priority, in the priority's hue, their fill
+ * rising with the share of their tasks complete, pale below, strong above, as on the meters; a full
+ * item waiting for review carries an hourglass. Accepted items leave their priority for a part of
+ * their own at the end, in the colour of Done, with a tick.
  */
 function ProjectMap({ items }: { items: OverviewItem[] }) {
   const [frame, width] = useWidth();
@@ -270,44 +306,39 @@ function ProjectMap({ items }: { items: OverviewItem[] }) {
     wide ? Math.min(560, Math.max(340, width * 0.42)) : Math.min(960, Math.max(480, width * 1.7)),
   );
 
-  const groups = MOSCOW_CATEGORIES.map((category) => ({
+  const mapped = items.filter((i) => i.category !== 'wont');
+  const open = MAPPED.map((category) => ({
     key: category,
-    items: items
-      .filter((i) => i.category === category)
-      .map((i) => ({ value: Math.max(1, i.tasks.total), data: i })),
+    items: mapped.filter((i) => i.category === category && i.state !== 'done'),
   }));
-  // Each band's items are laid out again inside its own margin, so priorities stand apart.
-  const bands =
-    width > 0
-      ? bandedTreemap(groups, { x: 0, y: 0, w: width, h: height }).map((band) => ({
-          ...band,
-          cells: squarify(
-            groups.find((g) => g.key === band.key)!.items,
-            inset(band.band, BAND_GAP / 2),
-          ),
-        }))
-      : [];
-  const tasksIn = (category: MoscowCategory) =>
-    items.filter((i) => i.category === category).reduce((n, i) => n + i.tasks.total, 0);
+  const done = mapped.filter((i) => i.state === 'done');
+  const cells = width > 0 ? layout(open, done, { x: 0, y: 0, w: width, h: height }) : [];
 
   return (
     <section className="panel project-map" aria-labelledby="project-map">
       <h2 id="project-map">{t('Project map')}</h2>
       <p className="muted small">
         {t(
-          'Every Backlog item, its area the number of its tasks. The colour is its priority; the strong part, the share of its tasks complete.',
+          "Every Backlog item but the Won't Have ones, its area the number of its tasks. Open items take their priority's colour, the strong part the share of their tasks complete; items accepted as Done stand apart, at the end.",
         )}
       </p>
       <ul className="map-legend" aria-label={t('Legend')}>
-        {MOSCOW_CATEGORIES.map((category) => (
-          <li key={category} className={`hue-${category}`}>
+        {open.map(({ key, items: ofCategory }) => (
+          <li key={key} className={`hue-${key}`}>
             <span className="swatch" aria-hidden="true" />
-            {t(CATEGORY_LABELS[category])}{' '}
+            {t(CATEGORY_LABELS[key])}{' '}
             <span className="muted">
-              {tasksIn(category)} {tp(tasksIn(category), 'task')}
+              {tasksOf(ofCategory)} {tp(tasksOf(ofCategory), 'task')}
             </span>
           </li>
         ))}
+        <li className="hue-done">
+          <span className="swatch" aria-hidden="true" />
+          {t('Accepted as Done')}{' '}
+          <span className="muted">
+            {tasksOf(done)} {tp(tasksOf(done), 'task')}
+          </span>
+        </li>
         <li className="map-key" data-key="waiting">
           <span className="swatch" aria-hidden="true" />
           {t('Tasks not complete')}
@@ -320,80 +351,80 @@ function ProjectMap({ items }: { items: OverviewItem[] }) {
           <span className="map-mark review" aria-hidden="true" />
           {t('Ready for Review')}
         </li>
-        <li className="map-key" data-key="done">
-          <span className="map-mark" aria-hidden="true">
-            ✓
-          </span>
-          {t('Accepted as Done')}
-        </li>
       </ul>
 
       <div
         ref={frame}
         className="map-frame"
-        style={{ height }}
+        style={{ height: mapped.length ? height : undefined }}
         data-testid="project-map"
         onPointerLeave={() => setHover(null)}
       >
-        {bands.map((band) =>
-          band.cells.map((cell) => {
-            const item = cell.data;
-            const r = inset(cell, GAP / 2);
-            const labelled = r.w >= 64 && r.h >= 34;
-            const marked = item.state !== 'open' && r.w >= 22 && r.h >= 22;
-            const withMeta = labelled && r.h >= 54;
-            const lines = Math.max(1, Math.floor((r.h - 12) / 16) - (withMeta ? 1 : 0));
-            const style = {
-              left: r.x,
-              top: r.y,
-              width: r.w,
-              height: r.h,
-              '--done': `${percent(item.tasks.completed, item.tasks.total)}%`,
-            } as CSSProperties;
-            return (
-              <Link
-                key={item.id}
-                to={`../breakdown/${item.id}`}
-                className={`map-cell hue-${item.category} state-${item.state}${
-                  item.tasks.total === 0 ? ' empty' : ''
-                }${marked ? ' marked' : ''}`}
-                style={style}
-                data-testid="map-cell"
-                data-tasks={item.tasks.total}
-                aria-label={`${item.title}: ${t(CATEGORY_LABELS[item.category])}, ${stateLabel(item)}. ${describe(item)}`}
-                onPointerMove={(e) => {
-                  const box = frame.current!.getBoundingClientRect();
-                  setHover({ item, x: e.clientX - box.left, y: e.clientY - box.top });
-                }}
-                onFocus={() => setHover({ item, x: r.x + r.w / 2, y: r.y + r.h })}
-                onBlur={() => setHover(null)}
-              >
-                {labelled && (
-                  <>
-                    <span className="map-title" style={{ WebkitLineClamp: lines }}>
-                      {item.title}
-                    </span>
-                    {withMeta && (
-                      <span className="map-meta">
-                        {item.tasks.total
-                          ? `${item.tasks.completed}/${item.tasks.total}`
-                          : t('No tasks yet')}
-                      </span>
-                    )}
-                  </>
-                )}
-                {marked && item.state === 'done' && (
-                  <span className="map-mark" aria-hidden="true">
-                    ✓
-                  </span>
-                )}
-                {marked && item.state === 'ready_for_review' && (
-                  <span className="map-mark review" aria-hidden="true" />
-                )}
-              </Link>
-            );
-          }),
+        {mapped.length === 0 && (
+          <p className="muted">{t("No items to map yet: Won't Have ones are left out.")}</p>
         )}
+        {cells.map((cell) => {
+          const item = cell.data;
+          const r = inset(cell, GAP / 2);
+          const labelled = r.w >= 64 && r.h >= 34;
+          const marked = item.state !== 'open' && r.w >= 22 && r.h >= 22;
+          const withMeta = labelled && r.h >= 54;
+          const lines = Math.max(1, Math.floor((r.h - 12) / 16) - (withMeta ? 1 : 0));
+          const style = {
+            left: r.x,
+            top: r.y,
+            width: r.w,
+            height: r.h,
+            '--done':
+              item.state === 'done'
+                ? '100%'
+                : `${percent(item.tasks.completed, item.tasks.total)}%`,
+          } as CSSProperties;
+          return (
+            <Link
+              key={item.id}
+              to={`../breakdown/${item.id}`}
+              className={`map-cell hue-${item.state === 'done' ? 'done' : item.category} state-${
+                item.state
+              }${item.tasks.total === 0 && item.state !== 'done' ? ' empty' : ''}${
+                marked ? ' marked' : ''
+              }`}
+              style={style}
+              data-testid="map-cell"
+              data-tasks={item.tasks.total}
+              aria-label={`${item.title}: ${t(CATEGORY_LABELS[item.category])}, ${stateLabel(item)}. ${describe(item)}`}
+              onPointerMove={(e) => {
+                const box = frame.current!.getBoundingClientRect();
+                setHover({ item, x: e.clientX - box.left, y: e.clientY - box.top });
+              }}
+              onFocus={() => setHover({ item, x: r.x + r.w / 2, y: r.y + r.h })}
+              onBlur={() => setHover(null)}
+            >
+              {labelled && (
+                <>
+                  <span className="map-title" style={{ WebkitLineClamp: lines }}>
+                    {item.title}
+                  </span>
+                  {withMeta && (
+                    <span className="map-meta">
+                      {item.tasks.total
+                        ? `${item.tasks.completed}/${item.tasks.total}`
+                        : t('No tasks yet')}
+                    </span>
+                  )}
+                </>
+              )}
+              {marked && item.state === 'done' && (
+                <span className="map-mark" aria-hidden="true">
+                  ✓
+                </span>
+              )}
+              {marked && item.state === 'ready_for_review' && (
+                <span className="map-mark review" aria-hidden="true" />
+              )}
+            </Link>
+          );
+        })}
         {hover && <MapTooltip {...hover} width={width} height={height} />}
       </div>
 
@@ -413,7 +444,7 @@ function ProjectMap({ items }: { items: OverviewItem[] }) {
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {[...open.flatMap((g) => g.items), ...done].map((item) => (
               <tr key={item.id}>
                 <td>
                   <Link to={`../breakdown/${item.id}`}>{item.title}</Link>

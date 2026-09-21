@@ -72,4 +72,15 @@ describe('bandedTreemap', () => {
     const value = { a: 6, b: 2, c: 3, d: 1 } as Record<string, number>;
     for (const c of cells) expect(area(c)).toBeCloseTo(value[c.data]! * perUnit, 6);
   });
+
+  it('leaves a gap between bands, taken out before the side is shared', () => {
+    const bands = bandedTreemap(groups, { x: 0, y: 0, w: 1220, h: 400 }, 10);
+    expect(bands.map((g) => g.band.x)).toEqual([0, 810, 1120]);
+    expect(bands.map((g) => g.band.w)).toEqual([800, 300, 100]);
+    const tall = bandedTreemap(groups, { x: 0, y: 0, w: 300, h: 1220 }, 10);
+    expect(tall.map((g) => g.band.y)).toEqual([0, 810, 1120]);
+    // One band has nothing to keep apart from.
+    const lone = bandedTreemap([groups[1]!], { x: 0, y: 0, w: 600, h: 400 }, 10);
+    expect(lone[0]!.band).toEqual({ x: 0, y: 0, w: 600, h: 400 });
+  });
 });

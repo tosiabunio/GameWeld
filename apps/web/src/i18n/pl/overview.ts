@@ -28,8 +28,10 @@ export const texts: Record<string, string> = {
   '{done} complete · {progress} in progress · {waiting} waiting':
     '{done} ukończone · {progress} w toku · {waiting} czeka',
   'Project map': 'Mapa projektu',
-  'Every Backlog item, its area the number of its tasks. The colour is its priority; the strong part, the share of its tasks complete.':
-    'Każdy element backlogu, a jego powierzchnia to liczba zadań. Kolor to priorytet, a mocniejsza część to udział ukończonych zadań.',
+  "Every Backlog item but the Won't Have ones, its area the number of its tasks. Open items take their priority's colour, the strong part the share of their tasks complete; items accepted as Done stand apart, at the end.":
+    "Każdy element backlogu poza Won't Have, a jego powierzchnia to liczba zadań. Otwarte elementy mają kolor swojego priorytetu, a mocniejsza część to udział ukończonych zadań. Elementy zaakceptowane jako Gotowe stoją osobno, na końcu.",
+  "No items to map yet: Won't Have ones are left out.":
+    "Na mapie nie ma jeszcze elementów: elementy Won't Have są pomijane.",
   Legend: 'Legenda',
   'Tasks not complete': 'Zadania nieukończone',
   'Accepted as Done': 'Zaakceptowane jako Gotowe',

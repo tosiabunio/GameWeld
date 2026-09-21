@@ -33,12 +33,14 @@
   --assets-soft: #fde6c9;
   --content: #317858;
   --content-soft: #d9f4e1;
-  /* The Overview's priorities, and the two steps of each hue: what is not complete, and what is.
-     Validated as a categorical set (validate_palette.js) in both modes; labels on either step keep
-     4.5:1 in the text colour. */
+  /* The Overview's priorities and Done, and the two steps of each hue: what is not complete, and
+     what is. Validated as a categorical set (validate_palette.js) in both modes, Done against every
+     priority, since the map can set it beside any of them; labels on either step keep 4.5:1 in the
+     text colour. */
   --map-must: #e5484d;
   --map-should: #f59e0b;
   --map-could: #3b82f6;
+  --map-done: #4cc38a;
   --map-wont: #8a90a2;
   --map-pale: 16%;
   --map-strong: 80%;
@@ -99,6 +101,8 @@
     --map-must: #e0556f;
     --map-should: #c98500;
     --map-could: #3b82f6;
+    /* Closest to Must Have under protanopia (ΔE 7.0): the map keeps Done apart and ticked. */
+    --map-done: #1f8a54;
     --map-wont: #6b7180;
     --map-strong: 60%;
 
@@ -3377,6 +3381,9 @@ html.modal-open {
 }
 .hue-wont {
   --hue: var(--map-wont);
+}
+.hue-done {
+  --hue: var(--map-done);
 }
 .hue-code {
   --hue: var(--code);

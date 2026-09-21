@@ -31,7 +31,8 @@ project, quick open on Cmd+K, a Polish interface, filters and title search, the 
 archive and restore instead of hard deletion, continuous deployment, and an Overview of each
 project: its figures (items by state; tasks complete, in progress, waiting, blocked, overdue,
 unassigned), progress by priority and by kind of work, and a map of the Backlog in which each
-item's area is its number of tasks, its colour its priority, and its fill how far its tasks are.
+item's area is its number of tasks, its colour its priority, and its fill how far its tasks are;
+accepted items stand apart in the colour of Done, and Won't Have items are left off it.
 
 **The API.** Every route of the application is open to scripts and assistants through a member's
 own API token, read-only or read-write, which acts as that member under the same permissions and
