@@ -43,7 +43,7 @@ and reprioritise items, break them down into tasks, edit and complete tasks, bri
 scope, move cards, comment, and ask for out-of-scope work. Deleting, archiving, accepting,
 deciding on requests, and membership stay with people. For analysis, the history can be read by
 time, person, and action, and a card's stays in each column come with their length in hours. A
-skill for Claude Code, installed from this repository as a plugin, teaches an assistant the
+skill for Claude Code, which every instance serves as a plugin, teaches an assistant the
 vocabulary and rules and the common jobs: breaking an item down into Code, Assets, and Content
 tasks, the week's summary, and where work waits ([api.md](api.md)).
 

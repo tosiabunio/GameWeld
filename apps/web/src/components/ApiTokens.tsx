@@ -84,6 +84,11 @@ export function ApiTokens() {
             text={`claude mcp add --transport http --scope user gameweld ${window.location.origin}/api/mcp --header "Authorization: Bearer ${created.secret}"`}
             testId="token-mcp-command"
           />
+          <p className="small">{t('Then, in Claude Code, add the GameWeld skill:')}</p>
+          <Copyable
+            text={`/plugin marketplace add ${window.location.origin}/api/claude/marketplace.json\n/plugin install gameweld@gameweld`}
+            testId="token-skill-command"
+          />
           <div className="row">
             <button type="button" className="quiet" onClick={() => setCreated(null)}>
               {t('Done')}

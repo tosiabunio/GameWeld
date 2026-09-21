@@ -81,6 +81,7 @@ export const texts: Record<string, string> = {
     'Twój nowy token „{name}”. Skopiuj go teraz: nie zostanie pokazany ponownie.',
   'To use it from Claude Code, run this in a terminal:':
     'Aby używać go w Claude Code, uruchom to w terminalu:',
+  'Then, in Claude Code, add the GameWeld skill:': 'Następnie dodaj w Claude Code skill GameWeld:',
   Copy: 'Kopiuj',
   Copied: 'Skopiowano',
   'Your tokens': 'Twoje tokeny',

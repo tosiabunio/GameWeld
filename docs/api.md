@@ -116,17 +116,24 @@ into Code, Assets, and Content tasks, how to write the week's summary from the h
 to find where work waits. It also tells the assistant to propose before changing several things,
 and to take a refusal as the rules speaking rather than work around it.
 
-In Claude Code, install it from this repository, which is a plugin marketplace. That needs read
-access to the repository on GitHub:
+Every instance serves it as a Claude Code plugin, so anyone who can reach the instance can
+install it. In Claude Code (the profile shows these with the instance's address when you make a
+token):
 
 ```text
-/plugin marketplace add tosiabunio/GameWeld
+/plugin marketplace add https://gameweld.eu/api/claude/marketplace.json
 /plugin install gameweld@gameweld
 ```
 
-Without it, copy the folder [plugins/gameweld/skills/gameweld](../plugins/gameweld/skills/gameweld)
-to `~/.claude/skills/gameweld`. The skill needs the MCP server connected as above, or it falls
-back to the HTTP API with a token.
+The marketplace names the plugin's zip, `/api/claude/gameweld.zip`, by its SHA-256 digest, and
+the digest serves as its version: when an upgrade of the instance changes the skill, Claude Code
+sees an update. Claude Code downloads plugins only over HTTPS, so an instance on plain HTTP, such
+as one on localhost, cannot serve it; there, add this repository as the marketplace instead
+(`/plugin marketplace add tosiabunio/GameWeld`, which needs read access to it), or copy
+[plugins/gameweld/skills/gameweld](../plugins/gameweld/skills/gameweld) to
+`~/.claude/skills/gameweld`.
+
+The skill needs the MCP server connected as above, or it falls back to the HTTP API with a token.
 
 ## The description
 

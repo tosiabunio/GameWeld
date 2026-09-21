@@ -16,6 +16,7 @@ import { acceptanceRoutes } from './routes/acceptance.ts';
 import { avatarRoutes } from './routes/avatars.ts';
 import { backlogRoutes } from './routes/backlog.ts';
 import { checklistRoutes } from './routes/checklist.ts';
+import { claudeRoutes } from './routes/claude.ts';
 import { collabRoutes } from './routes/collab.ts';
 import { boardRoutes } from './routes/board.ts';
 import { historyRoutes } from './routes/history.ts';
@@ -158,6 +159,7 @@ export async function buildApp(
     [collabRoutes, 'Comments, links, and attachments'],
     [historyRoutes, 'History'],
     [mcpRoutes, 'MCP'],
+    [claudeRoutes, 'Claude Code'],
   ];
   for (const [routes, tag] of groups) await app.register(tagged(routes, tag), { prefix: '/api' });
 

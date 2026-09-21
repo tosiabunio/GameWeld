@@ -17,6 +17,10 @@ test('a member makes API tokens, uses them, sees their changes in history, and r
   await tokens.getByRole('button', { name: 'Make a token' }).click();
   const secret = (await tokens.getByTestId('token-secret').textContent())!;
   expect(secret).toMatch(/^gw_/);
+  // And the commands that add the GameWeld skill from this instance.
+  await expect(tokens.getByTestId('token-skill-command')).toHaveText(
+    '/plugin marketplace add http://localhost:3100/api/claude/marketplace.json\n/plugin install gameweld@gameweld',
+  );
   // With the command that connects Claude Code to this instance's MCP server.
   await expect(tokens.getByTestId('token-mcp-command')).toContainText(
     `claude mcp add --transport http --scope user gameweld http://localhost:3100/api/mcp --header "Authorization: Bearer ${secret}"`,
