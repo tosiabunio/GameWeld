@@ -474,6 +474,42 @@ export const NotificationSummary = exact<d.NotificationSummary>()(
   }),
 );
 
+// Overview -----------------------------------------------------------------------------------
+
+const count = () => z.number().int().min(0);
+export const TaskProgress = exact<d.TaskProgress>()(
+  z
+    .object({
+      total: count(),
+      completed: count(),
+      inProgress: count().describe('On a Workboard, past its To Do column.'),
+      toDo: count().describe('In a To Do column.'),
+      unplaced: count().describe('Not complete and on no board.'),
+      blocked: count(),
+      overdue: count().describe('Not complete, with a date before today.'),
+      unassigned: count().describe('Not complete, with nobody assigned.'),
+    })
+    .describe('Where a set of tasks stands; archived tasks are left out.'),
+);
+
+export const OverviewItem = exact<d.OverviewItem>()(
+  z.object({
+    id: id(),
+    title: z.string(),
+    category: MoscowCategory,
+    state: ItemState,
+    onBoard: z.boolean(),
+    tasks: TaskProgress,
+  }),
+);
+
+export const ProjectOverview = exact<d.ProjectOverview>()(
+  z.object({
+    items: z.array(OverviewItem),
+    tasksByCategory: z.object({ code: TaskProgress, assets: TaskProgress, content: TaskProgress }),
+  }),
+);
+
 // API tokens ---------------------------------------------------------------------------------
 
 export const ApiToken = exact<d.ApiToken>()(
@@ -543,6 +579,9 @@ export const components: Record<string, ZodTypeAny> = {
   Notification,
   WaitingEntry,
   NotificationSummary,
+  TaskProgress,
+  OverviewItem,
+  ProjectOverview,
   ApiToken,
   CreatedToken,
 };

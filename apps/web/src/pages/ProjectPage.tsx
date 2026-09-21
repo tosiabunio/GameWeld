@@ -137,6 +137,9 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
           <NavLink to="board" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
             {t('Workboard')}
           </NavLink>
+          <NavLink to="overview" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+            {t('Overview')}
+          </NavLink>
         </nav>
       }
     >

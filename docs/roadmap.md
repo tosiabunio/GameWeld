@@ -28,7 +28,10 @@ every open page, Markdown with @mentions in descriptions and comments, checklist
 labels, a "blocked" flag and an optional date on tasks, an optional end date on the Workboard,
 archived Workboards that can be opened and looked at, import from Trello and export of the whole
 project, quick open on Cmd+K, a Polish interface, filters and title search, the task in a window over its board, dark mode, a phone layout,
-archive and restore instead of hard deletion, and continuous deployment.
+archive and restore instead of hard deletion, continuous deployment, and an Overview of each
+project: its figures (items by state; tasks complete, in progress, waiting, blocked, overdue,
+unassigned), progress by priority and by kind of work, and a map of the Backlog in which each
+item's area is its number of tasks, its colour its priority, and its fill how far its tasks are.
 
 **The API.** Every route of the application is open to scripts and assistants through a member's
 own API token, read-only or read-write, which acts as that member under the same permissions and

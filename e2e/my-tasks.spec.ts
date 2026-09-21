@@ -50,6 +50,7 @@ test('My tasks is always first in the navigation, and its cards take the viewerâ
     'Backlog',
     'Breakdown',
     'Workboard',
+    'Overview',
   ]);
   for (const title of ['Alpha', 'Beta', 'Gamma', 'Delta'])
     await assign(page, title, 'Dana Director');

@@ -33,6 +33,15 @@
   --assets-soft: #fde6c9;
   --content: #317858;
   --content-soft: #d9f4e1;
+  /* The Overview's priorities, and the two steps of each hue: what is not complete, and what is.
+     Validated as a categorical set (validate_palette.js) in both modes; labels on either step keep
+     4.5:1 in the text colour. */
+  --map-must: #e5484d;
+  --map-should: #f59e0b;
+  --map-could: #3b82f6;
+  --map-wont: #8a90a2;
+  --map-pale: 16%;
+  --map-strong: 80%;
 
   --shadow-sm: 0 1px 2px rgb(20 24 40 / 0.06), 0 1px 1px rgb(20 24 40 / 0.04);
   --shadow-md: 0 4px 12px rgb(20 24 40 / 0.08), 0 1px 3px rgb(20 24 40 / 0.06);
@@ -87,6 +96,11 @@
     --assets-soft: #4a2710;
     --content: #a5e8b9;
     --content-soft: #123d22;
+    --map-must: #e0556f;
+    --map-should: #c98500;
+    --map-could: #3b82f6;
+    --map-wont: #6b7180;
+    --map-strong: 60%;
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 14px rgb(0 0 0 / 0.45);
@@ -3347,4 +3361,224 @@ html.modal-open {
   .token-form {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Overview: figures, progress by priority and kind, and the project map
+   --------------------------------------------------------------------------------------------- */
+.hue-must {
+  --hue: var(--map-must);
+}
+.hue-should {
+  --hue: var(--map-should);
+}
+.hue-could {
+  --hue: var(--map-could);
+}
+.hue-wont {
+  --hue: var(--map-wont);
+}
+.hue-code {
+  --hue: var(--code);
+}
+.hue-assets {
+  --hue: var(--assets);
+}
+.hue-content {
+  --hue: var(--content);
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+}
+.stat-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.stat-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0 20px;
+}
+.progress-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.progress-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.progress-row-head .muted {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+.progress-rows p {
+  margin-top: 4px;
+}
+.swatch {
+  flex: none;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--hue) var(--map-strong), var(--surface));
+  vertical-align: -1px;
+}
+.meter {
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--hue) var(--map-pale), var(--surface));
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hue) var(--map-strong), var(--surface));
+}
+.project-map > p {
+  margin: -4px 0 12px;
+}
+.map-legend {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 0.85rem;
+}
+.map-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.map-legend .map-key {
+  --hue: var(--map-wont);
+}
+.map-legend .map-key:first-of-type {
+  margin-left: 8px;
+}
+.map-key[data-key='waiting'] .swatch {
+  background: color-mix(in srgb, var(--hue) var(--map-pale), var(--surface));
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.map-frame {
+  position: relative;
+  overflow: hidden;
+}
+.map-cell {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--fg);
+  text-decoration: none;
+  overflow: hidden;
+  /* The strong step rises from the bottom with the share of tasks complete. */
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--hue) var(--map-strong), var(--surface)) var(--done),
+    color-mix(in srgb, var(--hue) var(--map-pale), var(--surface)) var(--done)
+  );
+}
+.map-cell.empty {
+  outline: 1px dashed color-mix(in srgb, var(--hue) 60%, var(--surface));
+  outline-offset: -4px;
+}
+.map-cell:hover {
+  filter: brightness(1.04) saturate(1.1);
+}
+.map-cell:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.map-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+.map-cell.marked .map-title {
+  padding-right: 12px;
+}
+.map-meta {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.map-mark {
+  position: absolute;
+  right: 5px;
+  top: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.map-mark.review::before {
+  content: '⧗';
+}
+.map-legend .map-mark {
+  position: static;
+  width: 12px;
+  text-align: center;
+}
+.map-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  width: 240px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+.map-table {
+  margin-top: 14px;
+}
+.map-table summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+.map-table .table {
+  margin-top: 10px;
+}
+.table .number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }

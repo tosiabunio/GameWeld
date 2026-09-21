@@ -28,6 +28,7 @@ import type {
   WorkRequest,
   MovePlacementInput,
   NotificationSummary,
+  ProjectOverview,
   MarkNotificationsReadInput,
   MoveMyTaskInput,
   MyTask,
@@ -152,6 +153,7 @@ export const api = {
   createProject: (input: CreateProjectInput) =>
     request<ProjectSummary>('/api/projects', json('POST', input)),
   project: (id: string) => request<ProjectDetail>(`/api/projects/${id}`),
+  overview: (id: string) => request<ProjectOverview>(`/api/projects/${id}/overview`),
   updateProject: (id: string, input: UpdateProjectInput) =>
     request<ProjectSummary>(`/api/projects/${id}`, json('PATCH', input)),
 

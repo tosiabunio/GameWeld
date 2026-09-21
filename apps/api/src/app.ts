@@ -26,6 +26,7 @@ import { mcpRoutes } from './routes/mcp.ts';
 import { memberRoutes } from './routes/members.ts';
 import { myTaskRoutes } from './routes/myTasks.ts';
 import { notificationRoutes } from './routes/notifications.ts';
+import { overviewRoutes } from './routes/overview.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { requestRoutes } from './routes/requests.ts';
 import { searchRoutes } from './routes/search.ts';
@@ -147,6 +148,7 @@ export async function buildApp(
     [liveRoutes, 'Live updates'],
     [avatarRoutes, 'Profile'],
     [backlogRoutes, 'Backlog'],
+    [overviewRoutes, 'Overview'],
     [taskRoutes, 'Tasks'],
     [checklistRoutes, 'Tasks'],
     [labelRoutes, 'Labels'],

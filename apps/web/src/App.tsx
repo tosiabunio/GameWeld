@@ -4,6 +4,7 @@ import { BacklogPage } from './pages/BacklogPage.tsx';
 import { BreakdownPage } from './pages/BreakdownPage.tsx';
 import { MyTasksPage } from './pages/MyTasksPage.tsx';
 import { NewProjectPage } from './pages/NewProjectPage.tsx';
+import { OverviewPage } from './pages/OverviewPage.tsx';
 import { ProjectPage } from './pages/ProjectPage.tsx';
 import { ProjectsPage } from './pages/ProjectsPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
@@ -34,6 +35,7 @@ export function App() {
         <Route path="tasks/:taskId" element={<TaskHome />} />
         <Route path="board" element={<WorkboardPage />} />
         <Route path="board/:boardId" element={<WorkboardPage />} />
+        <Route path="overview" element={<OverviewPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
