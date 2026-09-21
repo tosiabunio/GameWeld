@@ -5,7 +5,8 @@ a script, a report, or an AI assistant. This page covers how to get access, what
 allows, and where the API is described.
 
 In short: make a token in your profile, send it as `Authorization: Bearer gw_…`, and read the
-description at `/api/openapi.json` on your instance.
+description at `/api/openapi.json` on your instance. An AI assistant connects to the MCP server
+at `/api/mcp` with the same token.
 
 ## Getting a token
 
@@ -65,6 +66,47 @@ A few conventions hold across the API:
   thing goes between them, or to the end with neither.
 - `GET /api/events` is a stream of server-sent events saying _that_ something changed, for a
   client that wants to follow along.
+- **History for analysis:** `GET /api/projects/{projectId}/activity` takes `from`, `to`,
+  `actorId`, `actions` (such as `task.moved,item.rejected`, or `task.*`), and `before` to page
+  back. `GET /api/projects/{projectId}/column-stays` lists how long each card stayed in each
+  column.
+
+## Connecting an AI assistant (MCP)
+
+GameWeld serves a [Model Context Protocol](https://modelcontextprotocol.io) server at `/api/mcp`
+on every instance, for Claude and any other assistant that speaks MCP over streamable HTTP. The
+assistant uses your token, so it acts as you: it sees your projects and may do what your roles
+allow.
+
+For Claude Code, the profile shows the command when you make a token. It is:
+
+```sh
+claude mcp add --transport http --scope user gameweld https://gameweld.eu/api/mcp \
+  --header "Authorization: Bearer gw_…"
+```
+
+`--scope user` makes GameWeld available in every folder you run Claude Code in; leave it out
+for the current folder only. Another client needs the same two things: the address, and the
+`Authorization` header with the token.
+
+What the tools do:
+
+- **Read:** your projects and their members, the Backlog, an item with its breakdown, a task,
+  the Workboard with its scope and columns, "My tasks", what waits for your decision, and search.
+- **Analyse:** the history, filtered by time, person, action, or one item, task, or board; and
+  how long cards stayed in each column, in hours.
+- **Change:** add and edit Backlog items and reprioritise them, break an item down into tasks,
+  edit a task (assignee, labels, due date, blocked and why), add checklist steps, complete or
+  reopen a task, bring an item into the Workboard's scope, put a task on the board, move a card
+  by its column's name, comment, and ask for out-of-scope work.
+
+Deleting, archiving, accepting items, deciding on requests, and managing members and boards are
+left to people in the app. With a read-only token, the assistant is offered only the tools that
+read.
+
+Each tool calls the same routes as the app, as you, so the rules and permissions are the same,
+and a refusal comes back to the assistant with the same reason. Everything it changes is in the
+history as yours "via" the token's name.
 
 ## The description
 

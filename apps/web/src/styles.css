@@ -3321,6 +3321,9 @@ html.modal-open {
 .token-created > p {
   margin: 0 0 8px;
 }
+.token-created > .token-copy {
+  margin-bottom: 10px;
+}
 .token-secret {
   flex: 1 1 280px;
   min-width: 0;

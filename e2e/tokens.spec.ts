@@ -17,6 +17,10 @@ test('a member makes API tokens, uses them, sees their changes in history, and r
   await tokens.getByRole('button', { name: 'Make a token' }).click();
   const secret = (await tokens.getByTestId('token-secret').textContent())!;
   expect(secret).toMatch(/^gw_/);
+  // With the command that connects Claude Code to this instance's MCP server.
+  await expect(tokens.getByTestId('token-mcp-command')).toContainText(
+    `claude mcp add --transport http --scope user gameweld http://localhost:3100/api/mcp --header "Authorization: Bearer ${secret}"`,
+  );
   // The token speaks for the member, whatever cookie comes with it, and only reads.
   const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
   const me = await page.request.get('/api/me', { headers: bearer(secret) });

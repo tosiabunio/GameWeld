@@ -1,4 +1,4 @@
-import type { ActivityEntry, Attachment, Comment, Dependency, ProjectRole } from '@gameweld/domain';
+import type { Attachment, Comment, Dependency, ProjectRole } from '@gameweld/domain';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
@@ -715,91 +715,6 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
         previous: { dependsOnItemId },
       });
       return fetchDependencies(db, itemId);
-    },
-  );
-
-  // Activity history (Section 14) --------------------------------------------------------------
-
-  app.get(
-    '/projects/:projectId/activity',
-    projectRoute('project.view', {
-      id: 'listActivity',
-      summary: 'The project’s history, newest first',
-      description:
-        'Every change, with who made it and through which API token. With entityType and entityId, only what concerns one item (with its tasks), one task (with its requests), or one Workboard (with its columns, cards, scope, and requests).',
-      tag: 'History',
-      query: z.object({
-        entityType: z.enum(['backlog_item', 'task', 'workboard']).optional(),
-        entityId: z.string().uuid().optional(),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(500)
-          .optional()
-          .describe('At most this many; 100 unless given.'),
-      }),
-      response: z.array(schema.ActivityEntry),
-    }),
-    async (req): Promise<ActivityEntry[]> => {
-      const q = req.query as { entityType?: string; entityId?: string; limit?: string };
-      const projectId = req.access!.project.id;
-      const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
-      const params: unknown[] = [projectId, limit];
-      let where = 'a.project_id = $1';
-      if (q.entityType && q.entityId) {
-        if (!isUuid(q.entityId)) throw badRequest('Invalid entity id');
-        params.push(q.entityId);
-        switch (q.entityType) {
-          case 'backlog_item':
-            // The item's own events plus those of its tasks.
-            where += ` AND ((a.entity_type = 'backlog_item' AND a.entity_id = $3)
-                      OR (a.entity_type = 'task' AND a.entity_id IN (SELECT id FROM tasks WHERE item_id = $3)))`;
-            break;
-          case 'task':
-            where += ` AND ((a.entity_type = 'task' AND a.entity_id = $3)
-                      OR (a.entity_type = 'work_request' AND a.entity_id IN (SELECT id FROM work_requests WHERE task_id = $3)))`;
-            break;
-          case 'workboard':
-            // The board, its columns, scope changes on it, placements on it, and its requests.
-            where += ` AND ((a.entity_type = 'workboard' AND a.entity_id = $3)
-                      OR (a.entity_type = 'board_column' AND a.entity_id IN (SELECT id FROM board_columns WHERE board_id = $3))
-                      OR (a.entity_type = 'work_request' AND a.entity_id IN (SELECT id FROM work_requests WHERE board_id = $3))
-                      OR a.next->>'boardId' = $3::text OR a.next->>'onBoard' = $3::text)`;
-            break;
-          default:
-            throw badRequest('Unknown entity type');
-        }
-      }
-      const res = await db.query<{
-        id: string;
-        action: string;
-        entity_type: string;
-        entity_id: string;
-        actor_id: string | null;
-        display_name: string | null;
-        via_token: string | null;
-        previous: Record<string, unknown> | null;
-        next: Record<string, unknown> | null;
-        created_at: Date;
-      }>(
-        `SELECT a.id, a.action, a.entity_type, a.entity_id, a.actor_id, u.display_name, a.via_token, a.previous, a.next, a.created_at
-         FROM activity a LEFT JOIN users u ON u.id = a.actor_id
-        WHERE ${where} ORDER BY a.id DESC LIMIT $2`,
-        params,
-      );
-      return res.rows.map((r) => ({
-        id: Number(r.id),
-        action: r.action,
-        entityType: r.entity_type,
-        entityId: r.entity_id,
-        actor:
-          r.actor_id && r.display_name ? { id: r.actor_id, displayName: r.display_name } : null,
-        via: r.via_token,
-        previous: r.previous,
-        next: r.next,
-        createdAt: r.created_at.toISOString(),
-      }));
     },
   );
 };

@@ -10,7 +10,7 @@ type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
 describe('API tokens', () => {
   let t: TestContext;
-  const routes: { method: Method; url: string }[] = [];
+  const routes: { method: Method; url: string; readOnlySafe: boolean }[] = [];
   const cookies = { director: '', developer: '' };
   let projectId: string;
 
@@ -43,7 +43,11 @@ describe('API tokens', () => {
       instance.addHook('onRoute', (r) => {
         for (const m of Array.isArray(r.method) ? r.method : [r.method])
           if (r.url.startsWith('/api/') && m !== 'HEAD')
-            routes.push({ method: m as Method, url: r.url });
+            routes.push({
+              method: m as Method,
+              url: r.url,
+              readOnlySafe: r.config?.readOnlySafe === true,
+            });
       });
     });
     await app.ready();
@@ -110,7 +114,9 @@ describe('API tokens', () => {
     const read = await withToken(secret, 'GET', `/projects/${projectId}/backlog`);
     expect(read.statusCode).toBe(200);
 
-    const changing = routes.filter((r) => r.method !== 'GET');
+    // The MCP server is the exception: it offers a read-only token only the tools that read.
+    const changing = routes.filter((r) => r.method !== 'GET' && !r.readOnlySafe);
+    expect(routes.filter((r) => r.readOnlySafe).map((r) => r.url)).toEqual(['/api/mcp']);
     expect(changing.length).toBeGreaterThan(40);
     const zero = '00000000-0000-0000-0000-000000000000';
     for (const r of changing) {

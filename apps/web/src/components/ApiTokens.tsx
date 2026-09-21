@@ -18,7 +18,6 @@ export function ApiTokens() {
   const [name, setName] = useState('');
   const [access, setAccess] = useState<TokenAccess>('read');
   const [created, setCreated] = useState<CreatedToken | null>(null);
-  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +32,6 @@ export function ApiTokens() {
     try {
       const made = await api.createToken({ name, access });
       setCreated(made);
-      setCopied(false);
       setTokens((list) => [...(list ?? []), made.token]);
       setName('');
       setAccess('read');
@@ -52,15 +50,6 @@ export function ApiTokens() {
       if (created?.token.id === token.id) setCreated(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('Something went wrong'));
-    }
-  }
-
-  async function copy(secret: string) {
-    try {
-      await navigator.clipboard.writeText(secret);
-      setCopied(true);
-    } catch {
-      // No clipboard here (an insecure page, or a refusal): the token stays shown to select.
     }
   }
 
@@ -89,13 +78,13 @@ export function ApiTokens() {
               })}
             </strong>
           </p>
+          <Copyable text={created.secret} testId="token-secret" />
+          <p className="small">{t('To use it from Claude Code, run this in a terminal:')}</p>
+          <Copyable
+            text={`claude mcp add --transport http --scope user gameweld ${window.location.origin}/api/mcp --header "Authorization: Bearer ${created.secret}"`}
+            testId="token-mcp-command"
+          />
           <div className="row">
-            <code className="token-secret" data-testid="token-secret">
-              {created.secret}
-            </code>
-            <button type="button" onClick={() => void copy(created.secret)}>
-              {copied ? t('Copied') : t('Copy')}
-            </button>
             <button type="button" className="quiet" onClick={() => setCreated(null)}>
               {t('Done')}
             </button>
@@ -160,5 +149,28 @@ export function ApiTokens() {
         </button>
       </form>
     </section>
+  );
+}
+
+/** Text to copy: shown whole, selectable by hand, and copied with one click where allowed. */
+function Copyable({ text, testId }: { text: string; testId: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      // No clipboard here (an insecure page, or a refusal): the text stays shown to select.
+    }
+  }
+  return (
+    <div className="row token-copy">
+      <code className="token-secret" data-testid={testId}>
+        {text}
+      </code>
+      <button type="button" onClick={() => void copy()}>
+        {copied ? t('Copied') : t('Copy')}
+      </button>
+    </div>
   );
 }

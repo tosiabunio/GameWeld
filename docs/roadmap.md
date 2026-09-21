@@ -36,6 +36,13 @@ notifications with the token's name. An OpenAPI 3.1 description of every route i
 `/api/openapi.json`, put together from the routes themselves and checked against every response
 the test suite sees ([api.md](api.md)).
 
+**AI tools.** An MCP server at `/api/mcp` lets an assistant work in a project as the member whose
+token it uses: read the Backlog, a breakdown, the Workboard, and what waits for the member; add
+and reprioritise items, break them down into tasks, edit and complete tasks, bring items into
+scope, move cards, comment, and ask for out-of-scope work. Deleting, archiving, accepting,
+deciding on requests, and membership stay with people. For analysis, the history can be read by
+time, person, and action, and a card's stays in each column come with their length in hours.
+
 ## What is missing
 
 Each entry says who has it, so the comparison stays honest. "All five" means Trello, Planka,
@@ -75,19 +82,9 @@ Wekan, Taiga, and Plane.
   ships this. GameWeld is well placed for it: every rule is enforced on the server, so an
   assistant cannot leave a project in a state a person could not (scope limit, priority rule,
   completion permission, nothing stranded), and every change is already in the activity history
-  with who made it, through which API token, and what it was before and after. API tokens and
-  the OpenAPI description, which the rest stands on, are done (see "Where GameWeld stands").
-  - **An MCP server**, served by the application itself (streamable HTTP, a member's token),
-    is the main way in, because one server works in every assistant that speaks MCP. Tools
-    mirror what a member does: read the Backlog, a Breakdown, the Workboard, and "waiting for
-    me"; create an item or a task, break an item down, move a card, comment, flag a block, ask
-    for out-of-scope work. Deleting, archiving, and membership stay out of the first set.
-  - **History for analysis.** The activity route pages the newest entries for the interface;
-    analysis wants a range of dates, filters by kind and person, and the placement history
-    (which column, from when to when). From those an assistant can answer what changed this
-    week, where cards wait longest, how often items come back from review, and what was
-    blocked and for how long, without the product growing a reporting module (see "Deliberately
-    outside").
+  with who made it, through which API token, and what it was before and after. API tokens, the
+  OpenAPI description, the MCP server, and the history routes for analysis are done (see
+  "Where GameWeld stands"). What is left:
   - **A skill** on top, for assistants that load them: the vocabulary (item, task, scope,
     out-of-scope request, acceptance) and a few worked procedures, such as "break this item
     down into Code, Assets, and Content tasks" or "write the week's summary from the history".
@@ -101,9 +98,9 @@ Wekan, Taiga, and Plane.
 
 The specification excludes mandatory estimates and story points, burndown and advanced reports,
 Butler-style automation, a bug database, a wiki, and custom fields. Taiga and Plane have them,
-but they are not the simple tools, and chasing them is not the goal. One exception costs little:
-how long a task stayed in each column can be computed from the placement history that already
-exists.
+but they are not the simple tools, and chasing them is not the goal. How long a task stayed in
+each column is served to assistants (the column stays), so questions like these can be asked of
+an assistant without the product growing a reporting module.
 
 **Swimlanes on the Workboard** (Wekan, Taiga, Plane), rejected 19 September 2026. They pay off
 with a dozen streams of work on one board, which the scope limit exists to prevent: with a
@@ -135,7 +132,8 @@ dimension in the lanes.
 8. **AI tools**, now first (decided 21 September 2026): API tokens and an OpenAPI description
    first, then the MCP server with the history routes for analysis, then the skill. Tokens and the
    description are done (21 September 2026), with every change made through a token marked in
-   the history. The MCP server is next.
+   the history, and so are the MCP server and the history routes (21 September 2026). The skill
+   is next.
 9. **Polish translation, the touch fix on phones, and Cmd+K.** Done (20 September 2026).
 
 Steps 2 to 4 do the most to make daily use feel like Trello. Steps 1 and 7 decide whether anyone

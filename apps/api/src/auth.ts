@@ -36,6 +36,10 @@ declare module 'fastify' {
     user: CurrentUser | null;
     token: RequestToken | null;
   }
+  interface FastifyContextConfig {
+    /** The route changes nothing by itself, whatever its method, so a read-only token may call it. */
+    readOnlySafe?: boolean;
+  }
 }
 
 /** Sessions and API tokens are long random strings, so a fast hash is enough to keep them. */
@@ -170,7 +174,11 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
         return reply
           .status(401)
           .send({ message: 'The API token is not valid. It may have been revoked.' });
-      if (found.token.access === 'read' && !READ_METHODS.has(req.method))
+      if (
+        found.token.access === 'read' &&
+        !READ_METHODS.has(req.method) &&
+        !req.routeOptions.config?.readOnlySafe
+      )
         return reply.status(403).send({ message: 'This API token can only read' });
       req.user = found.user;
       req.token = found.token;

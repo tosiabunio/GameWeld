@@ -18,8 +18,10 @@ import { backlogRoutes } from './routes/backlog.ts';
 import { checklistRoutes } from './routes/checklist.ts';
 import { collabRoutes } from './routes/collab.ts';
 import { boardRoutes } from './routes/board.ts';
+import { historyRoutes } from './routes/history.ts';
 import { labelRoutes } from './routes/labels.ts';
 import { liveRoutes } from './routes/live.ts';
+import { mcpRoutes } from './routes/mcp.ts';
 import { memberRoutes } from './routes/members.ts';
 import { myTaskRoutes } from './routes/myTasks.ts';
 import { notificationRoutes } from './routes/notifications.ts';
@@ -154,6 +156,8 @@ export async function buildApp(
     [acceptanceRoutes, 'Backlog'],
     [requestRoutes, 'Out-of-scope requests'],
     [collabRoutes, 'Comments, links, and attachments'],
+    [historyRoutes, 'History'],
+    [mcpRoutes, 'MCP'],
   ];
   for (const [routes, tag] of groups) await app.register(tagged(routes, tag), { prefix: '/api' });
 

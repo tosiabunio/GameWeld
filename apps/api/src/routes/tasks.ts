@@ -290,6 +290,16 @@ export async function setTaskCompleted(
           'UPDATE task_placements SET column_id = $2, rank = $3 WHERE task_id = $1 AND is_current',
           [task.id, column.id, generateKeyBetween(last.rows[0]?.rank ?? null, null)],
         );
+        // Every change of column is in the history, which is where column stays are read from.
+        await recordActivity(tx, {
+          projectId: task.projectId,
+          actorId,
+          action: 'task.moved',
+          entityType: 'task',
+          entityId: task.id,
+          previous: { columnId: task.placement.columnId },
+          next: { columnId: column.id, reason },
+        });
       }
     }
   }

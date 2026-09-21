@@ -79,6 +79,8 @@ export const texts: Record<string, string> = {
     'Token pozwala skryptowi albo asystentowi AI korzystać z GameWeld w Twoim imieniu, z Twoimi uprawnieniami, przez <1>API</1>. Kto go ma, może zrobić wszystko, na co token pozwala, więc chroń go jak hasło.',
   'Your new token “{name}”. Copy it now: it is not shown again.':
     'Twój nowy token „{name}”. Skopiuj go teraz: nie zostanie pokazany ponownie.',
+  'To use it from Claude Code, run this in a terminal:':
+    'Aby używać go w Claude Code, uruchom to w terminalu:',
   Copy: 'Kopiuj',
   Copied: 'Skopiowano',
   'Your tokens': 'Twoje tokeny',

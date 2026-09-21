@@ -255,11 +255,30 @@ export const ActivityEntry = exact<d.ActivityEntry>()(
     action: z.string().describe('What happened, such as task.moved or item.accepted.'),
     entityType: z.string(),
     entityId: id(),
+    entityTitle: z.string().nullable().describe('What it concerns, by its title as it is now.'),
     actor: Person.nullable().describe('Who did it; null when the system did.'),
     via: z.string().nullable().describe('The API token it was done with, by name.'),
     previous: z.record(z.unknown()).nullable(),
     next: z.record(z.unknown()).nullable(),
     createdAt: timestamp(),
+  }),
+);
+
+export const ColumnStay = exact<d.ColumnStay>()(
+  z.object({
+    taskId: id(),
+    taskTitle: z.string(),
+    category: TaskCategory,
+    itemId: id(),
+    itemTitle: z.string(),
+    boardId: id(),
+    boardName: z.string(),
+    columnId: id(),
+    columnName: z.string(),
+    columnKind: ColumnKind,
+    enteredAt: timestamp(),
+    leftAt: timestamp().nullable().describe('Null while the card is still there.'),
+    hours: z.number().describe('How long it stayed, or has stayed so far.'),
   }),
 );
 
@@ -509,6 +528,7 @@ export const components: Record<string, ZodTypeAny> = {
   Dependency,
   BacklogItemDetail,
   ActivityEntry,
+  ColumnStay,
   TaskPlacement,
   Task,
   ChecklistItem,
