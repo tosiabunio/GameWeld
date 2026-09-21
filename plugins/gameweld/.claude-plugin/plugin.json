@@ -1,0 +1,10 @@
+{
+  "name": "gameweld",
+  "displayName": "GameWeld",
+  "description": "Work in GameWeld, the production tool for game teams: break down the Backlog, run the Workboard, and analyse a project's history through its MCP server.",
+  "author": { "name": "GameWeld" },
+  "homepage": "https://github.com/tosiabunio/GameWeld/blob/main/docs/api.md",
+  "repository": "https://github.com/tosiabunio/GameWeld",
+  "license": "MIT",
+  "keywords": ["game development", "production", "backlog", "kanban", "mcp"]
+}

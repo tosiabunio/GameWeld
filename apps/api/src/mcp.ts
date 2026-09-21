@@ -32,7 +32,7 @@ import { z, type ZodRawShape } from 'zod';
 
 const INSTRUCTIONS = `GameWeld runs the production of a game. A project has a Backlog of items, each in a MoSCoW category (must, should, could, wont). An item is broken down into tasks of three categories: code, assets, content.
 
-One Workboard per project is active. Its scope holds a few Backlog items, up to the project's scope limit, and they come in by priority: an item can join only while no open item of a higher category is waiting. The tasks of items in scope are cards in its columns: a To Do column per task category, intermediate columns, and Done. A task of an item outside the scope goes on the board only through an out-of-scope request that a Game Director approves. When every task of an item is complete, the item is Ready for Review, and a Game Director (or a member allowed to) accepts it as Done.
+One Workboard per project is active. Its scope holds a few Backlog items, up to the project's scope limit, and they come in strictly by priority: only the next item (the first open item not yet in scope, by category and then by its place in the Backlog; get_workboard names it as nextEligible) can be brought in. To bring in another, the Backlog must be reprioritised first, or single tasks brought in as out-of-scope work. The tasks of items in scope are cards in its columns: a To Do column per task category, intermediate columns, and Done. A task of an item outside the scope goes on the board only through an out-of-scope request that a Game Director approves. When every task of an item is complete, the item is Ready for Review, and a Game Director (or a member allowed to) accepts it as Done.
 
 The server enforces these rules and the member's permissions, and says why when it refuses: report the refusal rather than working around it. Every change is recorded in the project's history under the member's name and this token's name.
 
@@ -622,7 +622,7 @@ const TOOLS: Tool[] = [
     name: 'add_to_scope',
     title: 'Bring an item into the Workboard’s scope',
     description:
-      'Bring a Backlog item into the active Workboard’s scope, within its scope limit and by the priority rule; its tasks go to their To Do columns. Needs the Game Director role.',
+      'Bring the next item in priority (get_workboard names it as nextEligible) into the active Workboard’s scope, within its scope limit; its tasks go to their To Do columns. Needs the Game Director role.',
     writes: true,
     input: { projectId, itemId: z.string().uuid() },
     run: async (api, { projectId, itemId }) => {

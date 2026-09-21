@@ -8,8 +8,9 @@ decided; an entry becomes a decision when it moves into the
 [implementation plan](gameweld-implementation-plan.md).
 
 The short version: next to the simple tools, GameWeld most lacked notifications, live updates, and
-a handful of small things on a card (Markdown, checklists, labels, dates); those are done. What
-comes next is the one thing none of them has, AI tools, and before a first real team, backups.
+a handful of small things on a card (Markdown, checklists, labels, dates); those are done, and so
+are the AI tools, which none of them has. Before a first real team, it needs backups and Google
+sign-in switched on at gameweld.eu.
 
 ## Where GameWeld stands
 
@@ -41,7 +42,10 @@ token it uses: read the Backlog, a breakdown, the Workboard, and what waits for 
 and reprioritise items, break them down into tasks, edit and complete tasks, bring items into
 scope, move cards, comment, and ask for out-of-scope work. Deleting, archiving, accepting,
 deciding on requests, and membership stay with people. For analysis, the history can be read by
-time, person, and action, and a card's stays in each column come with their length in hours.
+time, person, and action, and a card's stays in each column come with their length in hours. A
+skill for Claude Code, installed from this repository as a plugin, teaches an assistant the
+vocabulary and rules and the common jobs: breaking an item down into Code, Assets, and Content
+tasks, the week's summary, and where work waits ([api.md](api.md)).
 
 ## What is missing
 
@@ -78,17 +82,6 @@ Wekan, Taiga, and Plane.
   nothing reads it back yet; it is a copy to keep and to analyse.
 - **Webhooks, and notifications to Discord or Slack.** Game teams live on Discord, and it is the
   cheapest notification channel to build. Deferred for now (19 September 2026).
-- **AI tools: changing a project and analysing its history with an assistant.** None of the five
-  ships this. GameWeld is well placed for it: every rule is enforced on the server, so an
-  assistant cannot leave a project in a state a person could not (scope limit, priority rule,
-  completion permission, nothing stranded), and every change is already in the activity history
-  with who made it, through which API token, and what it was before and after. API tokens, the
-  OpenAPI description, the MCP server, and the history routes for analysis are done (see
-  "Where GameWeld stands"). What is left:
-  - **A skill** on top, for assistants that load them: the vocabulary (item, task, scope,
-    out-of-scope request, acceptance) and a few worked procedures, such as "break this item
-    down into Code, Assets, and Content tasks" or "write the week's summary from the history".
-    It calls the MCP server, or the API directly where MCP is not available.
 - **A read-only role or a public link** for a publisher or stakeholder (Trello's observers,
   Plane's guests).
 - **Translated server messages.** The interface is in English and Polish; what the server says
@@ -132,8 +125,8 @@ dimension in the lanes.
 8. **AI tools**, now first (decided 21 September 2026): API tokens and an OpenAPI description
    first, then the MCP server with the history routes for analysis, then the skill. Tokens and the
    description are done (21 September 2026), with every change made through a token marked in
-   the history, and so are the MCP server and the history routes (21 September 2026). The skill
-   is next.
+   the history, and so are the MCP server, the history routes, and the skill (21 September
+   2026). Done.
 9. **Polish translation, the touch fix on phones, and Cmd+K.** Done (20 September 2026).
 
 Steps 2 to 4 do the most to make daily use feel like Trello. Steps 1 and 7 decide whether anyone

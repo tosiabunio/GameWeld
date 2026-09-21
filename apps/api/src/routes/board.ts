@@ -713,7 +713,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       id: 'addToScope',
       summary: 'Bring a Backlog item into the Workboard’s scope',
       description:
-        'Within the scope limit, and by the priority rule: an item may come in only when no open item of a higher category is waiting. Its unplaced tasks go to their To Do columns.',
+        'Only the next item in priority may come in: the first open item not yet in scope, by category (must, should, could) and then by its place in the Backlog; Won’t Have items never do. The Workboard names it as nextEligible. Within the scope limit. Its unplaced tasks go to their To Do columns.',
       body: scopeSchema,
       response: { status: 201, schema: schema.BoardView },
     }),

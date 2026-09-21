@@ -1,0 +1,12 @@
+{
+  "name": "gameweld",
+  "owner": { "name": "GameWeld", "url": "https://github.com/tosiabunio/GameWeld" },
+  "description": "GameWeld for Claude Code.",
+  "plugins": [
+    {
+      "name": "gameweld",
+      "source": "./plugins/gameweld",
+      "description": "Work in GameWeld, the production tool for game teams: break down the Backlog, run the Workboard, and analyse a project's history through its MCP server."
+    }
+  ]
+}

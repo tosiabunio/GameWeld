@@ -108,6 +108,26 @@ Each tool calls the same routes as the app, as you, so the rules and permissions
 and a refusal comes back to the assistant with the same reason. Everything it changes is in the
 history as yours "via" the token's name.
 
+### The GameWeld skill
+
+The tools say what they do; the skill says how GameWeld works and how to do the common jobs
+well: the vocabulary and the rules (scope, the priority rule, review), how to break an item down
+into Code, Assets, and Content tasks, how to write the week's summary from the history, and how
+to find where work waits. It also tells the assistant to propose before changing several things,
+and to take a refusal as the rules speaking rather than work around it.
+
+In Claude Code, install it from this repository, which is a plugin marketplace. That needs read
+access to the repository on GitHub:
+
+```text
+/plugin marketplace add tosiabunio/GameWeld
+/plugin install gameweld@gameweld
+```
+
+Without it, copy the folder [plugins/gameweld/skills/gameweld](../plugins/gameweld/skills/gameweld)
+to `~/.claude/skills/gameweld`. The skill needs the MCP server connected as above, or it falls
+back to the HTTP API with a token.
+
 ## The description
 
 `/api/openapi.json` on any instance, for example <https://gameweld.eu/api/openapi.json>, is an
