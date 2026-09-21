@@ -5,7 +5,6 @@ import { BreakdownPage } from './pages/BreakdownPage.tsx';
 import { MyTasksPage } from './pages/MyTasksPage.tsx';
 import { NewProjectPage } from './pages/NewProjectPage.tsx';
 import { ProjectPage } from './pages/ProjectPage.tsx';
-import { ProfilePage } from './pages/ProfilePage.tsx';
 import { ProjectsPage } from './pages/ProjectsPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { SignInPage } from './pages/SignInPage.tsx';
@@ -25,7 +24,6 @@ export function App() {
     <Routes location={openTask?.background ?? location}>
       <Route path="/" element={<ProjectsPage />} />
       <Route path="/projects/new" element={<NewProjectPage />} />
-      <Route path="/profile" element={<ProfilePage />} />
       <Route path="/projects/:projectId" element={<ProjectPage openTask={openTask} />}>
         <Route index element={<Navigate to="backlog" replace />} />
         <Route path="my-tasks" element={<MyTasksPage />} />

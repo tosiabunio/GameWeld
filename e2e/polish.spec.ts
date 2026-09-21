@@ -38,10 +38,13 @@ test('the interface is in Polish for a Polish browser, and English again on requ
   await expect(task).not.toContainText('Checklist');
   await page.keyboard.press('Escape');
 
-  // The profile page changes the language; the choice is kept and the page reloads in it.
-  await page.goto('/profile');
+  // The profile changes the language; the choice is kept and the page reloads in it.
+  await page.getByTestId('current-user').click();
   await page.getByRole('combobox', { name: 'Język' }).selectOption('en');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  // The reload closes the window and leaves the page it was opened over.
+  await expect(page.getByRole('dialog', { name: 'Your profile' })).toHaveCount(0);
+  await page.getByTestId('current-user').click();
   await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
   await page.goto('/');
   await page.getByRole('link', { name: 'Demo project' }).click();

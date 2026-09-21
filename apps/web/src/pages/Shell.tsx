@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Avatar, Logo } from '../components/Brand.tsx';
 import { CommandPalette } from '../components/CommandPalette.tsx';
 import { NotificationsBell } from '../components/NotificationsBell.tsx';
+import { ProfileDialog } from '../components/ProfileDialog.tsx';
 import { t } from '../i18n/index.ts';
 import { useCurrentUser, useSession } from '../session.tsx';
 
@@ -23,6 +24,7 @@ export function Shell({
 }) {
   const user = useCurrentUser();
   const { signOut } = useSession();
+  const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
 
   // Whoever signs in next starts from the projects list, not from a page of the last one's
@@ -47,16 +49,23 @@ export function Shell({
         <div className="user">
           <CommandPalette />
           <NotificationsBell />
-          <Link to="/profile" className="me" title={t('Your profile and picture')}>
+          <button
+            type="button"
+            className="me"
+            title={t('Your profile and picture')}
+            aria-haspopup="dialog"
+            onClick={() => setProfileOpen(true)}
+          >
             <Avatar name={user.displayName} url={user.avatarUrl} />
             <span data-testid="current-user">{user.displayName}</span>
-          </Link>
+          </button>
           <button type="button" className="quiet" onClick={() => void leave()}>
             {user.provider === 'mock' ? t('Switch persona') : t('Sign out')}
           </button>
         </div>
       </header>
       <main className="page">{children}</main>
+      {profileOpen && <ProfileDialog onClose={() => setProfileOpen(false)} />}
     </div>
   );
 }

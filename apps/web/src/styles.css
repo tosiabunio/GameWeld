@@ -2840,12 +2840,13 @@ button.checklist-title {
   box-shadow: none;
 }
 
-/* A task's window: a modal dialog over the page the task was opened from. The dialog is the
-   scrolling box, so its head, with the close button, stays in view. */
+/* A task's window, and the profile: modal dialogs over the page they were opened from. The
+   dialog is the scrolling box, so its head, with the close button, stays in view. */
 html.modal-open {
   overflow: hidden;
 }
-.task-modal {
+.task-modal,
+.modal {
   width: min(1040px, calc(100vw - 32px));
   max-width: none;
   max-height: calc(100dvh - 48px);
@@ -2859,13 +2860,15 @@ html.modal-open {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.task-modal::backdrop {
+.task-modal::backdrop,
+.modal::backdrop {
   background: rgb(12 14 22 / 0.5);
 }
 .task-modal > .task-page {
   padding: 0 28px 28px;
 }
-.task-modal-head {
+.task-modal-head,
+.modal-head {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -2900,7 +2903,8 @@ html.modal-open {
   margin-top: 16px;
 }
 @media (max-width: 760px) {
-  .task-modal {
+  .task-modal,
+  .modal {
     width: 100vw;
     max-height: 100dvh;
     height: 100dvh;
@@ -3164,6 +3168,38 @@ html.modal-open {
 }
 
 /* Profile and the picture cropper */
+/* The profile window: narrower than a task's, its sections as panels inside it. */
+.profile-modal {
+  width: min(640px, calc(100vw - 32px));
+  padding: 0 24px 24px;
+}
+.profile-modal > .modal-head {
+  margin: 0 -24px 16px;
+  padding-left: 24px;
+}
+.modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.profile-modal > .panel:last-child {
+  margin-bottom: 0;
+}
+@media (max-width: 760px) {
+  .profile-modal {
+    width: 100vw;
+    padding: 0 16px 24px;
+  }
+  .profile-modal > .modal-head {
+    margin: 0 -16px 12px;
+    padding: 10px 8px 10px 16px;
+  }
+}
+.user button.me {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
 .profile-card {
   display: flex;
   align-items: center;

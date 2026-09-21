@@ -56,8 +56,8 @@ export const texts: Record<string, string> = {
   'Create project': 'Utwórz projekt',
 
   // The profile
-  Profile: 'Profil',
   'Your profile': 'Twój profil',
+  'Close profile': 'Zamknij profil',
   Picture: 'Zdjęcie',
   'Shown in the top bar, on the cards assigned to you, and when someone picks an assignee. Without a picture, your initials are used.':
     'Widoczne na górnym pasku, na przypisanych do Ciebie kartach i przy wyborze osoby przypisanej. Bez zdjęcia pokazywane są Twoje inicjały.',

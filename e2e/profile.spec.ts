@@ -28,7 +28,8 @@ const colourOf = (img: Locator) =>
 test('a user uploads a picture, chooses its circle, and is shown by it', async ({ page }) => {
   await signIn(page, 'tester');
   await page.getByTestId('current-user').click();
-  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+  const profile = page.getByRole('dialog', { name: 'Your profile' });
+  await expect(profile).toBeVisible();
   const me = page.locator('.topbar .me .avatar');
   await expect(me).toHaveText('TT');
 
@@ -72,6 +73,8 @@ test('a user uploads a picture, chooses its circle, and is shown by it', async (
   expect(await colourOf(picture)).toBe('blue');
 
   // Others see it wherever they pick an assignee.
+  await profile.getByRole('button', { name: 'Close profile' }).click();
+  await expect(profile).toHaveCount(0);
   await page.getByRole('link', { name: 'GameWeld' }).click();
   await page.getByRole('link', { name: 'Demo project' }).click();
   await page
@@ -83,10 +86,16 @@ test('a user uploads a picture, chooses its circle, and is shown by it', async (
   await expect(choice.locator('img')).toHaveAttribute('src', (await picture.getAttribute('src'))!);
   await page.keyboard.press('Escape');
 
-  // Removing it brings the initials back.
+  // Removing it brings the initials back. The profile opens over the Workboard, and closing it
+  // leaves the viewer there.
+  const board = page.url();
   await page.getByTestId('current-user').click();
-  await page.getByRole('button', { name: 'Remove picture' }).click();
-  await expect(page.getByRole('status')).toContainText('Picture removed');
+  await profile.getByRole('button', { name: 'Remove picture' }).click();
+  await expect(profile.getByRole('status')).toContainText('Picture removed');
   await expect(me).toHaveText('TT');
-  await expect(page.getByRole('button', { name: 'Change the circle' })).toHaveCount(0);
+  await expect(profile.getByRole('button', { name: 'Change the circle' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(profile).toHaveCount(0);
+  expect(page.url()).toBe(board);
+  await expect(page.getByTestId('card-assignee').first()).toBeVisible();
 });
