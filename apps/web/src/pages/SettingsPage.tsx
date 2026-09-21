@@ -1,4 +1,4 @@
-import type { ProjectMember, ProjectRole, UserSummary } from '@gameweld/domain';
+import type { ProjectInvitation, ProjectMember, ProjectRole, UserSummary } from '@gameweld/domain';
 import { PROJECT_ROLES, ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
@@ -21,6 +21,9 @@ export function SettingsPage() {
       <section className="panel" aria-labelledby="members-heading">
         <h2 id="members-heading">{t('Members')}</h2>
         <MembersTable readOnly={!project.permissions['members.manage']} />
+        {project.invitations.length > 0 && (
+          <InvitationsTable readOnly={!project.permissions['members.manage']} />
+        )}
         {project.permissions['members.manage'] && <AddMemberForm />}
       </section>
       {canEdit && <TransferPanel />}
@@ -237,12 +240,65 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
   );
 }
 
+function InvitationsTable({ readOnly }: { readOnly: boolean }) {
+  const { project, reload } = useProject();
+  const [error, setError] = useState<string | null>(null);
+
+  async function cancel(invitation: ProjectInvitation) {
+    setError(null);
+    try {
+      await api.cancelInvitation(project.id, invitation.id);
+      await reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('Could not cancel the invitation'));
+    }
+  }
+
+  return (
+    <>
+      <h3>{t('Invited, not signed in yet')}</h3>
+      {error && <p className="error">{error}</p>}
+      <table className="table" data-testid="invitations-table">
+        <thead>
+          <tr>
+            <th>{t('Email')}</th>
+            <th>{t('Roles')}</th>
+            <th>{t('Invited by')}</th>
+            {!readOnly && <th />}
+          </tr>
+        </thead>
+        <tbody>
+          {project.invitations.map((i) => (
+            <tr key={i.id} data-testid={`invitation-${i.email}`}>
+              <td>{i.email}</td>
+              <td>{i.roles.map((r) => t(ROLE_LABELS[r])).join(', ')}</td>
+              <td>{i.invitedBy ?? t('System')}</td>
+              {!readOnly && (
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => void cancel(i)}
+                    aria-label={t('Cancel the invitation for {email}', { email: i.email })}
+                  >
+                    {t('Cancel invitation')}
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 function AddMemberForm() {
   const { project, reload } = useProject();
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<ProjectRole[]>(['developer']);
   const [error, setError] = useState<string | null>(null);
+  const [invited, setInvited] = useState<string | null>(null);
 
   useEffect(() => {
     api.users().then(setUsers);
@@ -255,8 +311,10 @@ function AddMemberForm() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setInvited(null);
     try {
-      await api.addMember(project.id, { email, roles });
+      const added = await api.addMember(project.id, { email, roles });
+      if (!('userId' in added)) setInvited(added.email);
       setEmail('');
       setRoles(['developer']);
       await reload();
@@ -285,7 +343,11 @@ function AddMemberForm() {
             </option>
           ))}
         </datalist>
-        <span className="hint">{t('The person must have signed in at least once.')}</span>
+        <span className="hint">
+          {t(
+            'Anyone with a Google account. Someone who has not signed in yet is invited, and joins the first time they sign in with this address.',
+          )}
+        </span>
       </label>
       <fieldset className="roles">
         <legend>{t('Roles')}</legend>
@@ -303,6 +365,14 @@ function AddMemberForm() {
         ))}
       </fieldset>
       {error && <p className="error">{error}</p>}
+      {invited && (
+        <p className="hint ok" role="status">
+          {t(
+            '{email} is invited. GameWeld sends no e-mail: tell them to sign in at {address} with that address.',
+            { email: invited, address: window.location.origin },
+          )}
+        </p>
+      )}
       <button
         type="submit"
         className="primary"

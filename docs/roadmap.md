@@ -37,7 +37,7 @@ Wekan, Taiga, and Plane.
 
 | Missing | Who has it | Notes |
 | --- | --- | --- |
-| Real sign-in and invitations | All five | Planned as Phase 8 (Google OIDC). Today anyone who reaches the instance can sign in as a Game Director. |
+| Real sign-in and invitations | All five | Built (Phase 8): Google sign-in, access by invitation only ([google-sign-in.md](google-sign-in.md)). gameweld.eu still runs the open persona sign-in until it is switched over. |
 | Backups | n/a | [backup-plan.md](backup-plan.md) describes them; nothing is set up. |
 | Notifications by e-mail | All five | The app has a bell (since 19 September 2026): events that concern the viewer, and what waits for their decision. It reaches only someone who has the app open. E-mail needs real addresses, so it follows real sign-in. |
 

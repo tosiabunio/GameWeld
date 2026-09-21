@@ -6,6 +6,7 @@ import { requireUser } from '../auth.ts';
 import { loadAccess, projectRoute, type ProjectRow } from '../authz.ts';
 import { avatarUrl } from '../avatars.ts';
 import { fetchLabels } from './labels.ts';
+import { projectInvitations } from './members.ts';
 import { withTransaction } from '../db.ts';
 import { badRequest, conflict } from '../errors.ts';
 
@@ -130,6 +131,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
           canAccept: m.can_accept,
           avatarUrl: avatarUrl(m.user_id, m.avatar_id),
         })),
+        invitations: await projectInvitations(db, project.id),
         permissions,
         labels: await fetchLabels(db, project.id),
       };

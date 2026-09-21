@@ -59,8 +59,23 @@ export interface ProjectMember {
   avatarUrl: string | null;
 }
 
+/**
+ * An address invited to a project that has not signed in yet. Its first sign-in with that
+ * address, through any provider that has verified it, makes it a member with these roles.
+ */
+export interface ProjectInvitation {
+  id: string;
+  email: string;
+  roles: ProjectRole[];
+  canAccept: boolean;
+  /** Who sent it, or null if that account is gone. */
+  invitedBy: string | null;
+  createdAt: string;
+}
+
 export interface ProjectDetail extends ProjectSummary {
   members: ProjectMember[];
+  invitations: ProjectInvitation[];
   permissions: Permissions;
   /** The project's labels, by name. */
   labels: Label[];
@@ -99,7 +114,12 @@ export interface AuthProviders {
     enabled: boolean;
     personas: { key: string; displayName: string; roles: ProjectRole[] }[];
   };
+  /** OpenID Connect providers; each signs in by navigating to `/api/auth/<id>/start`. */
+  oidc: { id: string; label: string }[];
 }
+
+/** Why a sign-in through a provider did not get in, as `?auth_error=` on the sign-in page. */
+export type SignInError = 'not_invited' | 'email_unverified' | 'expired' | 'failed' | 'unavailable';
 
 /** What quick open finds in a project for a few typed letters. */
 export interface SearchResults {

@@ -1,4 +1,9 @@
-import { PROJECT_ROLES, type ProjectMember, type ProjectRole } from '@gameweld/domain';
+import {
+  PROJECT_ROLES,
+  type ProjectInvitation,
+  type ProjectMember,
+  type ProjectRole,
+} from '@gameweld/domain';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
@@ -13,7 +18,7 @@ const rolesSchema = z
   .transform((r) => [...new Set(r)]);
 
 const addSchema = z.object({
-  email: z.string().trim().email(),
+  email: z.string().trim().toLowerCase().email(),
   roles: rolesSchema,
   canAccept: z.boolean().default(false),
 });
@@ -54,6 +59,36 @@ async function memberById(
     : null;
 }
 
+export async function projectInvitations(
+  db: Queryable,
+  projectId: string,
+  invitationId?: string,
+): Promise<ProjectInvitation[]> {
+  const res = await db.query<{
+    id: string;
+    email: string;
+    roles: ProjectRole[];
+    can_accept: boolean;
+    invited_by: string | null;
+    created_at: Date;
+  }>(
+    `SELECT i.id, i.email, i.roles::text[] AS roles, i.can_accept, u.display_name AS invited_by,
+            i.created_at
+       FROM project_invitations i LEFT JOIN users u ON u.id = i.invited_by
+      WHERE i.project_id = $1 AND ($2::uuid IS NULL OR i.id = $2)
+      ORDER BY i.created_at`,
+    [projectId, invitationId ?? null],
+  );
+  return res.rows.map((i) => ({
+    id: i.id,
+    email: i.email,
+    roles: i.roles,
+    canAccept: i.can_accept,
+    invitedBy: i.invited_by,
+    createdAt: i.created_at.toISOString(),
+  }));
+}
+
 /** A project must always keep at least one Game Director. */
 async function assertDirectorRemains(
   tx: Queryable,
@@ -76,13 +111,32 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
     const { email, roles, canAccept } = parsed.data;
     const projectId = req.access!.project.id;
 
-    const member = await withTransaction(db, async (tx) => {
+    // Someone who has signed in before becomes a member now (201). Anyone else gets an
+    // invitation (202), which their first sign-in with that address turns into a membership.
+    const result = await withTransaction(db, async (tx) => {
       const user = await tx.query<{ id: string }>(
-        'SELECT id FROM users WHERE lower(email) = lower($1)',
+        'SELECT id FROM users WHERE lower(email) = $1 ORDER BY created_at LIMIT 1',
         [email],
       );
       const userId = user.rows[0]?.id;
-      if (!userId) throw notFound('No user with that email has signed in yet.');
+      if (!userId) {
+        const invited = await tx.query<{ id: string }>(
+          `INSERT INTO project_invitations (project_id, email, roles, can_accept, invited_by)
+           VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id`,
+          [projectId, email, roles, canAccept, req.user!.id],
+        );
+        const invitationId = invited.rows[0]?.id;
+        if (!invitationId) throw conflict('That address is already invited.');
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'member.invited',
+          entityType: 'invitation',
+          entityId: invitationId,
+          next: { email, roles, canAccept },
+        });
+        return { invitation: (await projectInvitations(tx, projectId, invitationId))[0]! };
+      }
       const inserted = await tx.query(
         `INSERT INTO project_memberships (project_id, user_id, roles, can_accept)
          VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
@@ -97,10 +151,39 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
         entityId: userId,
         next: { roles, canAccept },
       });
-      return (await memberById(tx, projectId, userId))!;
+      return { member: (await memberById(tx, projectId, userId))! };
     });
-    return reply.status(201).send(member);
+    return 'member' in result
+      ? reply.status(201).send(result.member)
+      : reply.status(202).send(result.invitation);
   });
+
+  app.delete(
+    '/projects/:projectId/invitations/:invitationId',
+    projectRoute('members.manage'),
+    async (req, reply) => {
+      const projectId = req.access!.project.id;
+      const { invitationId } = req.params as { invitationId: string };
+      if (!/^[0-9a-f-]{36}$/i.test(invitationId)) throw notFound('Invitation not found');
+      await withTransaction(db, async (tx) => {
+        const deleted = await tx.query<{ email: string }>(
+          'DELETE FROM project_invitations WHERE project_id = $1 AND id = $2 RETURNING email',
+          [projectId, invitationId],
+        );
+        const email = deleted.rows[0]?.email;
+        if (!email) throw notFound('Invitation not found');
+        await recordActivity(tx, {
+          projectId,
+          actorId: req.user!.id,
+          action: 'invitation.cancelled',
+          entityType: 'invitation',
+          entityId: invitationId,
+          previous: { email },
+        });
+      });
+      return reply.status(204).send();
+    },
+  );
 
   app.patch('/projects/:projectId/members/:userId', projectRoute('members.manage'), async (req) => {
     const parsed = updateSchema.safeParse(req.body);

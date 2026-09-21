@@ -57,7 +57,7 @@ Project **GameWeld**, environment **production**:
 Application environment:
 
 ```sh
-APP_ENV=local        # mock sign-in until Google sign-in lands; production mode refuses it
+APP_ENV=local        # keeps the demo personas; production mode refuses them
 AUTH_MOCK=true
 SEED_DEMO=true       # seeds the demo project when the database is empty
 DATABASE_URL=postgres://gameweld:<password>@gameweld-db-tiqbym:5432/gameweld
@@ -67,7 +67,9 @@ ATTACHMENTS_DIR=/data/attachments
 ```
 
 **The instance is open:** anyone who reaches gameweld.eu can sign in as any persona, including a
-Game Director. That is deliberate until Google sign-in (implementation plan, Phase 8).
+Game Director. That is deliberate while it is a demonstration instance. To close it, follow
+[google-sign-in.md](google-sign-in.md): set `APP_ENV=production`, the Google settings, and
+`PUBLIC_URL=https://gameweld.eu`, and drop `AUTH_MOCK` and `SEED_DEMO`.
 
 Let's Encrypt registers without a contact address: Dokploy's placeholder
 `test@localhost.com` was removed from `/etc/dokploy/traefik/traefik.yml` (original kept as

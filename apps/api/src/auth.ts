@@ -1,11 +1,21 @@
-import { findPersona, PERSONAS, type AuthProviders, type CurrentUser } from '@gameweld/domain';
+import {
+  findPersona,
+  PERSONAS,
+  type AuthProviders,
+  type CurrentUser,
+  type SignInError,
+} from '@gameweld/domain';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
+import { admit } from './admission.ts';
 import { avatarUrl } from './avatars.ts';
 import type { Queryable } from './db.ts';
+import { OidcProvider, type OidcChecks } from './oidc.ts';
 
 export const SESSION_COOKIE = 'gw_session';
+/** Holds a provider sign-in's state, nonce, and PKCE verifier between leaving and coming back. */
+const OIDC_COOKIE = 'gw_oidc';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -68,9 +78,22 @@ export async function requireUser(req: FastifyRequest, reply: FastifyReply): Pro
   if (!req.user) await reply.status(401).send({ message: 'Sign in required' });
 }
 
+async function startSession(app: FastifyInstance, reply: FastifyReply, userId: string) {
+  const { config, db } = app.ctx;
+  const session = await createSession(db, userId, config.sessionTtlMs);
+  reply.setCookie(SESSION_COOKIE, session.token, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: config.appEnv === 'production',
+    expires: session.expiresAt,
+  });
+}
+
 export async function registerAuth(app: FastifyInstance): Promise<void> {
   const { config, db } = app.ctx;
   const mockEnabled = config.authMock && config.appEnv !== 'production';
+  const providers = config.oidcProviders.map((p) => new OidcProvider(p, app.ctx.oidcFetch));
 
   app.decorateRequest('user', null);
   app.addHook('onRequest', async (req) => {
@@ -85,6 +108,7 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
         ? PERSONAS.map((p) => ({ key: p.key, displayName: p.displayName, roles: [...p.roles] }))
         : [],
     },
+    oidc: providers.map((p) => ({ id: p.config.id, label: p.config.label })),
   }));
 
   app.get('/api/me', async (req) => req.user);
@@ -114,15 +138,83 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
           .status(409)
           .send({ message: 'Persona is not seeded; run with SEED_DEMO=true' });
 
-      const session = await createSession(db, userId, config.sessionTtlMs);
-      reply.setCookie(SESSION_COOKIE, session.token, {
-        path: '/',
+      await startSession(app, reply, userId);
+      return reply.status(204).send();
+    });
+  }
+
+  // OpenID Connect providers (T1). Both routes are full-page navigations, not API calls: they
+  // end by sending the browser on, to the provider or back to the application.
+  const back = (reply: FastifyReply, error: SignInError, email?: string | null) => {
+    const query = new URLSearchParams({ auth_error: error });
+    if (email) query.set('email', email);
+    return reply.redirect(`/?${query}`);
+  };
+  const checksSchema = z.object({
+    provider: z.string(),
+    state: z.string(),
+    nonce: z.string(),
+    verifier: z.string(),
+  });
+
+  for (const provider of providers) {
+    const { id } = provider.config;
+
+    app.get(`/api/auth/${id}/start`, async (req, reply) => {
+      let started: { url: string; checks: OidcChecks };
+      try {
+        started = await provider.start();
+      } catch (err) {
+        req.log.error(err, `${id} sign-in could not reach the provider`);
+        return back(reply, 'unavailable');
+      }
+      const value = Buffer.from(JSON.stringify({ provider: id, ...started.checks })).toString(
+        'base64url',
+      );
+      reply.setCookie(OIDC_COOKIE, value, {
+        path: '/api/auth',
         httpOnly: true,
+        // Lax, not strict: the provider's redirect back is a navigation from another site.
         sameSite: 'lax',
         secure: config.appEnv === 'production',
-        expires: session.expiresAt,
+        maxAge: 10 * 60,
       });
-      return reply.status(204).send();
+      return reply.redirect(started.url);
+    });
+
+    app.get(`/api/auth/${id}/callback`, async (req, reply) => {
+      const raw = req.cookies[OIDC_COOKIE];
+      reply.clearCookie(OIDC_COOKIE, { path: '/api/auth' });
+      // Choosing Cancel at the provider is not a failure: back to the sign-in page, quietly.
+      if ((req.query as { error?: string }).error) return reply.redirect('/');
+
+      let checks: OidcChecks | null = null;
+      try {
+        const parsed = checksSchema.safeParse(
+          JSON.parse(Buffer.from(raw ?? '', 'base64url').toString()),
+        );
+        if (parsed.success && parsed.data.provider === id) checks = parsed.data;
+      } catch {
+        // Missing or unreadable: treated as expired below.
+      }
+      if (!checks) return back(reply, 'expired');
+
+      let admission: Awaited<ReturnType<typeof admit>>;
+      try {
+        // The address the provider sent the browser to, rebuilt from PUBLIC_URL rather than from
+        // headers a proxy may have rewritten.
+        const claims = await provider.finish(new URL(req.url, config.publicUrl!), checks);
+        admission = await admit(db, id, claims, config.initialAdminEmail);
+      } catch (err) {
+        req.log.error(err, `${id} sign-in failed`);
+        return back(reply, 'failed');
+      }
+      if ('refused' in admission) {
+        req.log.info({ email: admission.email, reason: admission.refused }, 'sign-in refused');
+        return back(reply, admission.refused, admission.email);
+      }
+      await startSession(app, reply, admission.userId);
+      return reply.redirect('/');
     });
   }
 }

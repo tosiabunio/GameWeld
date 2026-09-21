@@ -22,3 +22,12 @@ test('switching persona returns to the picker and signs in as someone else', asy
   await expect(page.getByTestId('current-user')).toHaveText('Tess Tester');
   await expect(page.getByTestId('project-card').first()).toContainText('Your roles: Tester');
 });
+
+test('a refused provider sign-in explains why, once', async ({ page }) => {
+  await page.goto('/?auth_error=not_invited&email=someone%40example.com');
+  await expect(page.getByRole('alert')).toContainText('someone@example.com has not been invited');
+  await expect(page).toHaveURL(/\/$/);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Sign in as' })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+});

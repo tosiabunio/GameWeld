@@ -10,6 +10,8 @@ const LABELS: Record<string, string> = {
   'member.added': 'added a member',
   'member.updated': 'changed a member’s roles',
   'member.removed': 'removed a member',
+  'member.invited': 'invited a member',
+  'invitation.cancelled': 'cancelled an invitation',
   'item.created': 'created the item',
   'item.updated': 'edited the item',
   'item.reordered': 'reordered the item',
@@ -62,6 +64,10 @@ function detail(e: ActivityEntry): string | null {
       return str(n.title);
     case 'item.recategorized':
       return `${str(p.category) ?? '?'} → ${str(n.category) ?? '?'}`;
+    case 'member.invited':
+      return str(n.email);
+    case 'invitation.cancelled':
+      return str(p.email);
     case 'member.updated':
       return `${(p.roles as string[] | undefined)?.join(', ') ?? ''} → ${(n.roles as string[] | undefined)?.join(', ') ?? ''}`;
     case 'item.accepted':

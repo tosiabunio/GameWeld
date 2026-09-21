@@ -3235,3 +3235,19 @@ html.modal-open {
   position: absolute;
   max-width: none;
 }
+
+/* Sign-in through a provider: one full-width button each, above any mock personas. */
+.provider-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.provider-list .button {
+  justify-content: center;
+  text-align: center;
+}
+.provider-list p {
+  margin: 4px 0 0;
+  font-size: 0.87rem;
+  text-align: center;
+}

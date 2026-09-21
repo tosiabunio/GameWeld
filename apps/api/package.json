@@ -7,6 +7,7 @@
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
     "migrate": "tsx src/migrate.ts",
+    "admin": "tsx src/admin.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "@gameweld/domain": "*",
     "fastify": "^5.4.0",
     "fractional-indexing": "^3.2.0",
+    "openid-client": "^6.8.8",
     "pg": "^8.16.0",
     "sharp": "^0.35.4",
     "tsx": "^4.20.0",

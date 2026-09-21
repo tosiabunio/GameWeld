@@ -49,6 +49,7 @@ import type {
   CreateProjectInput,
   CurrentUser,
   ProjectDetail,
+  ProjectInvitation,
   ProjectMember,
   ProjectSummary,
   SearchResults,
@@ -148,11 +149,16 @@ export const api = {
     request<ProjectSummary>(`/api/projects/${id}`, json('PATCH', input)),
 
   addMember: (projectId: string, input: AddMemberInput) =>
-    request<ProjectMember>(`/api/projects/${projectId}/members`, json('POST', input)),
+    request<ProjectMember | ProjectInvitation>(
+      `/api/projects/${projectId}/members`,
+      json('POST', input),
+    ),
   updateMember: (projectId: string, userId: string, input: UpdateMemberInput) =>
     request<ProjectMember>(`/api/projects/${projectId}/members/${userId}`, json('PATCH', input)),
   removeMember: (projectId: string, userId: string) =>
     request<void>(`/api/projects/${projectId}/members/${userId}`, { method: 'DELETE' }),
+  cancelInvitation: (projectId: string, invitationId: string) =>
+    request<void>(`/api/projects/${projectId}/invitations/${invitationId}`, { method: 'DELETE' }),
 
   users: () => request<UserSummary[]>('/api/users'),
 

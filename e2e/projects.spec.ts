@@ -29,6 +29,17 @@ test('a Director creates a project, changes settings, and manages members', asyn
   await expect(tester.getByLabel('Tess Tester is Developer')).toBeChecked();
   await expect(tester.getByLabel('Tess Tester is Tester')).toBeChecked();
 
+  // Someone who has never signed in is invited, listed as pending, and can be uninvited.
+  await add.getByLabel('Email').fill('new.artist@example.com');
+  await add.getByRole('button', { name: 'Add member' }).click();
+  await expect(add.getByRole('status')).toContainText('new.artist@example.com is invited');
+  const invitation = page.getByTestId('invitation-new.artist@example.com');
+  await expect(invitation).toContainText('Developer');
+  await invitation
+    .getByRole('button', { name: 'Cancel the invitation for new.artist@example.com' })
+    .click();
+  await expect(page.getByTestId('invitations-table')).toHaveCount(0);
+
   // A member keeps at least one role, and the last Director cannot step down.
   const director = page.getByTestId('member-director@gameweld.local');
   await director.getByLabel('Dana Director is Game Director').click();

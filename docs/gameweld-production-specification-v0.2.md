@@ -345,7 +345,7 @@ Backlog item references always open the same Breakdown. Task references always o
 
 **Confirmed technical baseline:** TypeScript across server and client, a Fastify HTTP API, a React client built with Vite, PostgreSQL, and Docker Compose for deployment.
 
-**Confirmed authentication:** no local accounts. During development a mock sign-in with seeded personas is used, available only in local and test configurations. Before the first shared deployment, sign-in is OpenID Connect with Google as the only configured provider, with an optional Workspace domain restriction and a per-project invitation list. Identities are stored as provider and subject so further providers are configuration, not code.
+**Confirmed authentication:** no local accounts. During development a mock sign-in with seeded personas is used, available only in local and test configurations. Before the first shared deployment, sign-in is OpenID Connect with Google as the only configured provider. Access is by invitation only: any account from any configured provider can be invited by e-mail address, with no domain restriction, and a sign-in without an invitation is refused. Identities are stored as provider and subject so further providers are configuration, not code.
 
 **Confirmed attachment storage:** a local filesystem volume, behind an interface that also supports S3-compatible storage.
 
@@ -414,13 +414,13 @@ All decisions required before implementation were made at the Phase 0 kickoff an
 | R5 | Removing an item from scope while a task is in an intermediate column | The task returns to Breakdown and its column position is discarded; re-placement starts in To Do. History records the previous column. |
 | R6 | Activation asymmetry | Withdrawn with the revision of D8: creation and activation both place tasks, so there is no asymmetry to explain. |
 | R7 | Source of truth for permissions | The permission table in Section 4 is authoritative; other sections reference it rather than restate it. |
-| T1 | Authentication | Mock sign-in with seeded Director, Developer, and Tester personas during development, available only in local and test configurations. Before the first shared deployment: OpenID Connect with Google as the only configured provider, no local accounts, optional Workspace domain restriction, per-project invitation list. Identities are stored as provider and subject. |
+| T1 | Authentication | Mock sign-in with seeded Director, Developer, and Tester personas during development, available only in local and test configurations. Before the first shared deployment: OpenID Connect with Google as the only configured provider, no local accounts, no domain restriction, access by per-project invitation only. Identities are stored as provider and subject. |
 | T2 | Attachment storage | Local filesystem volume, behind an interface that also supports S3-compatible storage. |
 | T3 | Running work-in-progress builds | On the development Mac under OrbStack through single-command scripts in the repository. No image registry, watcher, or remote host until the operations phase. |
 
 **Before first shared deployment**, decide and document as operational limits:
 
-- Authentication provider setup: Google OAuth client, allowed domain, initial admin, invitation handling.
+- Authentication provider setup: Google OAuth client, initial admin, invitation handling.
 - Hosting environment and reverse proxy with TLS.
 - Expected user counts and load.
 - Attachment volume and storage sizing.

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { buildApp, createContext } from '../src/app.ts';
+import { buildApp, createContext, type AppContext } from '../src/app.ts';
 import { loadConfig, type Config } from '../src/config.ts';
 import { createPool, type Db } from '../src/db.ts';
 import { seedDemo } from '../src/seed.ts';
@@ -21,11 +21,14 @@ export interface TestContext {
 }
 
 /** Builds an app against the shared test database, seeding demo data if the database is empty. */
-export async function startApp(overrides: Partial<NodeJS.ProcessEnv> = {}): Promise<TestContext> {
+export async function startApp(
+  overrides: Partial<NodeJS.ProcessEnv> = {},
+  extras: Pick<AppContext, 'oidcFetch'> = {},
+): Promise<TestContext> {
   const config = testConfig(overrides);
   const db = createPool(config.databaseUrl);
   await seedDemo(db);
-  const app = await buildApp(createContext(config, db));
+  const app = await buildApp(createContext(config, db, extras));
   await app.ready();
   return {
     app,

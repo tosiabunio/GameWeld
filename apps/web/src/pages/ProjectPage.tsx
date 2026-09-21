@@ -64,7 +64,11 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
       if (!isForeignChange(event, projectId!)) return;
       // Labels are part of the project too: pickers and filters list them.
       projectToo ||=
-        event.resync === true || event.t === 'project' || event.t === 'user' || event.t === 'label';
+        event.resync === true ||
+        event.t === 'project' ||
+        event.t === 'user' ||
+        event.t === 'invitation' ||
+        event.t === 'label';
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         if (projectToo) void reload();

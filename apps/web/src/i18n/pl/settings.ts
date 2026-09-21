@@ -32,8 +32,17 @@ export const texts: Record<string, string> = {
   'Add member': 'Dodaj członka',
   Email: 'E-mail',
   'name@example.com': 'imie@example.com',
-  'The person must have signed in at least once.':
-    'Ta osoba musi mieć za sobą co najmniej jedno logowanie.',
+  'Anyone with a Google account. Someone who has not signed in yet is invited, and joins the first time they sign in with this address.':
+    'Każdy, kto ma konto Google. Osoba, która jeszcze się nie logowała, dostaje zaproszenie i dołącza przy pierwszym logowaniu z tego adresu.',
+  '{email} is invited. GameWeld sends no e-mail: tell them to sign in at {address} with that address.':
+    'Zaproszono {email}. GameWeld nie wysyła e-maili: przekaż tej osobie, żeby zalogowała się na {address} tym adresem.',
+
+  // Invitations
+  'Invited, not signed in yet': 'Zaproszeni, jeszcze niezalogowani',
+  'Invited by': 'Zaprasza',
+  'Cancel invitation': 'Anuluj zaproszenie',
+  'Cancel the invitation for {email}': 'Anuluj zaproszenie dla: {email}',
+  'Could not cancel the invitation': 'Nie udało się anulować zaproszenia',
   Roles: 'Role',
   'Could not add the member': 'Nie udało się dodać członka projektu',
 

@@ -149,6 +149,8 @@ export const texts: Record<string, string> = {
   'added a member': 'dodano osobę',
   'changed a member’s roles': 'zmieniono role osoby',
   'removed a member': 'usunięto osobę',
+  'invited a member': 'zaproszono osobę',
+  'cancelled an invitation': 'anulowano zaproszenie',
   'created the item': 'utworzono element',
   'edited the item': 'edytowano element',
   'reordered the item': 'zmieniono kolejność elementu',

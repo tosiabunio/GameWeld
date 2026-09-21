@@ -15,6 +15,7 @@ Phase 0 (foundation) in progress. The product and functional specification (v0.2
 | [Production specification v0.2](docs/gameweld-production-specification-v0.2.md) | Product purpose, terminology, data model, backlog and Workboard behavior, permissions, MVP acceptance scenarios, and recorded decisions. |
 | [Specification review notes](docs/gameweld-spec-review-notes.md) | Review findings and gaps to fold into the specification's open decisions (Polish). |
 | [Implementation plan](docs/gameweld-implementation-plan.md) | Assumed decisions, proposed technical baseline, architecture and invariants, phased delivery mapped to the acceptance scenarios, test strategy, and risks. |
+| [Google sign-in](docs/google-sign-in.md) | Setting up sign-in with Google for an instance, invitations, troubleshooting, and the admin recovery commands. |
 | [Roadmap](docs/roadmap.md) | What is still missing next to Trello, Planka, Wekan, Taiga, and Plane, checked against the code, with a proposed order. A proposal, not a decision. |
 
 ## Key concepts

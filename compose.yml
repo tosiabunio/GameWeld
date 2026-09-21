@@ -28,6 +28,13 @@ services:
       PORT: '3000'
       WEB_DIST: /app/apps/web/dist
       ATTACHMENTS_DIR: /data/attachments
+      # Google sign-in beside the personas, when these are set in the shell or in .env
+      # (docs/google-sign-in.md). The OAuth client needs the redirect URI
+      # http://localhost:8090/api/auth/google/callback.
+      PUBLIC_URL: http://localhost:${APP_PORT:-8090}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
     ports:
       - '${APP_PORT:-8090}:3000'
     volumes:

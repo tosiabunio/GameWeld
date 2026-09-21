@@ -54,13 +54,6 @@ describe('membership management', () => {
       payload: { email: 'tester@gameweld.local', roles: ['tester'] },
     });
     expect(dup.statusCode).toBe(409);
-    const unknown = await t.app.inject({
-      method: 'POST',
-      url: url(),
-      headers: { cookie: director },
-      payload: { email: 'nobody@gameweld.local', roles: ['tester'] },
-    });
-    expect(unknown.statusCode).toBe(404);
     const noRoles = await t.app.inject({
       method: 'POST',
       url: url(),
@@ -68,6 +61,39 @@ describe('membership management', () => {
       payload: { email: 'developer@gameweld.local', roles: [] },
     });
     expect(noRoles.statusCode).toBe(400);
+  });
+
+  it('invites an address nobody has signed in with, once, and can cancel it', async () => {
+    const invite = () =>
+      t.app.inject({
+        method: 'POST',
+        url: url(),
+        headers: { cookie: director },
+        payload: { email: 'Nobody@Example.com', roles: ['tester'] },
+      });
+    const first = await invite();
+    expect(first.statusCode).toBe(202);
+    expect(first.json()).toMatchObject({ email: 'nobody@example.com', roles: ['tester'] });
+    expect((await invite()).statusCode).toBe(409);
+
+    const detail = await t.app.inject({
+      method: 'GET',
+      url: `/api/projects/${projectId}`,
+      headers: { cookie: director },
+    });
+    expect(detail.json().invitations.map((i: { email: string }) => i.email)).toEqual([
+      'nobody@example.com',
+    ]);
+
+    const cancel = (cookie: string) =>
+      t.app.inject({
+        method: 'DELETE',
+        url: `/api/projects/${projectId}/invitations/${first.json().id}`,
+        headers: { cookie },
+      });
+    expect((await cancel(tester)).statusCode).toBe(403);
+    expect((await cancel(director)).statusCode).toBe(204);
+    expect((await cancel(director)).statusCode).toBe(404);
   });
 
   it('lets the new member see the project with its permissions', async () => {
@@ -98,6 +124,8 @@ describe('membership management', () => {
     expect(activity.rows.map((r) => r.action)).toEqual([
       'project.created',
       'member.added',
+      'member.invited',
+      'invitation.cancelled',
       'member.updated',
     ]);
   });

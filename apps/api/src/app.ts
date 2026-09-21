@@ -3,6 +3,7 @@ import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import path from 'node:path';
+import type { CustomFetch } from 'openid-client';
 import { registerAuth } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
@@ -33,10 +34,17 @@ export interface AppContext {
   db: Db;
   storage: Storage;
   live: LiveHub;
+  /** Replaces the network for sign-in providers in tests. */
+  oidcFetch?: CustomFetch;
 }
 
-export function createContext(config: Config, db: Db): AppContext {
+export function createContext(
+  config: Config,
+  db: Db,
+  extras: Pick<AppContext, 'oidcFetch'> = {},
+): AppContext {
   return {
+    ...extras,
     config,
     db,
     storage: new FilesystemStorage(config.attachmentsDir),

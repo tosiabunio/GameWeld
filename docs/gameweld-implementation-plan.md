@@ -39,7 +39,7 @@ The plan adopts the following defaults so that design and implementation can sta
 | R5 | Removing an item from scope while a task is in an intermediate column | The task returns to Breakdown and its column position is discarded; re-placement starts in To Do. History records the previous column. |
 | R6 | Activation asymmetry | Withdrawn with the D8 revision. |
 | R7 | Source of truth for permissions | The permission table in Section 4 is authoritative once D2 is confirmed; Section 16 will reference it rather than restate it. |
-| T1 | Authentication | Mock sign-in for Phases 0–7: a persona picker with seeded Director, Developer, and Tester accounts, available only in local and test configurations. Real sign-in arrives in Phase 8 as OpenID Connect with Google as the only configured provider, no local accounts, an optional Workspace domain restriction, and a per-project invitation list. Identities are stored as provider and subject from the start, so the mock provider and Google are two entries in the same model. |
+| T1 | Authentication | Mock sign-in for Phases 0–7: a persona picker with seeded Director, Developer, and Tester accounts, available only in local and test configurations. Real sign-in arrives in Phase 8 as OpenID Connect with Google as the only configured provider, no local accounts, no domain restriction, and access by per-project invitation only: any account from any configured provider can be invited by e-mail address. Identities are stored as provider and subject from the start, so the mock provider and Google are two entries in the same model. |
 | T2 | Attachment storage | Local filesystem volume in the MVP, behind an interface that also supports S3-compatible storage. Card covers are served as 800×450 WebP renditions made with sharp on first request and kept beside the original; they can be deleted at any time and are made again, so backups may skip them. |
 | T3 | Running work-in-progress builds | On the development Mac under OrbStack, through single-command scripts in the repository (Section 3.1). No image registry, watcher, or remote host until Phase 8. |
 
@@ -238,11 +238,11 @@ Exit: every event in the Section 14 list appears in history in an integration te
 
 Deliverables:
 
-- Google sign-in (T1): generic OIDC provider implementation with Google configured; deployment settings for allowed Workspace domain and initial admin email, where the first matching sign-in receives admin rights; per-project invitation list. The mock provider remains for local and test use. Google Cloud OAuth client and consent screen created and documented.
+- Google sign-in (T1): generic OIDC provider implementation with Google configured; deployment setting for the initial admin e-mail, where the first matching sign-in receives admin rights; per-project invitations by e-mail, where a first sign-in whose provider-verified e-mail matches a pending invitation creates the account and binds the identity, and any other sign-in is refused. Google consent screen of type External, published, requesting only `openid email profile`, so any Google account can sign in and no Google verification is required. The mock provider remains for local and test use. Google Cloud OAuth client and consent screen created and documented.
 - Image publishing from CI to GitHub Container Registry on every push to `main`, and a deployment Compose file that pulls the published image instead of building from source. Optional automatic update on a host through a registry watcher container, for a shared team instance.
 - Production Docker Compose with reverse proxy and TLS, persistent volumes for database and attachments.
 - Backup and restore scripts covering database and attachments together; a restore is rehearsed and documented.
-- Setup, upgrade, backup, and restore guide in `docs/`, including Google OAuth client setup, domain restriction, and admin recovery.
+- Setup, upgrade, backup, and restore guide in `docs/`, including Google OAuth client setup, invitations, and admin recovery.
 - Accessibility pass: non-drag alternatives everywhere, text labels alongside color for category and out-of-scope status, keyboard navigation on boards.
 - Performance check with a synthetic project of a few hundred items and a few thousand tasks.
 

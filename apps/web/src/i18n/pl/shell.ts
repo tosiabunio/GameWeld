@@ -16,6 +16,20 @@ export const texts: Record<string, string> = {
   'Sign in as': 'Zaloguj się jako',
   'Mock sign-in is enabled for local development. Pick a persona.':
     'Logowanie próbne jest włączone na potrzeby lokalnego rozwoju. Wybierz personę.',
+  'Sign in': 'Logowanie',
+  'Sign in with {provider}': 'Zaloguj się przez: {provider}',
+  'GameWeld is by invitation. Use the address you were invited with.':
+    'Do GameWeld wchodzi się na zaproszenie. Użyj adresu, na który przyszło zaproszenie.',
+  '{email} has not been invited. Ask a Game Director of your project to invite this address, or sign in with the account that was invited.':
+    'Adres {email} nie ma zaproszenia. Poproś Dyrektora gry swojego projektu o zaproszenie tego adresu albo zaloguj się kontem, które zaproszono.',
+  'This account has not been invited. Ask a Game Director of your project to invite you.':
+    'To konto nie ma zaproszenia. Poproś Dyrektora gry swojego projektu o zaproszenie.',
+  'Your provider has not verified this account’s e-mail address, so it cannot be matched to an invitation.':
+    'Dostawca logowania nie potwierdził adresu e-mail tego konta, więc nie można go dopasować do zaproszenia.',
+  'The sign-in took too long or was started in another browser. Please try again.':
+    'Logowanie trwało zbyt długo albo rozpoczęto je w innej przeglądarce. Spróbuj ponownie.',
+  'The sign-in provider cannot be reached right now. Please try again in a moment.':
+    'Dostawca logowania jest teraz nieosiągalny. Spróbuj ponownie za chwilę.',
   'No sign-in provider is configured for this instance.':
     'W tej instancji nie skonfigurowano żadnego sposobu logowania.',
 
