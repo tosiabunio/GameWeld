@@ -11,6 +11,7 @@ The scope also has a limit (`scopeLimit`): accepted items leave the scope and fr
 ## Answering "what's next?"
 
 1. `get_workboard`: the scope and how far each item is, the limit, and `nextEligible`.
+   `get_overview` adds how far every item in the Backlog is, in or out of scope.
 2. `get_backlog`: the open items in order, to explain what comes after.
 3. Say whether there is room, which item comes next and why (its category and place), and
    whether it is ready to start: an item with no tasks needs a breakdown first

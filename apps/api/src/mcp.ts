@@ -12,10 +12,12 @@ import {
   type MyTask,
   type NotificationSummary,
   type ProjectDetail,
+  type ProjectOverview,
   type ProjectSummary,
   type SearchResults,
   type Task,
   type TaskDetail,
+  type TaskProgress,
   type WorkRequest,
 } from '@gameweld/domain';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -157,6 +159,22 @@ function compactBoard(b: BoardView) {
   };
 }
 
+/** Tasks counted together, with waiting as one number: in To Do or on no board. */
+function progress(list: TaskProgress[]) {
+  const total = (key: keyof TaskProgress) => list.reduce((n, p) => n + p[key], 0);
+  return {
+    total: total('total'),
+    completed: total('completed'),
+    inProgress: total('inProgress'),
+    waiting: total('toDo') + total('unplaced'),
+    inToDo: total('toDo'),
+    onNoBoard: total('unplaced'),
+    blocked: total('blocked'),
+    overdue: total('overdue'),
+    unassigned: total('unassigned'),
+  };
+}
+
 const compactEntry = (e: ActivityEntry) => ({
   id: e.id,
   at: e.createdAt,
@@ -260,6 +278,47 @@ const TOOLS: Tool[] = [
         ),
         readyForReview: lane((i) => i.state === 'ready_for_review'),
         done: lane((i) => i.state === 'done'),
+      };
+    },
+  }),
+  tool({
+    name: 'get_overview',
+    title: 'Overview',
+    description:
+      'The project at a glance, as its Overview shows it: how many items are open, ready for review, and done; how many tasks are complete, in progress (on a Workboard past To Do), waiting (in To Do or on no board), blocked, overdue, and unassigned; the same by priority and by kind of work; and every item with where its tasks stand. The quickest start for a question about status.',
+    input: { projectId },
+    run: async (api, { projectId }) => {
+      const o = await api.get<ProjectOverview>(`/projects/${projectId}/overview`);
+      const itemsIn = (state: string) => o.items.filter((i) => i.state === state).length;
+      return {
+        items: {
+          total: o.items.length,
+          open: itemsIn('open'),
+          readyForReview: itemsIn('ready_for_review'),
+          done: itemsIn('done'),
+        },
+        tasks: progress(o.items.map((i) => i.tasks)),
+        byPriority: Object.fromEntries(
+          MOSCOW_CATEGORIES.map((c) => {
+            const of = o.items.filter((i) => i.category === c);
+            return [c, { items: of.length, tasks: progress(of.map((i) => i.tasks)) }];
+          }),
+        ),
+        byKind: Object.fromEntries(
+          TASK_CATEGORIES.map((c) => [c, progress([o.tasksByCategory[c]])]),
+        ),
+        itemList: o.items.map((i) => ({
+          id: i.id,
+          title: i.title,
+          category: i.category,
+          state: i.state,
+          ...(i.onBoard ? { onBoard: true } : {}),
+          tasks: `${i.tasks.completed}/${i.tasks.total} complete`,
+          ...(i.tasks.inProgress ? { inProgress: i.tasks.inProgress } : {}),
+          ...(i.tasks.toDo + i.tasks.unplaced ? { waiting: i.tasks.toDo + i.tasks.unplaced } : {}),
+          ...(i.tasks.blocked ? { blocked: i.tasks.blocked } : {}),
+          ...(i.tasks.overdue ? { overdue: i.tasks.overdue } : {}),
+        })),
       };
     },
   }),

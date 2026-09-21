@@ -125,6 +125,20 @@ describe('the MCP server', () => {
 
     const backlog = await call(client, 'get_backlog', { projectId });
     expect(backlog.must.map((x: Json) => x.title)).toEqual(['Grappling hook']);
+    const overview = await call(client, 'get_overview', { projectId });
+    expect(overview.items).toEqual({ total: 1, open: 1, readyForReview: 0, done: 0 });
+    expect(overview.tasks).toMatchObject({ total: 2, completed: 0, waiting: 2, onNoBoard: 2 });
+    expect(overview.byKind.code).toMatchObject({ total: 1, unassigned: 0 });
+    expect(overview.itemList).toEqual([
+      {
+        id: item.id,
+        title: 'Grappling hook',
+        category: 'must',
+        state: 'open',
+        tasks: '0/2 complete',
+        waiting: 2,
+      },
+    ]);
 
     const scope = await call(client, 'add_to_scope', { projectId, itemId: item.id });
     expect(scope.scope.map((x: Json) => x.title)).toEqual(['Grappling hook']);

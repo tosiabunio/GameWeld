@@ -5,6 +5,10 @@ review", "what was blocked and for how long", or "how often do items come back f
 Answer first in a sentence, then show the evidence, then at most three suggestions that follow
 from it.
 
+Start with `get_overview`: how many tasks are in progress, waiting (in To Do or on no board),
+blocked, overdue, and unassigned, and on which items. It shows where to look before the detail
+below.
+
 ## Time in columns
 
 `get_column_stays` for the active board (or the one asked about), optionally with `from` and

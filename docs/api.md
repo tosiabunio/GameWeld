@@ -91,8 +91,10 @@ for the current folder only. Another client needs the same two things: the addre
 
 What the tools do:
 
-- **Read:** your projects and their members, the Backlog, an item with its breakdown, a task,
-  the Workboard with its scope and columns, "My tasks", what waits for your decision, and search.
+- **Read:** your projects and their members, the project's overview (its figures and every
+  item's progress, as the Overview page shows them), the Backlog, an item with its breakdown, a
+  task, the Workboard with its scope and columns, "My tasks", what waits for your decision, and
+  search.
 - **Analyse:** the history, filtered by time, person, action, or one item, task, or board; and
   how long cards stayed in each column, in hours.
 - **Change:** add and edit Backlog items and reprioritise them, break an item down into tasks,
