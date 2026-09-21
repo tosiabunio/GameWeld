@@ -17,7 +17,11 @@ test('switching persona returns to the picker and signs in as someone else', asy
   await page.getByTestId('persona-developer').click();
   await expect(page.getByTestId('current-user')).toHaveText('Devin Developer');
 
+  // From inside a project: the next persona starts from the projects list, not that project.
+  await page.getByRole('link', { name: 'Demo project' }).click();
+  await expect(page).toHaveURL(/\/projects\//);
   await page.getByRole('button', { name: 'Switch persona' }).click();
+  await expect(page).toHaveURL(/\/$/);
   await page.getByTestId('persona-tester').click();
   await expect(page.getByTestId('current-user')).toHaveText('Tess Tester');
   await expect(page.getByTestId('project-card').first()).toContainText('Your roles: Tester');

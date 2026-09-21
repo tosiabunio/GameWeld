@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Avatar, Logo } from '../components/Brand.tsx';
 import { CommandPalette } from '../components/CommandPalette.tsx';
 import { NotificationsBell } from '../components/NotificationsBell.tsx';
@@ -23,6 +23,15 @@ export function Shell({
 }) {
   const user = useCurrentUser();
   const { signOut } = useSession();
+  const navigate = useNavigate();
+
+  // Whoever signs in next starts from the projects list, not from a page of the last one's
+  // project, which they may not belong to.
+  async function leave() {
+    await navigate('/', { replace: true });
+    await signOut();
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -42,7 +51,7 @@ export function Shell({
             <Avatar name={user.displayName} url={user.avatarUrl} />
             <span data-testid="current-user">{user.displayName}</span>
           </Link>
-          <button type="button" className="quiet" onClick={() => void signOut()}>
+          <button type="button" className="quiet" onClick={() => void leave()}>
             {user.provider === 'mock' ? t('Switch persona') : t('Sign out')}
           </button>
         </div>
