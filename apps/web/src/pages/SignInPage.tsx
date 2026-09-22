@@ -119,6 +119,9 @@ export function SignInPage() {
         ) : providers ? null : (
           <p>{t('Loading…')}</p>
         )}
+        <p className="auth-foot">
+          <a href="/method">{t('How GameWeld works: the method')}</a>
+        </p>
       </div>
     </main>
   );

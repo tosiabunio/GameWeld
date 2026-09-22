@@ -40,6 +40,10 @@ gameweld tools are connected, the same things can be done over HTTP: see
   returns an item to Open and voids an acceptance.
 - **History.** Every change is recorded: what, when, who, and through which API token.
 
+The way of working behind this model, and the reasons for it, are in the GameWeld method, which
+the application shows at `/method` (docs/methodology.md in the repository). Advice about how
+to plan, break down, or accept work should follow it.
+
 ## How to work
 
 **Find the project first.** Call `list_projects`. With one project, use it; with several, match
@@ -62,8 +66,8 @@ and other people's work alone unless asked.
 into scope, who may complete tasks, and that nothing is left stranded, and it says why when it
 refuses. Explain the reason in plain words and offer the legitimate route: a Game Director's
 decision, an out-of-scope request, or moving an item out of Won't Have with the user's
-agreement. Don't reach the same end another way, for instance by moving an item up just to get it into scope, or by
-recreating something that could not be changed.
+agreement. Don't reach the same end another way, for instance by moving an item up just to get
+it into scope, or by recreating something that could not be changed.
 
 **Report plainly.** Name items and tasks by their titles, say where things ended up ("three
 tasks, now in To Do on Sprint 4"), and mention anything you did not do and why.

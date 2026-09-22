@@ -2,6 +2,7 @@ import { matchPath, Navigate, Route, Routes, useLocation, useParams } from 'reac
 import { TaskHome, type OpenTask } from './components/TaskModal.tsx';
 import { BacklogPage } from './pages/BacklogPage.tsx';
 import { BreakdownPage } from './pages/BreakdownPage.tsx';
+import { MethodPage } from './pages/MethodPage.tsx';
 import { MyTasksPage } from './pages/MyTasksPage.tsx';
 import { NewProjectPage } from './pages/NewProjectPage.tsx';
 import { OverviewPage } from './pages/OverviewPage.tsx';
@@ -17,6 +18,8 @@ export function App() {
   const { session } = useSession();
   const location = useLocation();
   const openTask = openTaskAt(location.pathname, location.state);
+  // The method is for anyone, signed in or not.
+  if (location.pathname === '/method') return <MethodPage />;
   if (session.state === 'loading') return <main className="page">Loading…</main>;
   if (session.state === 'anonymous') return <SignInPage />;
   return (

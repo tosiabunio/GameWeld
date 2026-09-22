@@ -47,6 +47,9 @@ export function Shell({
         </div>
         {nav}
         <div className="user">
+          <Link to="/method" className="method-link" title={t('How GameWeld works: the method')}>
+            {t('Method')}
+          </Link>
           <CommandPalette />
           <NotificationsBell />
           <button

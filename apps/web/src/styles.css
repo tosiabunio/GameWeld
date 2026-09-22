@@ -981,6 +981,85 @@ input[type='file']::file-selector-button:hover {
   margin: 0 0 14px;
   font-size: 0.9rem;
 }
+.auth-foot {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* The method: a document to read, open to anyone. */
+.method-page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.method-head {
+  display: flex;
+  align-items: center;
+  min-height: var(--topbar-h);
+  padding: 0 26px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.method-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+.method {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 16px 80px;
+}
+.method .rich-text {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+.method .rich-text h1 {
+  margin: 0 0 0.3em;
+  font-size: 2rem;
+  font-weight: 700;
+}
+.method .rich-text h1 + p {
+  color: var(--muted);
+  font-size: 1.15rem;
+}
+.method .rich-text h2 {
+  margin: 2em 0 0.5em;
+  font-size: 1.35rem;
+}
+.method .rich-text h3 {
+  margin: 1.5em 0 0.4em;
+  font-size: 1.1rem;
+}
+.method .rich-text :is(p, ul, ol, table) {
+  margin-bottom: 1em;
+}
+.method .rich-text table {
+  display: block;
+  overflow-x: auto;
+}
+.method .rich-text :is(th, td) {
+  overflow-wrap: normal;
+}
+.method .rich-text :is(th, td):first-child {
+  white-space: nowrap;
+}
+.user .method-link {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+.user .method-link:hover {
+  color: var(--fg);
+}
+@media (max-width: 560px) {
+  .user .method-link {
+    display: none;
+  }
+}
 ul.persona-list {
   list-style: none;
   padding: 0;

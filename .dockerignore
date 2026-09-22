@@ -5,4 +5,6 @@ node_modules
 playwright-report
 test-results
 docs
+# The application shows the method.
+!docs/methodology.md
 .github

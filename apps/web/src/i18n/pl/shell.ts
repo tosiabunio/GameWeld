@@ -9,6 +9,8 @@ export const texts: Record<string, string> = {
   'Your profile and picture': 'Twój profil i zdjęcie',
   'Switch persona': 'Zmień personę',
   'Sign out': 'Wyloguj się',
+  Method: 'Metoda',
+  'How GameWeld works: the method': 'Jak działa GameWeld: metoda (po angielsku)',
 
   // Signing in
   'Sign-in failed': 'Logowanie nie powiodło się',
