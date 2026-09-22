@@ -12,7 +12,7 @@ Phase 0 (foundation) in progress. The product and functional specification (v0.2
 
 | Document | Description |
 | --- | --- |
-| [The GameWeld method](docs/methodology.md) | The way of working GameWeld supports: a game that always works, built in layers; the MoSCoW Backlog; Code, Assets, and Content; who decides what; and how a layer is finished. For teams deciding whether to use GameWeld. The application shows it at `/method`. |
+| [The GameWeld method](docs/methodology.md) | The way of working GameWeld supports: a game that always works, built in layers; the MoSCoW Backlog; Code, Assets, and Content; who decides what; and how a layer is finished. For teams deciding whether to use GameWeld. The application shows it at `/method`, in English and in Polish ([docs/methodology.pl.md](docs/methodology.pl.md)). |
 | [Production specification v0.2](docs/gameweld-production-specification-v0.2.md) | Product purpose, terminology, data model, backlog and Workboard behavior, permissions, MVP acceptance scenarios, and recorded decisions. |
 | [Specification review notes](docs/gameweld-spec-review-notes.md) | Review findings and gaps to fold into the specification's open decisions (Polish). |
 | [Implementation plan](docs/gameweld-implementation-plan.md) | Assumed decisions, proposed technical baseline, architecture and invariants, phased delivery mapped to the acceptance scenarios, test strategy, and risks. |

@@ -41,8 +41,9 @@ gameweld tools are connected, the same things can be done over HTTP: see
 - **History.** Every change is recorded: what, when, who, and through which API token.
 
 The way of working behind this model, and the reasons for it, are in the GameWeld method, which
-the application shows at `/method` (docs/methodology.md in the repository). Advice about how
-to plan, break down, or accept work should follow it.
+the application shows at `/method` (docs/methodology.md in the repository, and
+docs/methodology.pl.md in Polish). Advice about how to plan, break down, or accept work should
+follow it.
 
 ## How to work
 

@@ -22,3 +22,14 @@ test('the method is open to anyone, from the sign-in page and from the top bar',
   await page.getByRole('link', { name: 'GameWeld' }).click();
   await expect(page.getByTestId('current-user')).toBeVisible();
 });
+
+test('the method reads in Polish for a Polish viewer, and switches language', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('gameweld:lang', 'pl'));
+  await page.goto('/method');
+  await expect(page.getByRole('heading', { level: 1, name: 'Metoda GameWeld' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5. Kod, Assety i Treść' })).toBeVisible();
+  await expect(page).toHaveTitle('Metoda GameWeld');
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'The GameWeld Method' })).toBeVisible();
+});
