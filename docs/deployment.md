@@ -88,6 +88,24 @@ second run only gives a picture to a listed item or task that still has none:
 node scripts/populate-demo.mjs https://gameweld.eu
 ```
 
+A second project, **Lanternfall**, shows GameWeld at the size of a real production: about 175
+Backlog items with some 600 tasks, eight months of accepted work, more than fifty items in
+Should Have, and an active Workboard. `scripts/populate-large.mjs` makes it through the API, as
+the demo personas, and stops if the project exists. The API records everything as happening now,
+so with `--sql` the script also writes a transaction that moves the project's times back: when
+items were made and accepted, when tasks were completed, the history in that order, and no
+notifications from the setup. It touches only that project's rows, and is applied to the
+instance's database:
+
+```sh
+node scripts/populate-large.mjs https://gameweld.eu --sql lanternfall.sql
+ssh ubuntu@146.59.103.109 'sudo docker exec -i $(sudo docker ps -qf name=gameweld-db-tiqbym) \
+  psql -U gameweld -d gameweld -v ON_ERROR_STOP=1 -q' < lanternfall.sql
+```
+
+Locally, the second step is
+`docker compose exec -T db psql -U gameweld -d gameweld -v ON_ERROR_STOP=1 -q < lanternfall.sql`.
+
 ## Continuous deployment
 
 `.github/workflows/ci.yml`:
