@@ -132,7 +132,10 @@ test('the Backlog and the Workboard filter their cards by title, assignee, type,
     .getByTestId('item-nav')
     .getByRole('link', { name: /Flying enemy/ })
     .click();
-  await page.getByRole('button', { name: 'Add Swoop animation to Workboard' }).click();
+  const addSwoop = page.getByRole('button', { name: 'Add Swoop animation to Workboard' });
+  await addSwoop.click();
+  // Leaving before the placement lands would open a Workboard without it.
+  await expect(addSwoop).toHaveCount(0);
   await tabs.getByRole('link', { name: 'Workboard' }).click();
   const cards = page.getByTestId('workboard').getByTestId('item-card');
   await expect(cards).toHaveCount(3);
