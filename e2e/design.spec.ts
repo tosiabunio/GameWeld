@@ -25,16 +25,24 @@ test('production views use the window width and only collapse columns on request
   expect(layout.width).toBe(1920);
   expect(layout.rows).toBe(1);
 
-  // The head of the Backlog, and of the Workboard, is one line: the title, its figures, and the
-  // controls. The lanes get the height.
+  // The head of each section is one line: the title, its figures, and the controls. The work
+  // gets the height.
   const headHeight = () =>
-    page.evaluate(() => document.querySelector('.lanes-head')!.getBoundingClientRect().height);
+    page.evaluate(() => document.querySelector('.section-head')!.getBoundingClientRect().height);
   expect(await headHeight()).toBeLessThan(50);
   const projectId = page.url().match(/projects\/([0-9a-f-]+)/)![1];
   await page.request.post(`/api/projects/${projectId}/boards`, { data: { name: 'Sprint 1' } });
   await page.getByRole('link', { name: 'Workboard', exact: true }).click();
   await expect(page.getByTestId('board-counts')).toBeVisible();
   expect(await headHeight()).toBeLessThan(50);
+  for (const [section, testId] of [
+    ['My tasks', 'my-tasks'],
+    ['Overview', 'overview'],
+  ] as const) {
+    await page.getByRole('link', { name: section, exact: true }).click();
+    await expect(page.getByTestId(testId)).toBeVisible();
+    expect(await headHeight()).toBeLessThan(50);
+  }
   await page.getByRole('link', { name: 'Backlog', exact: true }).click();
 
   // Lanes, and so their cards, keep to a range of widths: on a very wide window they stop

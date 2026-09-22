@@ -237,8 +237,8 @@ function BoardHeader({
   const boardItems = useMemo(() => boardItemsOf(board), [board]);
   const c = board.counts;
   return (
-    <header className="lanes-head board-header">
-      <div className="lanes-head-title">
+    <header className="section-head board-header">
+      <div className="section-head-title">
         {renaming ? (
           <form
             className="add-item"

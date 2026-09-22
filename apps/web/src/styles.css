@@ -861,19 +861,20 @@ input[type='file']::file-selector-button:hover {
   margin: 0;
   font-size: 1.5rem;
 }
-/* The Backlog's and the Workboard's head is one line, so that the lanes get the height: the
-   title and its figures, then the controls. Where they do not fit, the figures go under the
-   title and the controls keep the first line; an open confirmation takes a line of its own. */
-.page:has(.lanes-head) {
+/* The head of a project's sections (Backlog, Workboard, My tasks, Overview) is one line, so that
+   the work gets the height: the title and its figures, then the controls. Where they do not fit,
+   the figures go under the title and the controls keep the first line; an open confirmation
+   takes a line of its own. */
+.page:has(.section-head) {
   padding-top: 16px;
 }
-.lanes-head {
+.section-head {
   display: flex;
   align-items: flex-start;
   gap: 8px 16px;
   margin-bottom: 12px;
 }
-.lanes-head-title {
+.section-head-title {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -882,19 +883,19 @@ input[type='file']::file-selector-button:hover {
   gap: 4px 14px;
   min-height: 34px;
 }
-.lanes-head h1,
-.lanes-head h2 {
+.section-head h1,
+.section-head h2 {
   margin: 0;
   font-size: 22px;
   line-height: 34px;
 }
-.lanes-head-title > p {
+.section-head-title > p {
   margin: 0;
 }
-.lanes-head:has(.confirm) {
+.section-head:has(.confirm) {
   flex-wrap: wrap;
 }
-.lanes-head:has(.confirm) > .page-controls {
+.section-head:has(.confirm) > .page-controls {
   flex-basis: 100%;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -902,31 +903,31 @@ input[type='file']::file-selector-button:hover {
 /* On a phone the title shares its line with the controls, and the figures take the whole next
    one; the search field, out, takes a line of its own after them. */
 @media (max-width: 560px) {
-  .lanes-head {
+  .section-head {
     flex-wrap: wrap;
     align-items: center;
   }
-  .lanes-head-title {
+  .section-head-title {
     display: contents;
   }
-  .lanes-head-title > h1,
-  .lanes-head-title > h2,
-  .lanes-head-title > form {
+  .section-head-title > h1,
+  .section-head-title > h2,
+  .section-head-title > form {
     flex: 1 1 0;
     min-width: 0;
   }
-  .lanes-head > .page-controls {
+  .section-head > .page-controls {
     order: 1;
   }
-  .lanes-head-title > :not(h1, h2, form) {
+  .section-head-title > :not(h1, h2, form) {
     order: 2;
     flex-basis: 100%;
   }
-  .lanes-head:has(.header-search) > .page-controls {
+  .section-head:has(.header-search) > .page-controls {
     order: 3;
     flex-basis: 100%;
   }
-  .lanes-head .board-counts {
+  .section-head .board-counts {
     gap: 6px;
   }
 }
@@ -2180,7 +2181,7 @@ progress::-moz-progress-bar {
   text-align: center;
 }
 
-/* Workboard header and scope (the head itself is .lanes-head) */
+/* Workboard header and scope (the head itself is .section-head) */
 .board-counts {
   display: flex;
   gap: 8px 16px;

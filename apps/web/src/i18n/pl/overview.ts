@@ -3,7 +3,6 @@ import type { PluralForms } from '../index.ts';
 /** Polish: the project's Overview: its figures, progress by priority and kind, and its map. */
 export const texts: Record<string, string> = {
   Overview: 'Przegląd',
-  'At a glance': 'W skrócie',
   '{items} and {tasks}, not counting archived ones.': '{items} i {tasks}, bez zarchiwizowanych.',
   Figures: 'Liczby',
   'Backlog items': 'Elementy backlogu',

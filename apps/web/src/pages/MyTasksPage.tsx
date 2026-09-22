@@ -163,9 +163,8 @@ export function MyTasksPage() {
 
   return (
     <div data-testid="my-tasks">
-      <header className="page-head row between">
-        <div>
-          <p className="eyebrow">{t('Assigned to you')}</p>
+      <header className="section-head">
+        <div className="section-head-title">
           <h1>{t('My tasks')}</h1>
           <p className="muted small">
             {tasks.length === 0
@@ -176,7 +175,9 @@ export function MyTasksPage() {
                 )}
           </p>
         </div>
-        <DisplayMenu lanes={false} />
+        <div className="row page-controls">
+          <DisplayMenu lanes={false} />
+        </div>
       </header>
       {error && (
         <p className="error" role="alert">

@@ -66,15 +66,16 @@ export function OverviewPage() {
 
   return (
     <div data-testid="overview">
-      <header className="page-head">
-        <p className="eyebrow">{t('At a glance')}</p>
-        <h1>{t('Overview')}</h1>
-        <p className="muted small">
-          {t('{items} and {tasks}, not counting archived ones.', {
-            items: `${items.length} ${tp(items.length, 'item')}`,
-            tasks: `${tasks.total} ${tp(tasks.total, 'task')}`,
-          })}
-        </p>
+      <header className="section-head">
+        <div className="section-head-title">
+          <h1>{t('Overview')}</h1>
+          <p className="muted small">
+            {t('{items} and {tasks}, not counting archived ones.', {
+              items: `${items.length} ${tp(items.length, 'item')}`,
+              tasks: `${tasks.total} ${tp(tasks.total, 'task')}`,
+            })}
+          </p>
+        </div>
       </header>
 
       <section className="stat-row" aria-label={t('Figures')}>

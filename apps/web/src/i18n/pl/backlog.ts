@@ -137,7 +137,6 @@ export const texts: Record<string, string> = {
   // My tasks
   'Could not load your tasks': 'Nie udało się wczytać zadań',
   'Priority {place} of {total}': 'Priorytet {place} z {total}',
-  'Assigned to you': 'Przypisane do ciebie',
   'No unfinished tasks are assigned to you in this project.':
     'W tym projekcie nie masz przypisanych nieukończonych zadań.',
   '{count} {tasks}. Drag the cards into the order you mean to work in; the order is yours alone.':
