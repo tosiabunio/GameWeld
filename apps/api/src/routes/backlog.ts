@@ -1,4 +1,5 @@
 import {
+  ITEM_STATES,
   MOSCOW_CATEGORIES,
   type BacklogItem,
   type BacklogItemDetail,
@@ -63,19 +64,54 @@ interface ItemRow {
   board_id: string | null;
   board_name: string | null;
   cover_attachment_id: string | null;
+  accepted_at: Date | null;
 }
 
+/**
+ * An item with its tasks counted in one pass over them, the active Workboard whose scope holds
+ * it, and its current acceptance. Archived Workboards keep their scope, so an item can be in the
+ * scope of several boards; only the active one counts, and the item stays one row.
+ */
 const itemSelect = `
   SELECT b.id, b.project_id, b.title, b.description, b.category, b.rank, b.state, b.archived_at,
          b.version, b.created_at, b.updated_at, b.cover_attachment_id,
-         (SELECT count(*) FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL) AS task_total,
-         (SELECT count(*) FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL AND t.completed) AS task_completed,
-         (SELECT coalesce(jsonb_agg(DISTINCT jsonb_build_object('assigneeId', t.assignee_id, 'category', t.category)), '[]')
-            FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL) AS task_facets,
-         w.id AS board_id, w.name AS board_name
+         tc.total AS task_total, tc.completed AS task_completed,
+         coalesce(tc.facets, '[]') AS task_facets,
+         w.id AS board_id, w.name AS board_name, acc.accepted_at
     FROM backlog_items b
-    LEFT JOIN workboard_scope s ON s.item_id = b.id
-    LEFT JOIN workboards w ON w.id = s.board_id AND w.state = 'active'`;
+    CROSS JOIN LATERAL (
+      SELECT count(*) AS total, count(*) FILTER (WHERE t.completed) AS completed,
+             jsonb_agg(DISTINCT jsonb_build_object('assigneeId', t.assignee_id, 'category', t.category)) AS facets
+        FROM tasks t WHERE t.item_id = b.id AND t.archived_at IS NULL) tc
+    LEFT JOIN LATERAL (
+      SELECT w.id, w.name FROM workboard_scope s JOIN workboards w ON w.id = s.board_id
+       WHERE s.item_id = b.id AND w.state = 'active' LIMIT 1) w ON true
+    LEFT JOIN acceptances acc
+      ON acc.item_id = b.id AND acc.invalidated_at IS NULL AND b.state = 'done'`;
+
+const ITEM_STATE_LIST = new RegExp(`^(${ITEM_STATES.join('|')})(,(${ITEM_STATES.join('|')}))*$`);
+
+const listQuery = z.object({
+  state: z
+    .string()
+    .regex(ITEM_STATE_LIST)
+    .optional()
+    .describe(
+      'Only items in these states, comma-separated: open, ready_for_review, done. Every state unless given.',
+    ),
+  acceptedSince: schema
+    .moment()
+    .optional()
+    .describe(
+      'Only items accepted as Done at or after this time; items that are not Done are left out.',
+    ),
+  acceptedBefore: schema
+    .moment()
+    .optional()
+    .describe(
+      'Only items accepted as Done before this time; items that are not Done are left out.',
+    ),
+});
 
 function toItem(r: ItemRow): BacklogItem {
   return {
@@ -92,6 +128,7 @@ function toItem(r: ItemRow): BacklogItem {
     taskFacets: r.task_facets,
     activeBoard: r.board_id && r.board_name ? { id: r.board_id, name: r.board_name } : null,
     coverAttachmentId: r.cover_attachment_id,
+    acceptedAt: r.accepted_at?.toISOString() ?? null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
@@ -142,13 +179,23 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
       id: 'listBacklog',
       summary: 'The Backlog: every item that is not archived',
       description:
-        'Ordered by category and rank. Open items sit in their MoSCoW category; items Ready for Review and Done have their own lanes in the app.',
+        'Ordered by category and rank. Open items sit in their MoSCoW category; items Ready for Review and Done have their own lanes in the app. Done only grows, so a script that needs part of it asks for the states it wants and, for Done, a time range of acceptance, such as state=done&acceptedSince=2026-09-01.',
+      query: listQuery,
       response: z.array(schema.BacklogItem),
     }),
     async (req): Promise<BacklogItem[]> => {
+      const parsed = listQuery.safeParse(req.query);
+      if (!parsed.success) throw badRequest('Invalid backlog query', parsed.error.flatten());
+      const q = parsed.data;
+      const params: unknown[] = [req.access!.project.id];
+      const param = (value: unknown) => `$${params.push(value)}`;
+      const where = ['b.project_id = $1', 'b.archived_at IS NULL'];
+      if (q.state) where.push(`b.state = ANY(${param(q.state.split(','))}::item_state[])`);
+      if (q.acceptedSince) where.push(`acc.accepted_at >= ${param(q.acceptedSince)}::timestamptz`);
+      if (q.acceptedBefore) where.push(`acc.accepted_at < ${param(q.acceptedBefore)}::timestamptz`);
       const res = await db.query<ItemRow>(
-        `${itemSelect} WHERE b.project_id = $1 AND b.archived_at IS NULL ORDER BY b.category, b.rank, b.id`,
-        [req.access!.project.id],
+        `${itemSelect} WHERE ${where.join(' AND ')} ORDER BY b.category, b.rank, b.id`,
+        params,
       );
       return res.rows.map(toItem);
     },

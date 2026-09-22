@@ -36,6 +36,12 @@ const id = () => z.string().uuid();
 const timestamp = () => z.string().datetime({ offset: true });
 const day = () => z.string().date();
 
+/** A time in a query, or a date, which means its start in UTC. */
+export const moment = () =>
+  z
+    .union([z.string().datetime({ offset: true }), z.string().date()])
+    .describe('A time, or a date, which means its start in UTC.');
+
 export const ProjectRole = z.enum(PROJECT_ROLES);
 export const MoscowCategory = z.enum(MOSCOW_CATEGORIES);
 export const ItemState = z.enum(ITEM_STATES);
@@ -190,6 +196,9 @@ export const BacklogItem = exact<d.BacklogItem>()(
       .nullable()
       .describe('The active Workboard whose scope includes the item.'),
     coverAttachmentId: z.string().uuid().nullable(),
+    acceptedAt: timestamp()
+      .nullable()
+      .describe('When the item was accepted as Done; null unless it is Done.'),
     createdAt: timestamp(),
     updatedAt: timestamp(),
   }),

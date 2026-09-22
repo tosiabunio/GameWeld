@@ -1,6 +1,6 @@
 # Roadmap: what GameWeld still lacks
 
-**Status: proposal, 19 September 2026; last updated 21 September 2026.** This compares what is
+**Status: proposal, 19 September 2026; last updated 22 September 2026.** This compares what is
 implemented with similar tools, especially the simpler ones: Trello, Planka, and Wekan, and then
 Taiga and Plane. The gaps below were checked against the code, not guessed. Nothing here is
 decided; an entry becomes a decision when it moves into the
@@ -32,7 +32,10 @@ archive and restore instead of hard deletion, continuous deployment, and an Over
 project: its figures (items by state; tasks complete, in progress, waiting, blocked, overdue,
 unassigned), progress by priority and by kind of work, and a map of the Backlog in which each
 item's area is its number of tasks, its colour its priority, and its fill how far its tasks are;
-accepted items stand apart in the colour of Done, and Won't Have items are left off it.
+accepted items stand apart in the colour of Done, and Won't Have items are left off it. Long
+lanes scroll on their own and show fifty cards at a time, and Done shows what was accepted
+lately and the rest by month, for a Backlog of hundreds of items
+([backlog-scaling-plan.md](backlog-scaling-plan.md)).
 
 **The API.** Every route of the application is open to scripts and assistants through a member's
 own API token, read-only or read-write, which acts as that member under the same permissions and

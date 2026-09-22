@@ -157,6 +157,10 @@ export const texts: Record<string, string> = {
   'Collapse {lane}': 'Zwiń: {lane}',
   'No matching cards': 'Brak pasujących kart',
   'No cards yet': 'Brak kart',
+  'Show {count} more': 'Pokaż kolejne ({count})',
+  'Show {count} older': 'Pokaż starsze ({count})',
+  'Show the rest ({count})': 'Pokaż resztę ({count})',
+  'Show fewer': 'Pokaż mniej',
 };
 
 export const plurals: Record<string, PluralForms> = {

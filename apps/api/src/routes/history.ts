@@ -6,15 +6,11 @@ import type { Queryable } from '../db.ts';
 import { badRequest } from '../errors.ts';
 import * as schema from '../schemas.ts';
 
-const moment = z
-  .union([z.string().datetime({ offset: true }), z.string().date()])
-  .describe('A time, or a date, which means its start in UTC.');
-
 const activityQuery = z.object({
   entityType: z.enum(['backlog_item', 'task', 'workboard']).optional(),
   entityId: z.string().uuid().optional(),
-  from: moment.optional().describe('Only entries from this time on.'),
-  to: moment.optional().describe('Only entries before this time.'),
+  from: schema.moment().optional().describe('Only entries from this time on.'),
+  to: schema.moment().optional().describe('Only entries before this time.'),
   actorId: z.string().uuid().optional().describe('Only what this member did.'),
   actions: z
     .string()
@@ -41,8 +37,11 @@ const activityQuery = z.object({
 const staysQuery = z.object({
   boardId: z.string().uuid().optional().describe('Only this Workboard; every board unless given.'),
   taskId: z.string().uuid().optional().describe('Only this task.'),
-  from: moment.optional().describe('Only stays that end at or after this time, or have not ended.'),
-  to: moment.optional().describe('Only stays that begin before this time.'),
+  from: schema
+    .moment()
+    .optional()
+    .describe('Only stays that end at or after this time, or have not ended.'),
+  to: schema.moment().optional().describe('Only stays that begin before this time.'),
 });
 
 /** Most stays a single answer lists; a board of a few hundred tasks has a few thousand. */

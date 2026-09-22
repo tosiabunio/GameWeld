@@ -1,12 +1,19 @@
 import { setDisplayOption, useDisplayOptions } from '../displayOptions.ts';
+import { DONE_WINDOWS, type DoneWindow } from '../doneWindow.ts';
 import { t } from '../i18n/index.ts';
 import { ActionMenu } from './ActionMenu.tsx';
 
+const DONE_WINDOW_LABELS: Record<DoneWindow, string> = {
+  30: 'in the last 30 days',
+  90: 'in the last 90 days',
+  0: 'at any time',
+};
+
 /**
  * This viewer's display options for lanes and cards, kept in this browser. A page of cards
- * without lanes leaves the lane option out.
+ * without lanes leaves the lane option out; only the Backlog has a Done lane of items.
  */
-export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
+export function DisplayMenu({ lanes = true, done = false }: { lanes?: boolean; done?: boolean }) {
   const options = useDisplayOptions();
   return (
     <ActionMenu
@@ -58,6 +65,23 @@ export function DisplayMenu({ lanes = true }: { lanes?: boolean }) {
         />
         {lanes ? t('Center columns') : t('Center cards')}
       </label>
+      {done && (
+        <label className="menu-field">
+          {t('Done shows items accepted')}
+          <select
+            value={options.doneWindow}
+            onChange={(event) =>
+              setDisplayOption('doneWindow', Number(event.target.value) as DoneWindow)
+            }
+          >
+            {DONE_WINDOWS.map((days) => (
+              <option key={days} value={days}>
+                {t(DONE_WINDOW_LABELS[days])}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <p className="menu-note">{t('Only for you, in this browser.')}</p>
     </ActionMenu>
   );

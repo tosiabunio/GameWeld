@@ -24,6 +24,7 @@ import {
 import { useDisplayOptions } from '../displayOptions.ts';
 import { useCardSensors } from '../dragSensors.ts';
 import { t, tp } from '../i18n/index.ts';
+import { LANE_PAGE, shownCards, type ShownBefore } from '../lanePaging.ts';
 import { isCardClick } from '../taskLinks.ts';
 
 /**
@@ -33,6 +34,11 @@ import { isCardClick } from '../taskLinks.ts';
  * lanes; on drop, `onMove` is called with the card's new neighbours and the parent reloads the
  * authoritative order. Keyboard dragging (space to pick up, arrows to move, space to drop) comes
  * from dnd-kit, so the drag path is accessible without a pointer.
+ *
+ * A long lane stays manageable in two ways. It is at most as tall as the window below the strip,
+ * and its cards scroll inside it, so its head and its footer (the form for a new card) stay in
+ * sight. And it draws only its first cards, LANE_PAGE unless it says otherwise, with buttons for
+ * the rest (see lanePaging.ts).
  */
 export interface Lane<T> {
   id: string;
@@ -47,6 +53,15 @@ export interface Lane<T> {
   className?: string;
   footer?: ReactNode;
   actions?: ReactNode;
+  /** How many cards show before the rest wait behind "Show more"; LANE_PAGE unless given. */
+  limit?: number;
+  /** The cards past the first ones are older rather than lower in priority: the buttons say so. */
+  older?: boolean;
+  /**
+   * Puts the cards under headings, such as the month an item was accepted in, each of which
+   * folds its cards away. Only while the cards that show fall under more than one.
+   */
+  groupOf?: (item: T) => string;
 }
 
 export interface CardRenderContext {
@@ -163,6 +178,67 @@ export function CardLanes<T extends { id: string }>({
   const [local, setLocal] = useState<Record<string, T[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
   const laneStrip = useRef<HTMLDivElement>(null);
+
+  // Paging. `limits` holds the lanes whose viewer asked for more; what each lane showed when it
+  // was last drawn decides which cards past the limit still show (lanePaging.ts). A filter
+  // turning on or off, or a lane asking for fewer cards than before, starts afresh.
+  const [limits, setLimits] = useState<Record<string, number>>({});
+  const lastShown = useRef(new Map<string, ShownBefore & { reorder: boolean; limit: number }>());
+  const limitOf = useCallback(
+    (lane: Lane<T>) => limits[lane.id] ?? lane.limit ?? LANE_PAGE,
+    [limits],
+  );
+  const shownByLane = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const lane of lanes) {
+      const was = lastShown.current.get(lane.id);
+      const limit = limitOf(lane);
+      const before = was && was.reorder === reorder && was.limit <= limit ? was : undefined;
+      const ids = lane.items.map((item) => item.id);
+      map.set(lane.id, shownCards(ids, lane.total ?? ids.length, limit, before, reorder));
+    }
+    return map;
+  }, [lanes, limitOf, reorder]);
+  useLayoutEffect(() => {
+    for (const lane of lanes)
+      lastShown.current.set(lane.id, {
+        ids: lane.items.map((item) => item.id),
+        total: lane.total ?? lane.items.length,
+        shown: shownByLane.get(lane.id)!,
+        reorder,
+        limit: limitOf(lane),
+      });
+  }, [lanes, shownByLane, reorder, limitOf]);
+  const showMore = (lane: Lane<T>, count: number) =>
+    setLimits((was) => ({ ...was, [lane.id]: limitOf(lane) + count }));
+  const showFewer = (lane: Lane<T>) => {
+    lastShown.current.delete(lane.id);
+    setLimits(({ [lane.id]: _dropped, ...rest }) => rest);
+  };
+  /** Headings folded away, by lane and heading. */
+  const [folded, setFolded] = useState<Set<string>>(new Set());
+  const foldKey = (laneId: string, group: string) => `${laneId}\n${group}`;
+  const toggleGroup = (key: string) =>
+    setFolded((was) => {
+      const next = new Set(was);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+
+  // A lane is at most as tall as the window below the strip, so the strip's place on the page is
+  // measured for the stylesheet. Whatever the page shows above it moves it, so after every draw.
+  const measureTop = useCallback(() => {
+    const strip = laneStrip.current;
+    if (!strip) return;
+    const top = `${Math.round(strip.getBoundingClientRect().top + window.scrollY)}px`;
+    if (strip.style.getPropertyValue('--lanes-top') !== top)
+      strip.style.setProperty('--lanes-top', top);
+  }, []);
+  useLayoutEffect(measureTop);
+  useEffect(() => {
+    window.addEventListener('resize', measureTop);
+    return () => window.removeEventListener('resize', measureTop);
+  }, [measureTop]);
   const [mobileLane, setMobileLane] = useState(lanes[0]?.id ?? '');
   const [hidden, setHidden] = useState({ left: 0, right: 0 });
   const shownIndex = Math.max(
@@ -223,11 +299,41 @@ export function CardLanes<T extends { id: string }>({
     setLocal(Object.fromEntries(lanes.map((l) => [l.id, l.items])));
   }, [lanes, activeId]);
 
+  /**
+   * What each lane draws: the cards that show, those under folded headings left out, with the
+   * headings between them. Each card keeps its place among all the lane's cards, which moving it
+   * up or down goes by.
+   */
+  type Row = { heading: string; key: string; count: number } | { item: T; index: number };
+  const views = lanes.map((lane) => {
+    const all = local[lane.id] ?? lane.items;
+    const shown = shownByLane.get(lane.id)!;
+    const showing = all.filter((item) => item.id === activeId || shown.has(item.id));
+    const groups = lane.groupOf ? showing.map(lane.groupOf) : [];
+    const headed = new Set(groups).size > 1;
+    const indexOf = new Map(all.map((item, index) => [item.id, index]));
+    const rows: Row[] = [];
+    const cards: T[] = [];
+    showing.forEach((item, n) => {
+      if (headed) {
+        const group = groups[n]!;
+        const key = foldKey(lane.id, group);
+        if (group !== groups[n - 1])
+          rows.push({ heading: group, key, count: groups.filter((g) => g === group).length });
+        if (folded.has(key)) return;
+      }
+      rows.push({ item, index: indexOf.get(item.id)! });
+      cards.push(item);
+    });
+    return { lane, all, rows, cards, hidden: all.length - showing.length };
+  });
+  const drawn = Object.fromEntries(views.map((view) => [view.lane.id, view.cards]));
+
   // The keyboard sensor keeps the options it had when the drag began, so the coordinate getter
   // reads the lanes through a ref rather than from a stale closure.
-  const layout = useRef({ lanes, local, canDrop, collapsed });
+  const layout = useRef({ lanes, local, drawn, canDrop, collapsed });
   useLayoutEffect(() => {
-    layout.current = { lanes, local, canDrop, collapsed };
+    layout.current = { lanes, local, drawn, canDrop, collapsed };
   });
   /** Where the last keyboard step aimed; the collision detection honours it exactly. */
   const keyboardTarget = useRef<string | null>(null);
@@ -244,14 +350,15 @@ export function CardLanes<T extends { id: string }>({
     const { active, over, collisionRect, droppableRects } = context;
     if (step === undefined || !active || !collisionRect) return undefined;
     event.preventDefault();
-    const { lanes, local, canDrop } = layout.current;
+    const { lanes, local, drawn, canDrop } = layout.current;
     const activeId = String(active.id);
     const from = Object.keys(local).find((id) => local[id]!.some((i) => i.id === activeId));
     if (!from) return undefined;
 
     if (event.code === 'ArrowUp' || event.code === 'ArrowDown') {
-      // The card's slot is the card it is over; items only reorder in state on drop.
-      const items = local[from]!;
+      // The card's slot is the card it is over; items only reorder in state on drop. Only drawn
+      // cards have a place to step to.
+      const items = drawn[from] ?? [];
       const start = items.findIndex((i) => i.id === activeId);
       const at = items.findIndex((i) => i.id === over?.id);
       let next = (at === -1 ? start : at) + step;
@@ -269,7 +376,7 @@ export function CardLanes<T extends { id: string }>({
     for (let i = order.indexOf(from) + step; i >= 0 && i < order.length; i += step) {
       const lane = lanes[i]!;
       if (!lane.droppable || (canDrop && !canDrop(dragged, lane.id))) continue;
-      const first = local[lane.id]?.[0];
+      const first = drawn[lane.id]?.[0];
       // A collapsed lane renders no cards, so aim at the lane and the card joins its end.
       const aim = first && droppableRects.has(first.id) ? first.id : lane.id;
       const rect = droppableRects.get(aim);
@@ -346,8 +453,17 @@ export function CardLanes<T extends { id: string }>({
       const item = source.find((i) => i.id === active.id);
       if (!item) return prev;
       const overIndex = target.findIndex((i) => i.id === over.id);
-      // Dropping over the lane itself appends; over a card inserts at that card's position.
-      let insertAt = overIndex === -1 ? target.length : overIndex;
+      // Dropping over the lane itself puts the card after the last one that shows, before those
+      // behind "Show more"; into a collapsed lane, at its end. Over a card, at that card's place.
+      const shown = shownByLane.get(toLane);
+      let end = target.length;
+      if (shown && !collapsed.has(toLane)) {
+        end = 0;
+        target.forEach((i, n) => {
+          if (shown.has(i.id)) end = n + 1;
+        });
+      }
+      let insertAt = overIndex === -1 ? end : overIndex;
       if (overIndex !== -1 && active.rect.current.translated) {
         const below = active.rect.current.translated.top > over.rect.top + over.rect.height / 2;
         insertAt = overIndex + (below ? 1 : 0);
@@ -493,29 +609,68 @@ export function CardLanes<T extends { id: string }>({
           if (lanes[nearest]) setMobileLane(lanes[nearest].id);
         }}
       >
-        {lanes.map((lane) => (
+        {views.map(({ lane, all, rows, cards, hidden }) => (
           <LaneView
             key={lane.id}
             lane={lane}
-            items={local[lane.id] ?? lane.items}
+            items={all}
+            sortable={cards.map((item) => item.id)}
             testId={`${testIdPrefix}-${lane.id}`}
             rejects={
               activeItem !== undefined && canDrop !== undefined && !canDrop(activeItem, lane.id)
             }
             collapsed={collapsed.has(lane.id)}
             onToggle={() => toggleLane(lane.id)}
+            more={
+              <LaneMore
+                hidden={hidden}
+                older={lane.older === true}
+                expanded={limits[lane.id] !== undefined}
+                onMore={(count) => showMore(lane, count)}
+                onFewer={() => showFewer(lane)}
+              />
+            }
           >
-            {(local[lane.id] ?? lane.items).map((item, index, all) => (
-              <Card
-                key={item.id}
-                id={item.id}
-                disabled={!canDrag || !lane.droppable || (isDraggable ? !isDraggable(item) : false)}
-                onFiles={onFilesDrop && ((files) => onFilesDrop(item, files))}
-                onOpen={onCardClick && (() => onCardClick(item))}
-              >
-                {renderCard(item, { index, count: all.length, isDragging: item.id === activeId })}
-              </Card>
-            ))}
+            {rows.map((row) =>
+              'heading' in row ? (
+                <li key={row.key} className="lane-group">
+                  <button
+                    type="button"
+                    aria-expanded={!folded.has(row.key)}
+                    onClick={() => toggleGroup(row.key)}
+                  >
+                    <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                      <path
+                        d="M4 6l4 4 4-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span className="lane-group-name">{row.heading}</span>
+                    <span className="count">{row.count}</span>
+                  </button>
+                </li>
+              ) : (
+                <Card
+                  key={row.item.id}
+                  id={row.item.id}
+                  disabled={
+                    !canDrag || !lane.droppable || (isDraggable ? !isDraggable(row.item) : false)
+                  }
+                  onFiles={onFilesDrop && ((files) => onFilesDrop(row.item, files))}
+                  onOpen={onCardClick && (() => onCardClick(row.item))}
+                >
+                  {renderCard(row.item, {
+                    index: row.index,
+                    count: all.length,
+                    isDragging: row.item.id === activeId,
+                  })}
+                </Card>
+              ),
+            )}
           </LaneView>
         ))}
       </div>
@@ -538,18 +693,23 @@ export function CardLanes<T extends { id: string }>({
 function LaneView<T extends { id: string }>({
   lane,
   items,
+  sortable,
   testId,
   rejects,
   collapsed,
   onToggle,
+  more,
   children,
 }: {
   lane: Lane<T>;
   items: T[];
+  /** The ids of the cards drawn, in order: the ones a drag can move between. */
+  sortable: string[];
   testId: string;
   rejects: boolean;
   collapsed: boolean;
   onToggle: () => void;
+  more: ReactNode;
   children: ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -608,16 +768,64 @@ function LaneView<T extends { id: string }>({
             </button>
             {lane.actions}
           </div>
-          <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <ul className="cards">{children}</ul>
-          </SortableContext>
-          {items.length === 0 && (
-            <p className="lane-empty">{lane.total ? t('No matching cards') : t('No cards yet')}</p>
-          )}
+          {/* The cards scroll here, under the lane's head and above its footer. */}
+          <div className="lane-body">
+            <SortableContext items={sortable} strategy={verticalListSortingStrategy}>
+              <ul className="cards">{children}</ul>
+            </SortableContext>
+            {more}
+            {items.length === 0 && (
+              <p className="lane-empty">
+                {lane.total ? t('No matching cards') : t('No cards yet')}
+              </p>
+            )}
+          </div>
           {lane.footer}
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * The buttons under a lane's cards: the next page of hidden cards, the rest at once, and, once
+ * the viewer has asked for more, back to the first page.
+ */
+function LaneMore({
+  hidden,
+  older,
+  expanded,
+  onMore,
+  onFewer,
+}: {
+  hidden: number;
+  older: boolean;
+  expanded: boolean;
+  onMore: (count: number) => void;
+  onFewer: () => void;
+}) {
+  if (hidden === 0 && !expanded) return null;
+  const next = Math.min(LANE_PAGE, hidden);
+  return (
+    <div className="lane-more">
+      {hidden > 0 && (
+        <button type="button" className="link" onClick={() => onMore(LANE_PAGE)}>
+          {older
+            ? t('Show {count} older', { count: next })
+            : t('Show {count} more', { count: next })}
+        </button>
+      )}
+      {hidden > LANE_PAGE && (
+        <button type="button" className="link" onClick={() => onMore(Infinity)}>
+          {t('Show the rest ({count})', { count: hidden })}
+        </button>
+      )}
+      {expanded && (
+        <button type="button" className="link" onClick={onFewer}>
+          {t('Show fewer')}
+        </button>
+      )}
+    </div>
   );
 }
 

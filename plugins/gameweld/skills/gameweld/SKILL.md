@@ -72,7 +72,7 @@ tasks, now in To Do on Sprint 4"), and mention anything you did not do and why.
 | ---------------------------------------------- | ------------------------------------------------------------ |
 | Projects, you, roles                           | `list_projects`, `get_project`                               |
 | The project at a glance, item by item          | `get_overview`                                               |
-| The Backlog in priority order                  | `get_backlog`                                                |
+| The Backlog in priority order; what was accepted when | `get_backlog` (Done: the last 30 days unless `acceptedSince`) |
 | An item with its breakdown, links, comments    | `get_item`                                                   |
 | A task in full                                 | `get_task`                                                   |
 | The board: scope, next item, columns and cards | `get_workboard`, `list_workboards`                           |

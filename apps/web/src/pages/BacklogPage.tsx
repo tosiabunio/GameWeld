@@ -15,7 +15,10 @@ import { CardFilterControls, CardFilterRow } from '../components/CardFilterBar.t
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
-import { t, tj, tp } from '../i18n/index.ts';
+import { useDisplayOptions } from '../displayOptions.ts';
+import { acceptedMonth, byAcceptance, recentCount } from '../doneWindow.ts';
+import { lang, t, tj, tp } from '../i18n/index.ts';
+import { LANE_PAGE } from '../lanePaging.ts';
 import { useProject } from './ProjectPage.tsx';
 
 const isCategory = (lane: string): lane is MoscowCategory =>
@@ -52,9 +55,9 @@ export function BacklogPage() {
   const grouped = useMemo(() => {
     const map = new Map<BacklogLane, BacklogItem[]>(BACKLOG_LANES.map((l) => [l, []]));
     for (const item of items ?? []) map.get(laneOf(item))!.push(item);
-    for (const lane of ['ready_for_review', 'done'] as const) {
-      map.get(lane)!.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    }
+    map.get('ready_for_review')!.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    // By acceptance: a comment on an item accepted long ago must not lift it to the top.
+    map.set('done', byAcceptance(map.get('done')!));
     return map;
   }, [items]);
 
@@ -101,6 +104,7 @@ export function BacklogPage() {
 
   const [filters] = useCardFilters(project.id);
   const filtering = backlogFiltersOn(filters);
+  const { doneWindow } = useDisplayOptions();
 
   const lanes: Lane<BacklogItem>[] = useMemo(
     () =>
@@ -113,6 +117,17 @@ export function BacklogPage() {
         total: grouped.get(lane)!.length,
         droppable: isCategory(lane),
         className: isCategory(lane) ? `prio-${lane}` : `lifecycle state-${lane}`,
+        // Done only grows: it shows what was accepted lately, and the rest by month behind
+        // "Show older". A filter looks through all of it.
+        ...(lane === 'done'
+          ? {
+              older: true,
+              groupOf: (item: BacklogItem) => acceptedMonth(item, lang),
+              ...(filtering
+                ? {}
+                : { limit: recentCount(grouped.get('done')!, doneWindow, new Date(), LANE_PAGE) }),
+            }
+          : {}),
         ...(isCategory(lane) && canManage
           ? {
               footer: (
@@ -126,7 +141,7 @@ export function BacklogPage() {
             }
           : {}),
       })),
-    [grouped, canManage, project.id, filtering, filters],
+    [grouped, canManage, project.id, filtering, filters, doneWindow],
   );
 
   if (items === null) return <p>{t('Loading…')}</p>;
@@ -147,7 +162,7 @@ export function BacklogPage() {
         </div>
         <div className="row page-controls">
           <CardFilterControls projectId={project.id} people={project.members} />
-          <DisplayMenu />
+          <DisplayMenu done />
         </div>
       </header>
       {error && (

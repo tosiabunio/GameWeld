@@ -206,6 +206,48 @@ describe('the MCP server', () => {
     expect(lost.isError).toBe(true);
   });
 
+  it('lists recent Done items in the Backlog and counts the older ones', async () => {
+    const inject = (method: 'GET' | 'POST', url: string, payload?: object) =>
+      t.app.inject({
+        method,
+        url: `/api${url}`,
+        headers: { cookie: cookies.director },
+        ...(payload ? { payload } : {}),
+      });
+    const own = (await inject('POST', '/projects', { name: 'Long done' })).json().id as string;
+    const accepted = async (title: string, daysAgo: number) => {
+      const item = (
+        await inject('POST', `/projects/${own}/backlog`, { title, category: 'must' })
+      ).json();
+      const task = (
+        await inject('POST', `/projects/${own}/backlog/${item.id}/tasks`, {
+          category: 'code',
+          title: 'Work',
+        })
+      ).json();
+      await inject('POST', `/projects/${own}/tasks/${task.id}/complete`);
+      await inject('POST', `/projects/${own}/backlog/${item.id}/accept`);
+      await t.db.query(
+        `UPDATE acceptances SET accepted_at = now() - make_interval(days => $2) WHERE item_id = $1`,
+        [item.id, daysAgo],
+      );
+    };
+    await accepted('Last week', 7);
+    await accepted('Yesterday', 1);
+    await accepted('Spring', 150);
+
+    const client = await connect((await makeToken('director', 'Archivist', 'read')).secret);
+    const recent = await call(client, 'get_backlog', { projectId: own });
+    expect(recent.done.map((x: Json) => x.title)).toEqual(['Yesterday', 'Last week']);
+    expect(recent.done[0].acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(recent.olderDone).toBe(1);
+
+    const since = new Date(Date.now() - 200 * 86_400_000).toISOString().slice(0, 10);
+    const all = await call(client, 'get_backlog', { projectId: own, acceptedSince: since });
+    expect(all.done.map((x: Json) => x.title)).toEqual(['Yesterday', 'Last week', 'Spring']);
+    expect(all.olderDone).toBeUndefined();
+  });
+
   it('needs a token, and answers only POST', async () => {
     const anonymous = await fetch(url, {
       method: 'POST',

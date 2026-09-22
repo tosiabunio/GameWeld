@@ -165,6 +165,12 @@ The cover is the most recent PNG, JPEG, GIF, or WebP image attached to the item 
 
 Task cards on the Workboard follow the same rule with the task's own attachments: dropping an image on a card attaches it to the task, and anyone who may edit the task may pick or clear its cover. Item and task covers are independent; a task's image never becomes its item's cover.
 
+### Long lanes — Confirmed (22 September 2026)
+
+The Backlog of even a small game holds hundreds of items. Must Have, Should Have, and Could Have empty out as items are accepted, but Done only grows, and it is there to inform. Every lane, on the Backlog and on the Workboard, is at most as tall as the window below it, and its cards scroll inside it, so its head with the count and its form for a new card stay in sight. A lane shows its first fifty cards and keeps the rest behind "Show 50 more" and "Show the rest"; a card that joins the lane, or that the viewer moved, shows wherever it lands.
+
+Done lists items by when they were accepted, newest first. It shows those accepted in the last 30 days, at least ten and at most fifty, and keeps the rest behind "Show older", under headings for the month of acceptance, each of which folds. The viewer may choose 90 days, or no window, in the display options. A search or a filter looks through all of Done. Hiding belongs to the view alone: hidden items are Done, on the Overview's map, and in its figures. Archiving is not the way to tidy Done, since it takes an item out of the figures. Collapsing a lane stays the viewer's choice; no lane starts collapsed. The API reads the Backlog by state and by the time of acceptance, and the assistants' Backlog lists the Done items of the last 30 days unless asked for more.
+
 ## 7. Breakdown
 
 **Confirmed:** Breakdown is a view, not a mandatory lifecycle stage.

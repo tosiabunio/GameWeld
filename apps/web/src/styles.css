@@ -1282,7 +1282,9 @@ ul.project-grid {
 }
 
 /* A row of lanes sharing the width equally, up to the widest a lane may be: on a large window
-   the lanes keep to the left and leave the rest empty. A collapsed lane shrinks to a stub. */
+   the lanes keep to the left and leave the rest empty. A collapsed lane shrinks to a stub. A lane
+   is at most as tall as the window below the strip, which CardLanes measures as --lanes-top, and
+   never shorter than a few cards; its cards scroll inside it (.lane-body). */
 .lanes {
   display: flex;
   gap: 12px;
@@ -1294,6 +1296,7 @@ ul.project-grid {
   flex: 1 0 var(--card-min);
   min-width: var(--card-min);
   max-width: var(--card-max);
+  max-height: max(360px, calc(100dvh - var(--lanes-top, 0px) - 24px));
 }
 /* Lanes that do not fit scroll sideways; these buttons say so and do the scrolling. */
 .lane-scroll {
@@ -1508,12 +1511,75 @@ ul.project-grid {
 .lane.rejects {
   opacity: 0.4;
 }
+/* A lane's cards, with what follows them, scroll between its head and its footer. The margin
+   and padding leave room for the cards' shadows and focus rings, which its edge would clip. */
+.lane-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+}
 .cards {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 8px;
+}
+/* Past a lane's first cards: the next page, the rest, and back to the first page. */
+.lane-more {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 14px;
+  padding: 2px 0 4px;
+  font-size: 12px;
+}
+.lane-more button.link {
+  color: var(--muted);
+  font-size: inherit;
+}
+.lane-more button.link:hover {
+  color: var(--accent);
+}
+/* A heading among a lane's cards, such as the month Done items were accepted in; it folds. */
+.lane-group {
+  margin-top: 2px;
+}
+.lane-group button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 24px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+}
+.lane-group button:hover:not(:disabled) {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+.lane-group button[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+.lane-group .count {
+  font-weight: 400;
+  letter-spacing: 0;
 }
 .lane-empty {
   margin: 0;

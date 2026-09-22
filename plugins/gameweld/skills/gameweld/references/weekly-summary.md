@@ -13,6 +13,8 @@ if the day boundaries matter.
 
 - `get_history` with `from` and `to` and `limit: 500`. If 500 come back, page with
   `before` set to the oldest entry's `id` until fewer come back.
+- `get_backlog` with `acceptedSince` set to the start of the period: the items accepted in it,
+  each with when (`acceptedAt`), for the Done section. Without it, Done lists the last 30 days.
 - `get_overview` for the figures now: items by state, and tasks complete, in progress,
   waiting, blocked, overdue, and unassigned, overall, by priority, and per item.
 - `get_workboard` for the board now: scope, blocked cards, the next item in priority.

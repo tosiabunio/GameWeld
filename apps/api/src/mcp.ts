@@ -112,9 +112,13 @@ function compactItem(i: BacklogItem) {
     state: i.state,
     tasks: `${i.taskCounts.completed}/${i.taskCounts.total} complete`,
     onBoard: i.activeBoard?.name ?? null,
+    ...(i.acceptedAt ? { acceptedAt: i.acceptedAt } : {}),
     version: i.version,
   };
 }
+
+/** How far back get_backlog lists Done items unless asked: Done only grows. */
+const RECENT_DONE_DAYS = 30;
 
 const compactComment = (c: Comment) => ({
   id: c.id,
@@ -266,18 +270,33 @@ const TOOLS: Tool[] = [
   tool({
     name: 'get_backlog',
     title: 'Backlog',
-    description:
-      'The Backlog: open items by MoSCoW category, in priority order, then the items Ready for Review and Done. Each with how many of its tasks are complete and whether it is on the Workboard.',
-    input: { projectId },
-    run: async (api, { projectId }) => {
+    description: `The Backlog: open items by MoSCoW category, in priority order, then the items Ready for Review, and the items accepted as Done since acceptedSince, newest first. Each with how many of its tasks are complete and whether it is on the Workboard. Done only grows, so older Done items are counted (olderDone), not listed; pass an earlier acceptedSince for them, such as the start of the month for what was accepted this month.`,
+    input: {
+      projectId,
+      acceptedSince: z
+        .union([z.string().datetime({ offset: true }), z.string().date()])
+        .optional()
+        .describe(
+          `List the Done items accepted from this date or time on; the last ${RECENT_DONE_DAYS} days unless given.`,
+        ),
+    },
+    run: async (api, { projectId, acceptedSince }) => {
       const items = await api.get<BacklogItem[]>(`/projects/${projectId}/backlog`);
       const lane = (pick: (i: BacklogItem) => boolean) => items.filter(pick).map(compactItem);
+      const since = acceptedSince
+        ? new Date(acceptedSince).getTime()
+        : Date.now() - RECENT_DONE_DAYS * 86_400_000;
+      const done = items
+        .filter((i) => i.state === 'done')
+        .sort((a, b) => (b.acceptedAt ?? '').localeCompare(a.acceptedAt ?? ''));
+      const recent = done.filter((i) => new Date(i.acceptedAt ?? 0).getTime() >= since);
       return {
         ...Object.fromEntries(
           MOSCOW_CATEGORIES.map((c) => [c, lane((i) => i.state === 'open' && i.category === c)]),
         ),
         readyForReview: lane((i) => i.state === 'ready_for_review'),
-        done: lane((i) => i.state === 'done'),
+        done: recent.map(compactItem),
+        ...(done.length > recent.length ? { olderDone: done.length - recent.length } : {}),
       };
     },
   }),

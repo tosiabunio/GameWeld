@@ -68,6 +68,8 @@ export interface BacklogItem {
   activeBoard: { id: string; name: string } | null;
   /** Attachment id of the cover image, if one is set. */
   coverAttachmentId: string | null;
+  /** When the item was accepted as Done, from its current acceptance; null unless it is Done. */
+  acceptedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

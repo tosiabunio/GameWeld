@@ -169,6 +169,10 @@ export const texts: Record<string, string> = {
   'Small cover images': 'Małe okładki',
   'Center columns': 'Wyśrodkuj kolumny',
   'Center cards': 'Wyśrodkuj karty',
+  'Done shows items accepted': 'Kolumna „Gotowe” pokazuje elementy zaakceptowane',
+  'in the last 30 days': 'w ostatnich 30 dniach',
+  'in the last 90 days': 'w ostatnich 90 dniach',
+  'at any time': 'kiedykolwiek',
   'Only for you, in this browser.': 'Tylko dla Ciebie, w tej przeglądarce.',
 
   // Search and filters of cards

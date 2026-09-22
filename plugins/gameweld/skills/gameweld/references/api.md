@@ -24,7 +24,7 @@ What each tool does, as a route (paths under `/api/projects/{projectId}` are sho
 | --------------------- | ---------------------------------------------------------------------- |
 | `list_projects`       | `GET /api/me`, `GET /api/projects`                                     |
 | `get_project`         | `GET …` and `GET …/boards`                                             |
-| `get_backlog`         | `GET …/backlog`                                                        |
+| `get_backlog`         | `GET …/backlog`, which takes `state=`, `acceptedSince=`, `acceptedBefore=` for part of it |
 | `get_overview`        | `GET …/overview`                                                       |
 | `get_item`            | `GET …/backlog/{itemId}` and `GET …/backlog/{itemId}/tasks`            |
 | `get_task`            | `GET …/tasks/{taskId}`                                                 |

@@ -18,6 +18,7 @@ Phase 0 (foundation) in progress. The product and functional specification (v0.2
 | [Google sign-in](docs/google-sign-in.md) | Setting up sign-in with Google for an instance, invitations, troubleshooting, and the admin recovery commands. |
 | [The API](docs/api.md) | API tokens for scripts and assistants, calling the API, and its OpenAPI description at `/api/openapi.json`. |
 | [Roadmap](docs/roadmap.md) | What is still missing next to Trello, Planka, Wekan, Taiga, and Plane, checked against the code, with a proposed order. A proposal, not a decision. |
+| [Long Backlog lanes](docs/backlog-scaling-plan.md) | How the Backlog copes with hundreds of items, and a Done lane that only grows, without archiving them: a window of recently accepted items, lanes that scroll on their own, and paging. Built 22 September 2026, with where the build differs from the plan. |
 
 ## Key concepts
 

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { DONE_WINDOWS, type DoneWindow } from './doneWindow.ts';
 
 /**
  * How this viewer likes the lanes and cards shown. Like collapsed lanes, these are a per-viewer
@@ -12,10 +13,17 @@ export interface DisplayOptions {
   smallCovers: boolean;
   /** Lanes, or My tasks' cards, that do not fill the window's width stand in its middle. */
   centered: boolean;
+  /** The Backlog's Done lane shows the items accepted in these last days first; 0, a page. */
+  doneWindow: DoneWindow;
 }
 
 const KEY = 'gameweld:display';
-const DEFAULTS: DisplayOptions = { collapseEmpty: false, smallCovers: false, centered: false };
+const DEFAULTS: DisplayOptions = {
+  collapseEmpty: false,
+  smallCovers: false,
+  centered: false,
+  doneWindow: 30,
+};
 
 function read(): DisplayOptions {
   try {
@@ -25,6 +33,7 @@ function read(): DisplayOptions {
       collapseEmpty: options.collapseEmpty === true,
       smallCovers: options.smallCovers === true,
       centered: options.centered === true,
+      doneWindow: DONE_WINDOWS.find((days) => days === options.doneWindow) ?? DEFAULTS.doneWindow,
     };
   } catch {
     return DEFAULTS;
@@ -55,7 +64,10 @@ window.addEventListener('storage', (event) => {
   if (event.key === KEY) publish(read());
 });
 
-export function setDisplayOption(name: keyof DisplayOptions, value: boolean) {
+export function setDisplayOption<K extends keyof DisplayOptions>(
+  name: K,
+  value: DisplayOptions[K],
+) {
   publish({ ...current, [name]: value });
   try {
     localStorage.setItem(KEY, JSON.stringify(current));

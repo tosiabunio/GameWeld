@@ -66,6 +66,10 @@ A few conventions hold across the API:
   thing goes between them, or to the end with neither.
 - `GET /api/events` is a stream of server-sent events saying _that_ something changed, for a
   client that wants to follow along.
+- **The Backlog in parts:** `GET /api/projects/{projectId}/backlog` takes `state` (such as
+  `done`, or `open,ready_for_review`), and `acceptedSince` and `acceptedBefore` for Done items
+  by when they were accepted, which each Done item carries as `acceptedAt`. Done only grows, so
+  a report of what was accepted this month asks for `state=done&acceptedSince=2026-09-01`.
 - **History for analysis:** `GET /api/projects/{projectId}/activity` takes `from`, `to`,
   `actorId`, `actions` (such as `task.moved,item.rejected`, or `task.*`), and `before` to page
   back. `GET /api/projects/{projectId}/column-stays` lists how long each card stayed in each
@@ -91,10 +95,11 @@ for the current folder only. Another client needs the same two things: the addre
 
 What the tools do:
 
-- **Read:** your projects and their members, the project's overview (its figures and every
-  item's progress, as the Overview page shows them), the Backlog, an item with its breakdown, a
-  task, the Workboard with its scope and columns, "My tasks", what waits for your decision, and
-  search.
+- **Read:** your projects and their members, the project's overview (its figures and every item's
+  progress, as the Overview page shows them), the Backlog (with the Done items accepted in the
+  last 30 days, or since a date you give, and a count of the older ones), an item with its
+  breakdown, a task, the Workboard with its scope and columns, "My tasks", what waits for your
+  decision, and search.
 - **Analyse:** the history, filtered by time, person, action, or one item, task, or board; and
   how long cards stayed in each column, in hours.
 - **Change:** add and edit Backlog items and reprioritise them, break an item down into tasks,
