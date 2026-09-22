@@ -39,6 +39,7 @@ describe('workboard', () => {
       ['Flying enemy', 'must'],
       ['Boss arena', 'should'],
       ['Nice to have', 'could'],
+      ['Cut idea', 'wont'],
     ] as const) {
       const res = await t.app.inject({
         method: 'POST',
@@ -111,10 +112,10 @@ describe('workboard', () => {
   });
 
   it('Section 15 "Director activates a permitted item": tasks enter their To Do columns', async () => {
-    // Priority rule: Boss arena is not next.
-    const wrong = await post(`${boards()}/${boardId}/scope`, { itemId: items['Boss arena'] });
-    expect(wrong.statusCode).toBe(409);
-    expect(wrong.json().details.nextEligible.title).toBe('Ranged enemy');
+    // D7: a Won't Have item is out, not later, and does not come in.
+    const cut = await post(`${boards()}/${boardId}/scope`, { itemId: items['Cut idea'] });
+    expect(cut.statusCode).toBe(409);
+    expect(cut.json().message).toMatch(/Won’t Have/);
     expect(
       (await post(`${boards()}/${boardId}/scope`, { itemId: items['Ranged enemy'] }, developer))
         .statusCode,
@@ -140,6 +141,20 @@ describe('workboard', () => {
     expect(
       backlog.find((i: { id: string }) => i.id === items['Ranged enemy']).activeBoard.name,
     ).toBe('September production');
+  });
+
+  it('D7: the Director may bring in another item than the next in priority', async () => {
+    const own = (await post('/api/projects', { name: 'Free choice' })).json<{ id: string }>().id;
+    const url = `/api/projects/${own}`;
+    const first = (await post(`${url}/backlog`, { title: 'First', category: 'must' })).json();
+    const later = (await post(`${url}/backlog`, { title: 'Later', category: 'could' })).json();
+    const b = (await post(`${url}/boards`, { name: 'Now' })).json();
+    const res = await post(`${url}/boards/${b.id}/scope`, { itemId: later.id });
+    expect(res.statusCode).toBe(201);
+    const view: BoardView = res.json();
+    expect(view.scope.map((s) => s.title)).toEqual(['Later']);
+    // The suggestion still follows the priorities.
+    expect(view.nextEligible?.id).toBe(first.id);
   });
 
   it('Section 15 "Developer creates a card with one item in scope": parent defaults', async () => {

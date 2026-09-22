@@ -2,9 +2,10 @@
 
 ## The rule
 
-The Workboard's scope takes items strictly in priority order. Only one item may come in next:
-the first open item that is not in scope yet, taking the categories in the order `must`,
-`should`, `could`, and within a category the Backlog's order. Won't Have items never come in.
+The Game Director chooses which items come into the Workboard's scope. The choice respects the
+priorities but is not bound by them: any open item outside Won't Have may come in. The usual
+choice is the next item in priority, the first open item that is not in scope yet, taking the
+categories in the order `must`, `should`, `could`, and within a category the Backlog's order.
 `get_workboard` names it as `nextEligible`, with how many of its tasks are not on the board yet.
 The scope also has a limit (`scopeLimit`): accepted items leave the scope and free a place.
 
@@ -24,11 +25,14 @@ unplaced tasks go to their To Do columns. Ask first unless the user asked for ex
 
 ## When the user wants a different item
 
-Two legitimate routes, and the choice is the user's:
+Three routes, and the choice is the user's:
 
-- **Change the priorities.** Moving the item up the Backlog with `move_item` (to a higher
-  category, or ahead of others in its own) makes it the next item. This changes the plan for the
-  whole team, so say what it pushes back and get a clear yes.
+- **Bring it in as it is.** A Game Director may `add_to_scope` any open item outside Won't Have.
+  Say which item is next in priority and that it stays waiting, so the choice is made knowingly.
+- **Change the priorities.** When the item really matters more than the plan says, moving it up
+  the Backlog with `move_item` (to a higher category, or ahead of others in its own) makes it the
+  next item. This changes the plan for the whole team, so say what it pushes back and get a
+  clear yes.
 - **Bring single tasks in.** When only some of the item's work is needed now, ask for those tasks
   with `request_out_of_scope`; a Game Director approves or rejects each request.
 

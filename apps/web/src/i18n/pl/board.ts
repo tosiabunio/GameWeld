@@ -57,8 +57,8 @@ export const texts: Record<string, string> = {
     'Osiągnięto limit zakresu. Usuń element, aby zrobić miejsce.',
   'Next in priority: <1>{title}</1>. Add items from their <2>Backlog cards</2>.':
     'Następny według priorytetu: <1>{title}</1>. Dodawaj elementy z ich <2>kart w Backlogu</2>.',
-  'No open item is eligible. Add items from the Backlog when there are some.':
-    'Żaden otwarty element się nie kwalifikuje. Dodaj elementy z Backlogu, gdy się pojawią.',
+  'No open item waits outside the scope. Add items from the Backlog when there are some.':
+    'Poza zakresem nie czeka żaden otwarty element. Dodaj elementy z Backlogu, gdy się pojawią.',
   'No items in scope yet. Use “Add to Workboard” on a Backlog card.':
     'W zakresie nie ma jeszcze elementów. Użyj „Dodaj do Tablicy” na karcie w Backlogu.',
   'Open in Breakdown': 'Otwórz w Podziale',

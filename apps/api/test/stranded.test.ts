@@ -34,7 +34,7 @@ describe('nothing is stranded', () => {
   const board = async (): Promise<BoardView> => (await call('GET', '/board')).json();
   const requests = async (): Promise<WorkRequest[]> =>
     (await call('GET', `/boards/${boardId}/requests`)).json();
-  /** Puts an item in scope without the priority rule, which these scenarios are not about. */
+  /** Puts an item in scope without the route, which these scenarios are not about. */
   const intoScope = (itemId: string) =>
     t.db.query('INSERT INTO workboard_scope (board_id, item_id) VALUES ($1, $2)', [
       boardId,
@@ -107,8 +107,7 @@ describe('nothing is stranded', () => {
       headers: { cookie: developer },
       payload: { taskId: id },
     });
-    // Through the real route: make the item the next eligible one by finishing with the others.
-    await t.db.query(`UPDATE backlog_items SET rank = '0' WHERE id = $1`, [item]);
+    // Through the real route, with room in the scope.
     await t.db.query(`DELETE FROM workboard_scope WHERE board_id = $1`, [boardId]);
     const added = await call('POST', `/boards/${boardId}/scope`, { itemId: item });
     expect(added.statusCode, added.body).toBe(201);

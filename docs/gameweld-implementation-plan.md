@@ -114,7 +114,7 @@ These are checked inside the transaction that performs the change, never only in
 4. Entering or leaving the Done column requires the completion permission when the project's Done restriction is on.
 5. A backlog item is Ready for Review when it has at least one non-archived task and every non-archived task is completed. This is recalculated after every task change inside the same transaction.
 6. Accepting an item rechecks rule 5 at commit time.
-7. Full-item activation fails if the board's item count, under D6, would exceed the limit, or if the item is not the next eligible item under the priority rule (D7).
+7. Full-item activation fails if the board's item count, under D6, would exceed the limit, or if the item is not open or is in Won't Have (D7, revised 2026-09-22: before, it had to be the next eligible item under the priority rule).
 8. Placing a task whose parent is out of scope requires either an approved Work Request or Director permission, and records the exception.
 9. Approving a Work Request rechecks that the task is unfinished, the board is active, and no current placement exists.
 10. A nonempty column cannot be deleted; the Done marker cannot be moved or removed.

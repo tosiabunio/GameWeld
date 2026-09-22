@@ -520,7 +520,9 @@ function ScopeMenu({
                       2: (s) => <Link to={`/projects/${project.id}/backlog`}>{s}</Link>,
                     },
                   )
-                : t('No open item is eligible. Add items from the Backlog when there are some.')}
+                : t(
+                    'No open item waits outside the scope. Add items from the Backlog when there are some.',
+                  )}
           </p>
         )}
         {board.scope.length === 0 ? (

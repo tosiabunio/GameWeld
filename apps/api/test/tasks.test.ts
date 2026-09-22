@@ -296,7 +296,7 @@ describe('tasks and breakdown', () => {
         payload: { name: 'September production' },
       })
     ).json().id;
-    // Straight into the scope: the priority rule is not what this test is about.
+    // Straight into the scope: the route is not what this test is about.
     await t.db.query('INSERT INTO workboard_scope (board_id, item_id) VALUES ($1, $2)', [
       boardId,
       item.id,

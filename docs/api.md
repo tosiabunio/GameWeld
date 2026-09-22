@@ -52,8 +52,8 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/jso
 
 A few conventions hold across the API:
 
-- **Rules are the server's.** A change the rules do not allow is refused: the scope limit, the
-  priority rule, who may complete a task, and nothing left stranded. The same rules apply to the
+- **Rules are the server's.** A change the rules do not allow is refused: the scope limit, what
+  may come into scope, who may complete a task, and nothing left stranded. The same rules apply to the
   app and to a token.
 - **Refusals say why** in `{ "message": "…" }`, in English: 400 for invalid input (with
   `details` naming the fields), 401 without a working token, 403 without the permission, 404
@@ -118,7 +118,7 @@ history as yours "via" the token's name.
 ### The GameWeld skill
 
 The tools say what they do; the skill says how GameWeld works and how to do the common jobs
-well: the vocabulary and the rules (scope, the priority rule, review), how to break an item down
+well: the vocabulary and the rules (scope and its limit, review), how to break an item down
 into Code, Assets, and Content tasks, how to write the week's summary from the history, and how
 to find where work waits. It also tells the assistant to propose before changing several things,
 and to take a refusal as the rules speaking rather than work around it.

@@ -25,11 +25,13 @@ gameweld tools are connected, the same things can be done over HTTP: see
   It may have an assignee, labels, a due date, a checklist, and a **blocked** flag with a
   reason. An item's tasks are its **breakdown**.
 - **Workboard.** One is active per project. Its **scope** holds the items being worked on, up to
-  the project's **scope limit**. Items come in strictly by priority: only the next item, the
-  first open one not yet in scope by category and then by its place in the Backlog, can be
-  brought in (`nextEligible` in `get_workboard`). The tasks of items in scope are **cards** in its
-  columns: a To Do column per task category (named like "To Do · Code"), any intermediate
-  columns the team added, and Done. Moving a card into Done completes its task.
+  the project's **scope limit**. The Game Director chooses which items come in, respecting
+  the priorities but free to take another open item than the next one; Won't Have items never
+  come in. `get_workboard` suggests the next item in priority, the first open one not yet in
+  scope by category and then by its place in the Backlog, as `nextEligible`. The tasks of items
+  in scope are **cards** in its columns: a To Do column per task category (named like "To Do ·
+  Code"), any intermediate columns the team added, and Done. Moving a card into Done completes
+  its task.
 - **Out-of-scope request.** A task of an item outside the scope reaches the board only when a
   Game Director approves a request for it.
 - **Review.** When every task of an item is complete, the item is Ready for Review. A Game
@@ -56,11 +58,11 @@ user asked for directly. Everything you do is recorded as the user, marked with 
 name, and the team will see it, so stay within what they asked. Leave assignments, priorities,
 and other people's work alone unless asked.
 
-**Take a refusal as the rules speaking.** The server enforces the scope limit, the priority rule,
-who may complete tasks, and that nothing is left stranded, and it says why when it refuses.
-Explain the reason in plain words and offer the legitimate route: a Game Director's decision, an
-out-of-scope request, or reprioritising the Backlog with the user's agreement. Don't reach the
-same end another way, for instance by moving an item up just to get it into scope, or by
+**Take a refusal as the rules speaking.** The server enforces the scope limit, what may come
+into scope, who may complete tasks, and that nothing is left stranded, and it says why when it
+refuses. Explain the reason in plain words and offer the legitimate route: a Game Director's
+decision, an out-of-scope request, or moving an item out of Won't Have with the user's
+agreement. Don't reach the same end another way, for instance by moving an item up just to get it into scope, or by
 recreating something that could not be changed.
 
 **Report plainly.** Name items and tasks by their titles, say where things ended up ("three

@@ -299,6 +299,7 @@ export function BacklogPage() {
               {canSelectScope &&
                 board &&
                 item.state === 'open' &&
+                item.category !== 'wont' &&
                 !item.activeBoard &&
                 activating !== item.id && (
                   <button

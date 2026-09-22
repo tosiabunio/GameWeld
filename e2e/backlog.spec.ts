@@ -295,7 +295,7 @@ test('a Director activates an item straight from its Backlog card', async ({ pag
   await expect(flying.getByRole('button', { name: 'Add Flying enemy to Workboard' })).toHaveCount(
     0,
   );
-  // A lower-priority item is refused with an explanation naming the next item.
+  // The Director may also choose another item than the next in priority.
   const tooling = page
     .getByTestId('lane-could')
     .getByTestId('item-card')
@@ -307,7 +307,7 @@ test('a Director activates an item straight from its Backlog card', async ({ pag
     .getByRole('group', { name: 'Activate Improve level iteration tooling' })
     .getByRole('button', { name: 'Activate' })
     .click();
-  await expect(page.getByRole('alert')).toContainText('"Boss arena" is next in priority');
+  await expect(tooling).toContainText('On September production');
 });
 
 test('an image dropped on a Backlog card becomes its cover', async ({ page }) => {

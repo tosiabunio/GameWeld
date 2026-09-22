@@ -209,7 +209,7 @@ Intermediate columns do not receive mandatory meanings such as In Progress, Revi
 
 **Confirmed:** the Game Director selects backlog items for a Workboard. A configurable limit constrains how many items can be included. The normal selection path follows the highest-priority Must Have items.
 
-**Confirmed:** that rule is enforced for full-item activation in the MVP, and exceptions are handled through individual out-of-scope tasks. A full-item override outside the priority rule is not supported.
+**Confirmed (revised 22 September 2026):** the priority order is a suggestion, not a rule the system enforces. The Game Director respects the priorities but has some freedom in choosing items: any open item outside Won't Have may be brought into scope, within the limit. The Workboard names the next item in priority, and a Backlog card says which item that is. Won't Have items never come in as a whole; their single tasks can still come in as out-of-scope work. Before this revision, only the next item in priority could come in.
 
 Adding an item places its existing unfinished, unplaced tasks in the appropriate To Do columns. Completed tasks remain complete and are visible through Breakdown. An empty item may be selected, but cannot automatically become Ready for Review.
 
@@ -407,7 +407,7 @@ All decisions required before implementation were made at the Phase 0 kickoff an
 | D4 | Accepted work changes | Adding or reopening an unfinished task reopens the parent; the earlier acceptance stays in history. |
 | D5 | Who accepts backlog items | Directors by default; a separate acceptance permission can be granted per project, for example to a lead tester. |
 | D6 | Scope-limit counting | All included items count until they are accepted or the Director removes them from scope. Revised 2026-09-18; before, accepted items stayed until removed. |
-| D7 | Full-item activation outside the priority rule | Not supported in the MVP; individual out-of-scope tasks cover exceptions. |
+| D7 | Full-item activation outside the priority rule | Allowed: the Director may bring in any open item outside Won't Have, and the next item in priority is suggested. Revised 2026-09-22; before, only the next item could come in. |
 | D8 | New tasks under an active item | Placed automatically in their To Do column while the item is in scope (revised during testing; the original decision was explicit placement). Returned tasks are re-placed through "Add to Workboard". |
 | D9 | Dependencies | Informational item-to-item links only. |
 | D10 | Teams and projects | Teams are not implemented in the MVP; access is by project membership only. |

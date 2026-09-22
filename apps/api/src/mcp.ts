@@ -34,7 +34,7 @@ import { z, type ZodRawShape } from 'zod';
 
 const INSTRUCTIONS = `GameWeld runs the production of a game. A project has a Backlog of items, each in a MoSCoW category (must, should, could, wont). An item is broken down into tasks of three categories: code, assets, content.
 
-One Workboard per project is active. Its scope holds a few Backlog items, up to the project's scope limit, and they come in strictly by priority: only the next item (the first open item not yet in scope, by category and then by its place in the Backlog; get_workboard names it as nextEligible) can be brought in. To bring in another, the Backlog must be reprioritised first, or single tasks brought in as out-of-scope work. The tasks of items in scope are cards in its columns: a To Do column per task category, intermediate columns, and Done. A task of an item outside the scope goes on the board only through an out-of-scope request that a Game Director approves. When every task of an item is complete, the item is Ready for Review, and a Game Director (or a member allowed to) accepts it as Done.
+One Workboard per project is active. Its scope holds a few Backlog items, up to the project's scope limit, chosen by the Game Director. The choice respects the priorities without being bound by them: any open item outside Won't Have may come in, and get_workboard suggests the next one in priority (the first open item not yet in scope, by category and then by its place in the Backlog) as nextEligible. Single tasks of other items come in as out-of-scope work. The tasks of items in scope are cards in its columns: a To Do column per task category, intermediate columns, and Done. A task of an item outside the scope goes on the board only through an out-of-scope request that a Game Director approves. When every task of an item is complete, the item is Ready for Review, and a Game Director (or a member allowed to) accepts it as Done.
 
 The server enforces these rules and the member's permissions, and says why when it refuses: report the refusal rather than working around it. Every change is recorded in the project's history under the member's name and this token's name.
 
@@ -394,7 +394,7 @@ const TOOLS: Tool[] = [
     name: 'get_workboard',
     title: 'Workboard',
     description:
-      'The active Workboard, or another by id: the items in its scope, the item the priority rule would bring in next, and its columns with their cards in order.',
+      'The active Workboard, or another by id: the items in its scope, the item the priorities suggest bringing in next, and its columns with their cards in order.',
     input: {
       projectId,
       boardId: z
@@ -700,7 +700,7 @@ const TOOLS: Tool[] = [
     name: 'add_to_scope',
     title: 'Bring an item into the Workboard’s scope',
     description:
-      'Bring the next item in priority (get_workboard names it as nextEligible) into the active Workboard’s scope, within its scope limit; its tasks go to their To Do columns. Needs the Game Director role.',
+      'Bring an open item into the active Workboard’s scope, within its scope limit; its tasks go to their To Do columns. Any item outside Won’t Have may come in; the next in priority (nextEligible in get_workboard) is the usual choice, and taking another is the Game Director’s call. Needs the Game Director role.',
     writes: true,
     input: { projectId, itemId: z.string().uuid() },
     run: async (api, { projectId, itemId }) => {

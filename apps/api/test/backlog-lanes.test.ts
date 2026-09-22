@@ -103,7 +103,7 @@ describe('backlog by state and time of acceptance', () => {
   });
 
   it('lists an item once when archived Workboards kept it in their scope', async () => {
-    // A project of its own: only the next item in priority may come into scope.
+    // A project of its own, so the scope limit leaves room.
     const own = (await post('/api/projects', { name: 'Carried over' })).json<{ id: string }>().id;
     const url = `/api/projects/${own}`;
     const item = (await post(`${url}/backlog`, { title: 'Carried over', category: 'must' })).json();

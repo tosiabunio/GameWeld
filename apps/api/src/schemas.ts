@@ -420,7 +420,10 @@ export const BoardView = exact<d.BoardView>()(
         unplacedTasks: z.number().int(),
       })
       .nullable()
-      .describe('The item the priority rule would bring into scope next, if there is room.'),
+
+      .describe(
+        'The item the priorities suggest bringing into scope next, if there is room. A suggestion: any open item outside Won’t Have may come in.',
+      ),
   }),
 );
 

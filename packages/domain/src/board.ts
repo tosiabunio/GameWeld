@@ -72,7 +72,7 @@ export interface BoardView extends BoardSummary {
     unfinishedTasks: number;
     pendingRequests: number;
   };
-  /** The item the priority rule would activate next (D7), if any and if room remains. */
+  /** The item the priorities suggest activating next (D7), if any and if room remains; a suggestion. */
   nextEligible: {
     id: string;
     title: string;

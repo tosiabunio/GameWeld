@@ -83,7 +83,7 @@ tokens. The browser's session cookie works as well.
 **Projects.** Routes under \`/api/projects/{projectId}\` answer 404 to anyone who is not a member
 of the project, and 403 to a member without the permission the route names.
 
-**Changes.** Rules are enforced on the server: scope limit, priority rule, who may complete, and
+**Changes.** Rules are enforced on the server: scope limit, what may come into scope, who may complete, and
 nothing left stranded. A refused change answers 400 (invalid input), 403, 404, or 409 (the rules
 or the current state do not allow it), with \`{ "message": "…" }\` saying why, in English. Updates
 of a project, item, task, board, or column carry the \`version\` they were read at; if someone

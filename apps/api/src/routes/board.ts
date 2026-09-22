@@ -290,9 +290,9 @@ export async function fetchView(
 }
 
 /**
- * D7 / Section 8: the priority rule. The next item to activate is the highest-ranked open item in
- * Must Have, then Should Have, then Could Have, that is not already in scope. Won't Have is never
- * activated as a whole item.
+ * D7 / Section 8: the item the priorities suggest bringing in next, the highest-ranked open item in
+ * Must Have, then Should Have, then Could Have, that is not already in scope. A suggestion: the
+ * Game Director may bring in another. Won't Have is never activated as a whole item.
  */
 async function nextEligible(db: Queryable, projectId: string, boardId: string) {
   const res = await db.query<{
@@ -713,7 +713,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       id: 'addToScope',
       summary: 'Bring a Backlog item into the Workboard’s scope',
       description:
-        'Only the next item in priority may come in: the first open item not yet in scope, by category (must, should, could) and then by its place in the Backlog; Won’t Have items never do. The Workboard names it as nextEligible. Within the scope limit. Its unplaced tasks go to their To Do columns.',
+        'Any open item that is not in Won’t Have, within the scope limit. The Game Director chooses; the Workboard suggests the next item in priority as nextEligible (the first open item not yet in scope, by category and then by its place in the Backlog). Its unplaced tasks go to their To Do columns.',
       body: scopeSchema,
       response: { status: 201, schema: schema.BoardView },
     }),
@@ -726,8 +726,14 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       await withTransaction(db, async (tx) => {
         await activeBoardFor(tx, project.id, boardId);
         const item = (
-          await tx.query<{ id: string; title: string; state: ItemState; archived_at: Date | null }>(
-            'SELECT id, title, state, archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
+          await tx.query<{
+            id: string;
+            title: string;
+            category: MoscowCategory;
+            state: ItemState;
+            archived_at: Date | null;
+          }>(
+            'SELECT id, title, category, state, archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
             [project.id, parsed.data.itemId],
           )
         ).rows[0];
@@ -755,15 +761,14 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
             },
           );
         }
-        // D7: full-item activation follows the priority rule; exceptions go through individual tasks.
-        const next = await nextEligible(tx, project.id, boardId);
-        if (!next) throw conflict('No open item is eligible for activation.');
-        if (next.id !== item.id) {
+        // D7 (revised 22 September 2026): the Game Director chooses, respecting the priorities but
+        // free to take another open item than the next one. Won't Have is out, not later.
+        if (item.archived_at || item.state !== 'open') {
+          throw conflict('Only an open item can come into scope.');
+        }
+        if (item.category === 'wont') {
           throw conflict(
-            `"${next.title}" is next in priority. Activate it first, or bring individual tasks in as out-of-scope work.`,
-            {
-              nextEligible: next,
-            },
+            'A Won’t Have item does not come into scope. Move it to another category first, or bring individual tasks in as out-of-scope work.',
           );
         }
         await tx.query(
