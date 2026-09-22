@@ -34,3 +34,6 @@ test-results/
 # Design mock-ups and review screenshots produced while working on the interface
 output/
 .env.local
+
+# Instance-specific operations notes, kept out of the public repository
+docs/private/

@@ -1,12 +1,12 @@
 # Running GameWeld locally
 
-This is the only way work-in-progress builds are run until Phase 8 of the implementation plan. You do not need Docker knowledge; the commands below hide it.
+Run GameWeld on your own machine, with its sample data, to try it or to work on it. You do not need Docker knowledge; the commands below hide it. To look at it without installing anything, use the demonstration instance at [gameweld.eu](https://gameweld.eu).
 
 ## Once
 
-1. Install [OrbStack](https://orb.stack). It provides the `docker` command.
+1. Install Docker. On macOS, [OrbStack](https://orb.stack) or Docker Desktop provides the `docker` command.
 2. Install Node.js 22 or newer.
-3. Clone the repository and open a terminal in it.
+3. Clone the repository (`git clone https://github.com/tosiabunio/GameWeld.git`) and open a terminal in it.
 
 ## Every time
 

@@ -136,7 +136,7 @@ The marketplace names the plugin's zip, `/api/claude/gameweld.zip`, by its SHA-2
 the digest serves as its version: when an upgrade of the instance changes the skill, Claude Code
 sees an update. Claude Code downloads plugins only over HTTPS, so an instance on plain HTTP, such
 as one on localhost, cannot serve it; there, add this repository as the marketplace instead
-(`/plugin marketplace add tosiabunio/GameWeld`, which needs read access to it), or copy
+(`/plugin marketplace add tosiabunio/GameWeld`), or copy
 [plugins/gameweld/skills/gameweld](../plugins/gameweld/skills/gameweld) to
 `~/.claude/skills/gameweld`.
 

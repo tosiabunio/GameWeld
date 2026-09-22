@@ -14,16 +14,16 @@ it.
 
 | Data | Where it lives | Notes |
 | --- | --- | --- |
-| Database | Dokploy Postgres `gameweld-db-tiqbym`, database `gameweld` | Projects, backlog, tasks, boards, history, users |
+| Database | Dokploy Postgres, database `gameweld` | Projects, backlog, tasks, boards, history, users |
 | Attachments and pictures | Docker volume `gameweld-attachments` (`/data/attachments`) | Originals are needed; cover renditions (`*.cover-*`) are regenerated on request |
 | Dokploy's own configuration | Dokploy's internal database | Application, domains, environment, registry credentials |
-| Server setup | The VPS | Rebuildable from [deployment.md](deployment.md): Docker, Dokploy, `ufw`, the panel firewall unit, the `deploy` user |
+| Server setup | The VPS | Rebuildable from the operator's notes: Docker, Dokploy, the firewall, the `deploy` user |
 
 ## The plan
 
 ### 1. Off-site copies of the data, made by Dokploy (the core)
 
-Dokploy v0.30.7 on the server schedules both kinds of backup to S3-compatible storage, with a
+Dokploy schedules both kinds of backup to S3-compatible storage, with a
 retention count and failure notifications.
 
 | What | Schedule | Keep |
