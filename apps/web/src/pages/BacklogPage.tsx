@@ -148,9 +148,9 @@ export function BacklogPage() {
 
   return (
     <div data-testid="backlog">
-      <header className="page-head row between">
-        <div>
-          <p className="eyebrow">{t('Production scope')}</p>
+      {/* One line, so that the lanes get the height: the title, its figures, and the controls. */}
+      <header className="lanes-head">
+        <div className="lanes-head-title">
           <h1>{t('Backlog')}</h1>
           <p className="muted small">
             {/* English says "items" whatever the count; other languages take the form they need. */}

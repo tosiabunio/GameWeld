@@ -237,9 +237,8 @@ function BoardHeader({
   const boardItems = useMemo(() => boardItemsOf(board), [board]);
   const c = board.counts;
   return (
-    <header className="board-header">
-      <div>
-        <p className="eyebrow">{t('Workboard')}</p>
+    <header className="lanes-head board-header">
+      <div className="lanes-head-title">
         {renaming ? (
           <form
             className="add-item"
@@ -312,7 +311,7 @@ function BoardHeader({
           )}
         </div>
       </div>
-      <div className="row">
+      <div className="row page-controls">
         <CardFilterControls
           projectId={project.id}
           people={project.members}

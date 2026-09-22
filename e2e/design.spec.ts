@@ -25,6 +25,18 @@ test('production views use the window width and only collapse columns on request
   expect(layout.width).toBe(1920);
   expect(layout.rows).toBe(1);
 
+  // The head of the Backlog, and of the Workboard, is one line: the title, its figures, and the
+  // controls. The lanes get the height.
+  const headHeight = () =>
+    page.evaluate(() => document.querySelector('.lanes-head')!.getBoundingClientRect().height);
+  expect(await headHeight()).toBeLessThan(50);
+  const projectId = page.url().match(/projects\/([0-9a-f-]+)/)![1];
+  await page.request.post(`/api/projects/${projectId}/boards`, { data: { name: 'Sprint 1' } });
+  await page.getByRole('link', { name: 'Workboard', exact: true }).click();
+  await expect(page.getByTestId('board-counts')).toBeVisible();
+  expect(await headHeight()).toBeLessThan(50);
+  await page.getByRole('link', { name: 'Backlog', exact: true }).click();
+
   // Lanes, and so their cards, keep to a range of widths: on a very wide window they stop
   // growing, stay on the left, and leave the rest of the row empty.
   const laneWidths = () =>
@@ -89,6 +101,8 @@ test('production views use the window width and only collapse columns on request
       }),
     )
     .toBeLessThan(24);
+  // On a phone the figures take a second line under the title and the controls.
+  expect(await headHeight()).toBeLessThan(90);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

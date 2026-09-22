@@ -861,6 +861,75 @@ input[type='file']::file-selector-button:hover {
   margin: 0;
   font-size: 1.5rem;
 }
+/* The Backlog's and the Workboard's head is one line, so that the lanes get the height: the
+   title and its figures, then the controls. Where they do not fit, the figures go under the
+   title and the controls keep the first line; an open confirmation takes a line of its own. */
+.page:has(.lanes-head) {
+  padding-top: 16px;
+}
+.lanes-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.lanes-head-title {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  min-height: 34px;
+}
+.lanes-head h1,
+.lanes-head h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 34px;
+}
+.lanes-head-title > p {
+  margin: 0;
+}
+.lanes-head:has(.confirm) {
+  flex-wrap: wrap;
+}
+.lanes-head:has(.confirm) > .page-controls {
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+/* On a phone the title shares its line with the controls, and the figures take the whole next
+   one; the search field, out, takes a line of its own after them. */
+@media (max-width: 560px) {
+  .lanes-head {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .lanes-head-title {
+    display: contents;
+  }
+  .lanes-head-title > h1,
+  .lanes-head-title > h2,
+  .lanes-head-title > form {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .lanes-head > .page-controls {
+    order: 1;
+  }
+  .lanes-head-title > :not(h1, h2, form) {
+    order: 2;
+    flex-basis: 100%;
+  }
+  .lanes-head:has(.header-search) > .page-controls {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .lanes-head .board-counts {
+    gap: 6px;
+  }
+}
 @media (max-width: 760px) {
   .page {
     padding: 20px 16px 40px;
@@ -2111,56 +2180,7 @@ progress::-moz-progress-bar {
   text-align: center;
 }
 
-/* Workboard header and scope */
-.board-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.board-header h2 {
-  margin: 0 0 8px;
-  font-size: 1.5rem;
-}
-/* The action menu sits in the corner; an open confirmation takes a row of its own instead. */
-.board-header:not(:has(.confirm)) {
-  position: relative;
-  padding-right: 216px;
-}
-.board-header:not(:has(.confirm)):has(.header-search) {
-  padding-right: 424px;
-}
-/* On a phone the controls share the line of the small label above the name, and the name gets
-   the whole width. */
-@media (max-width: 560px) {
-  .board-header:not(:has(.confirm)) {
-    padding-right: 0;
-  }
-  .board-header:not(:has(.confirm)) .eyebrow {
-    min-height: 32px;
-    padding-right: 152px;
-    line-height: 32px;
-  }
-  /* The search field, out, takes the label's line whole. */
-  .board-header:not(:has(.confirm)):has(.header-search) {
-    padding-right: 0;
-  }
-  .board-header:has(.header-search) .eyebrow {
-    visibility: hidden;
-  }
-  .board-header:not(:has(.confirm)):has(.header-search) > .row {
-    left: 0;
-  }
-}
-.board-header:not(:has(.confirm)) > .row {
-  position: absolute;
-  top: 0;
-  right: 0;
-  flex-wrap: nowrap;
-  gap: 4px;
-}
+/* Workboard header and scope (the head itself is .lanes-head) */
 .board-counts {
   display: flex;
   gap: 8px 16px;

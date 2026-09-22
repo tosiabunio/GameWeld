@@ -3,7 +3,6 @@ import type { PluralForms } from '../index.ts';
 /** Polish: the Backlog, the Breakdown with its review and dependencies, My tasks, and the lanes. */
 export const texts: Record<string, string> = {
   // Backlog
-  'Production scope': 'Zakres produkcji',
   '{items} · {count} on the Workboard': '{items} · {count} na Tablicy',
   'Open {title} in the Breakdown': 'Otwórz „{title}” w Podziale',
   'Open in the Breakdown': 'Otwórz w Podziale',
