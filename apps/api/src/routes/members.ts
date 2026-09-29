@@ -10,6 +10,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Queryable } from '../db.ts';
+import { isPersonaEmail } from '../demo.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
 import * as schema from '../schemas.ts';
 
@@ -90,6 +91,67 @@ export async function projectInvitations(
   }));
 }
 
+/**
+ * Adds someone to a project by address. Someone who has signed in before becomes a member now;
+ * anyone else gets an invitation, which their first sign-in with that address turns into a
+ * membership. A demo project takes only the personas, and a team project never takes one.
+ */
+export async function addMember(
+  tx: Queryable,
+  m: {
+    projectId: string;
+    demo: boolean;
+    email: string;
+    roles: ProjectRole[];
+    canAccept: boolean;
+    actorId: string;
+  },
+): Promise<{ member: ProjectMember } | { invitation: ProjectInvitation }> {
+  const { projectId, email, roles, canAccept, actorId } = m;
+  if (m.demo && !isPersonaEmail(email))
+    throw badRequest('A demo project takes only the demo personas.');
+  if (!m.demo && isPersonaEmail(email))
+    throw badRequest('The demo personas cannot join a team project.');
+  const user = await tx.query<{ id: string }>(
+    'SELECT id FROM users WHERE lower(email) = $1 ORDER BY created_at LIMIT 1',
+    [email],
+  );
+  const userId = user.rows[0]?.id;
+  if (!userId) {
+    const invited = await tx.query<{ id: string }>(
+      `INSERT INTO project_invitations (project_id, email, roles, can_accept, invited_by)
+       VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id`,
+      [projectId, email, roles, canAccept, actorId],
+    );
+    const invitationId = invited.rows[0]?.id;
+    if (!invitationId) throw conflict('That address is already invited.');
+    await recordActivity(tx, {
+      projectId,
+      actorId,
+      action: 'member.invited',
+      entityType: 'invitation',
+      entityId: invitationId,
+      next: { email, roles, canAccept },
+    });
+    return { invitation: (await projectInvitations(tx, projectId, invitationId))[0]! };
+  }
+  const inserted = await tx.query(
+    `INSERT INTO project_memberships (project_id, user_id, roles, can_accept)
+     VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+    [projectId, userId, roles, canAccept],
+  );
+  if (!inserted.rowCount) throw conflict('That user is already a member.');
+  await recordActivity(tx, {
+    projectId,
+    actorId,
+    action: 'member.added',
+    entityType: 'user',
+    entityId: userId,
+    next: { roles, canAccept },
+  });
+  return { member: (await memberById(tx, projectId, userId))! };
+}
+
 /** A project must always keep at least one Game Director. */
 async function assertDirectorRemains(
   tx: Queryable,
@@ -125,48 +187,16 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
       const { email, roles, canAccept } = parsed.data;
       const projectId = req.access!.project.id;
 
-      // Someone who has signed in before becomes a member now (201). Anyone else gets an
-      // invitation (202), which their first sign-in with that address turns into a membership.
-      const result = await withTransaction(db, async (tx) => {
-        const user = await tx.query<{ id: string }>(
-          'SELECT id FROM users WHERE lower(email) = $1 ORDER BY created_at LIMIT 1',
-          [email],
-        );
-        const userId = user.rows[0]?.id;
-        if (!userId) {
-          const invited = await tx.query<{ id: string }>(
-            `INSERT INTO project_invitations (project_id, email, roles, can_accept, invited_by)
-             VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id`,
-            [projectId, email, roles, canAccept, req.user!.id],
-          );
-          const invitationId = invited.rows[0]?.id;
-          if (!invitationId) throw conflict('That address is already invited.');
-          await recordActivity(tx, {
-            projectId,
-            actorId: req.user!.id,
-            action: 'member.invited',
-            entityType: 'invitation',
-            entityId: invitationId,
-            next: { email, roles, canAccept },
-          });
-          return { invitation: (await projectInvitations(tx, projectId, invitationId))[0]! };
-        }
-        const inserted = await tx.query(
-          `INSERT INTO project_memberships (project_id, user_id, roles, can_accept)
-           VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-          [projectId, userId, roles, canAccept],
-        );
-        if (!inserted.rowCount) throw conflict('That user is already a member.');
-        await recordActivity(tx, {
+      const result = await withTransaction(db, (tx) =>
+        addMember(tx, {
           projectId,
+          demo: req.access!.project.demo,
+          email,
+          roles,
+          canAccept,
           actorId: req.user!.id,
-          action: 'member.added',
-          entityType: 'user',
-          entityId: userId,
-          next: { roles, canAccept },
-        });
-        return { member: (await memberById(tx, projectId, userId))! };
-      });
+        }),
+      );
       return 'member' in result
         ? reply.status(201).send(result.member)
         : reply.status(202).send(result.invitation);

@@ -95,7 +95,8 @@ for the current folder only. Another client needs the same two things: the addre
 
 What the tools do:
 
-- **Read:** your projects and their members, the project's overview (its figures and every item's
+- **Read:** your projects and their members (and, on a demonstration instance, when its data next
+  goes back to the samples), the project's overview (its figures and every item's
   progress, as the Overview page shows them), the Backlog (with the Done items accepted in the
   last 30 days, or since a date you give, and a count of the older ones), an item with its
   breakdown, a task, the Workboard with its scope and columns, "My tasks", what waits for your

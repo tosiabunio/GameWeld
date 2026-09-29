@@ -71,6 +71,7 @@ export const CurrentUser = exact<d.CurrentUser>()(
     isAdmin: z.boolean(),
     provider: z.string(),
     avatarUrl: z.string().nullable(),
+    mayCreateProjects: z.boolean(),
   }),
 );
 
@@ -154,6 +155,9 @@ export const AuthProviders = exact<d.AuthProviders>()(
       ),
     }),
     oidc: z.array(z.object({ id: z.string(), label: z.string() })),
+    demoReset: z
+      .object({ everyHours: z.number().int().positive(), nextAt: timestamp() })
+      .nullable(),
   }),
 );
 

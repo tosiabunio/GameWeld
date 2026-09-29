@@ -3,7 +3,7 @@ import { ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api.ts';
 import { Avatar, Logo } from '../components/Brand.tsx';
-import { t } from '../i18n/index.ts';
+import { t, tp } from '../i18n/index.ts';
 import { useSession } from '../session.tsx';
 
 /**
@@ -92,7 +92,9 @@ export function SignInPage() {
           <section aria-labelledby="persona-heading">
             <h2 id="persona-heading">{t('Sign in as')}</h2>
             <p className="muted">
-              {t('Mock sign-in is enabled for local development. Pick a persona.')}
+              {providers.oidc.length > 0
+                ? t('Or try the demo as one of its personas. Anyone can, so enter nothing private.')
+                : t('Mock sign-in is enabled for local development. Pick a persona.')}
             </p>
             <ul className="persona-list">
               {providers.mock.personas.map((p) => (
@@ -118,6 +120,18 @@ export function SignInPage() {
           <p>{t('No sign-in provider is configured for this instance.')}</p>
         ) : providers ? null : (
           <p>{t('Loading…')}</p>
+        )}
+        {providers?.demoReset && (
+          <p className="muted" data-testid="demo-reset">
+            {t(
+              'This is a demonstration. Everything here goes back to the sample data every {count} {hours}; next at {time}.',
+              {
+                count: providers.demoReset.everyHours,
+                hours: tp(providers.demoReset.everyHours, 'hour'),
+                time: new Date(providers.demoReset.nextAt).toLocaleString(),
+              },
+            )}
+          </p>
         )}
         <p className="auth-foot">
           <a href="/method">{t('How GameWeld works: the method')}</a>

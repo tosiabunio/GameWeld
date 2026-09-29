@@ -27,7 +27,10 @@ initial admin. After that, everyone is invited from inside GameWeld.
   offers Google's account chooser each time.
 - **`INITIAL_ADMIN_EMAIL` gets in without an invitation.** That account becomes admin as long as the
   instance has no admin. Its first job is to create a project and invite the team. Any signed-in
-  user may create projects.
+  user may create projects, unless `PROJECT_CREATORS=admins`: then only admins may, and an admin
+  can create one for its Game Director (their address under **New project**) without joining it.
+  An instance can also keep the open demo beside the teams
+  ([deployment.md](deployment.md#the-demo-beside-teams)).
 
 Two limits to know:
 

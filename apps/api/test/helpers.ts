@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { buildApp, createContext, type AppContext } from '../src/app.ts';
+import { createSession, SESSION_COOKIE } from '../src/auth.ts';
 import { loadConfig, type Config } from '../src/config.ts';
 import { createPool, type Db } from '../src/db.ts';
 import { seedDemo } from '../src/seed.ts';
@@ -65,4 +67,27 @@ export function multipart(fileName: string, contentType: string, content: Buffer
     Buffer.from(`\r\n--${boundary}--\r\n`),
   ]);
   return { headers: { 'content-type': `multipart/form-data; boundary=${boundary}` }, body };
+}
+
+/**
+ * Someone of a team, as if signed in with Google: an account and a session, without going through
+ * the provider (google-sign-in.test.ts does that). Their projects are team projects, which the
+ * personas cannot join.
+ */
+export async function signInAsTeamMember(
+  t: Pick<TestContext, 'db'>,
+  email: string,
+  { admin = false } = {},
+): Promise<{ id: string; cookie: string }> {
+  const user = await t.db.query<{ id: string }>(
+    'INSERT INTO users (display_name, email, is_admin) VALUES ($1, $2, $3) RETURNING id',
+    [email.split('@')[0], email, admin],
+  );
+  const id = user.rows[0]!.id;
+  await t.db.query(
+    `INSERT INTO identities (provider, subject, user_id, email) VALUES ('google', $1, $2, $3)`,
+    [randomUUID(), id, email],
+  );
+  const session = await createSession(t.db, id, 60 * 60 * 1000);
+  return { id, cookie: `${SESSION_COOKIE}=${session.token}` };
 }

@@ -2,6 +2,7 @@ import {
   MOSCOW_CATEGORIES,
   TASK_CATEGORIES,
   type ActivityEntry,
+  type AuthProviders,
   type BacklogItem,
   type BacklogItemDetail,
   type BoardSummary,
@@ -216,15 +217,18 @@ const TOOLS: Tool[] = [
   tool({
     name: 'list_projects',
     title: 'Projects',
-    description: 'You, and the projects you are a member of, with your roles in each.',
+    description:
+      'You, and the projects you are a member of, with your roles in each. On a demonstration instance, also when its data next goes back to the sample data, losing what was made.',
     input: {},
     run: async (api) => {
-      const [me, projects] = await Promise.all([
+      const [me, projects, instance] = await Promise.all([
         api.get<CurrentUser>('/me'),
         api.get<ProjectSummary[]>('/projects'),
+        api.get<AuthProviders>('/auth/providers'),
       ]);
       return {
         me: { id: me.id, name: me.displayName },
+        ...(instance.demoReset ? { demoResetAt: instance.demoReset.nextAt } : {}),
         projects: projects.map((p) => ({
           id: p.id,
           name: p.name,

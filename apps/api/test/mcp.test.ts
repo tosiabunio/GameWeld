@@ -95,6 +95,7 @@ describe('the MCP server', () => {
     expect(tools.map((x) => x.name).sort()).toEqual([...MCP_TOOLS.read].sort());
     const projects = await call(client, 'list_projects');
     expect(projects.me.name).toBe('Devin Developer');
+    expect(projects.demoResetAt).toBeUndefined();
     expect(projects.projects.map((p: Json) => p.name)).toContain('Assisted');
   });
 

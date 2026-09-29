@@ -29,15 +29,12 @@ test('a Director creates a project, changes settings, and manages members', asyn
   await expect(tester.getByLabel('Tess Tester is Developer')).toBeChecked();
   await expect(tester.getByLabel('Tess Tester is Tester')).toBeChecked();
 
-  // Someone who has never signed in is invited, listed as pending, and can be uninvited.
+  // A persona's project is a demo project, so it takes only personas: nobody gets into the
+  // instance through an invitation from the demo. Invitations to team projects are covered by
+  // the API tests, since the browser tests sign in only as personas.
   await add.getByLabel('Email').fill('new.artist@example.com');
   await add.getByRole('button', { name: 'Add member' }).click();
-  await expect(add.getByRole('status')).toContainText('new.artist@example.com is invited');
-  const invitation = page.getByTestId('invitation-new.artist@example.com');
-  await expect(invitation).toContainText('Developer');
-  await invitation
-    .getByRole('button', { name: 'Cancel the invitation for new.artist@example.com' })
-    .click();
+  await expect(page.getByText('A demo project takes only the demo personas.')).toBeVisible();
   await expect(page.getByTestId('invitations-table')).toHaveCount(0);
 
   // A member keeps at least one role, and the last Director cannot step down.

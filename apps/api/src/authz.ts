@@ -20,6 +20,8 @@ export interface ProjectRow {
   scope_limit: number;
   archived_at: Date | null;
   version: number;
+  /** A demo project, which takes only personas and goes with a demo reset. */
+  demo: boolean;
 }
 
 export interface ProjectAccess {
@@ -48,7 +50,7 @@ export async function loadAccess(
   if (!/^[0-9a-f-]{36}$/i.test(projectId)) return null;
   const res = await db.query<ProjectRow & { roles: ProjectRole[]; can_accept: boolean }>(
     `SELECT p.id, p.name, p.description, p.done_restricted, p.scope_limit, p.archived_at, p.version,
-            m.roles::text[] AS roles, m.can_accept
+            p.demo, m.roles::text[] AS roles, m.can_accept
        FROM projects p
        JOIN project_memberships m ON m.project_id = p.id AND m.user_id = $2
       WHERE p.id = $1`,

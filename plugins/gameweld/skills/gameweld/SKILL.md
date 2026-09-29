@@ -50,7 +50,9 @@ follow it.
 **Find the project first.** Call `list_projects`. With one project, use it; with several, match
 the user's words to a name, or ask. `get_project` gives the members (with ids), labels, the
 active Workboard, and in `youMay` what the user may do. For "how are we doing" questions,
-`get_overview` gives the figures and every item's progress in one call.
+`get_overview` gives the figures and every item's progress in one call. When `list_projects`
+returns `demoResetAt`, the instance is a demonstration whose data is replaced then: tell the user
+before doing work there that they would want to keep.
 
 **Read before you change, and take ids from what you read.** Never guess an id or a column
 name. Updates of items and tasks carry a version; if you read something a while ago and the

@@ -7,6 +7,8 @@ import type { CustomFetch } from 'openid-client';
 import { registerAuth } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
+import { isPersona } from './demo.ts';
+import { DemoReset } from './demoReset.ts';
 import { LiveHub } from './live.ts';
 import { ApiDescription, checkResponses, publicRoute } from './openapi.ts';
 import { requestContext } from './requestContext.ts';
@@ -42,6 +44,8 @@ export interface AppContext {
   db: Db;
   storage: Storage;
   live: LiveHub;
+  /** Brings a demonstration instance back to its sample data; null unless DEMO_RESET_HOURS. */
+  demoReset: DemoReset | null;
   /** Replaces the network for sign-in providers in tests. */
   oidcFetch?: CustomFetch;
 }
@@ -59,6 +63,10 @@ export function createContext(
     live: new LiveHub(config.databaseUrl, db, (message, error) =>
       console.error(message, error ?? ''),
     ),
+    demoReset:
+      config.demoResetHours === null
+        ? null
+        : new DemoReset(db, config.attachmentsDir, config.demoResetHours, console.log),
   };
 }
 
@@ -89,7 +97,10 @@ export async function buildApp(
     requestContext.run({ clientId, token: null }, done);
   });
   // Before the server waits for requests in flight: a stream is one, and never ends by itself.
-  app.addHook('preClose', () => ctx.live.stop());
+  app.addHook('preClose', () => {
+    ctx.demoReset?.stop();
+    ctx.live.stop();
+  });
   const description = new ApiDescription();
   description.collect(app);
   // The test suite holds every response to the description of its route.
@@ -137,6 +148,18 @@ export async function buildApp(
 
   // Not a group of its own: it signs in every request, and its routes name their own tag.
   await registerAuth(app);
+  // While the demo goes back to its sample data, personas and persona sign-ins from outside the
+  // server are turned away; the scripts that make the data come from the server itself. Teams
+  // carry on.
+  app.addHook('onRequest', async (req, reply) => {
+    if (!ctx.demoReset?.resetting) return;
+    if (['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')) return;
+    if (req.url !== '/api/auth/mock/sign-in' && !(req.user && isPersona(req.user))) return;
+    return reply
+      .status(503)
+      .header('retry-after', '60')
+      .send({ message: 'The demo is going back to its sample data. Try again in a minute.' });
+  });
   app.decorateRequest('access', null);
   // Each group of routes, and the name the API's description lists it under.
   const groups: [FastifyPluginAsync, string][] = [

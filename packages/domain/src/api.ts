@@ -11,6 +11,8 @@ export interface CurrentUser {
   provider: string;
   /** The user's own picture, or null to show initials. */
   avatarUrl: string | null;
+  /** Whether they may create a project (a persona's is a demo project). */
+  mayCreateProjects: boolean;
 }
 
 /**
@@ -83,6 +85,11 @@ export interface ProjectDetail extends ProjectSummary {
 
 export interface CreateProjectInput {
   name: string;
+  /**
+   * Admins only: the address of the project's first Game Director, added or invited, instead of
+   * the admin, who does not become a member.
+   */
+  directorEmail?: string;
   description?: string;
   doneRestricted?: boolean;
   scopeLimit?: number;
@@ -116,6 +123,8 @@ export interface AuthProviders {
   };
   /** OpenID Connect providers; each signs in by navigating to `/api/auth/<id>/start`. */
   oidc: { id: string; label: string }[];
+  /** On a demonstration instance, how often its data goes back to the sample data, and when next. */
+  demoReset: { everyHours: number; nextAt: string } | null;
 }
 
 /** Why a sign-in through a provider did not get in, as `?auth_error=` on the sign-in page. */

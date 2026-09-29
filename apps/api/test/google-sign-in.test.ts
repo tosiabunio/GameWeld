@@ -1,7 +1,7 @@
 import { generateKeyPairSync, randomUUID, sign, type KeyObject } from 'node:crypto';
 import type { CustomFetch } from 'openid-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signInAs, startApp, type TestContext } from './helpers.ts';
+import { signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
 
 /**
  * Google sign-in (T1) against a stand-in for Google: its discovery document, token endpoint, and
@@ -107,7 +107,7 @@ describe('Google sign-in (T1)', () => {
       },
       { oidcFetch: google.fetch },
     );
-    director = await signInAs(t.app, 'director');
+    director = (await signInAsTeamMember(t, `lead-${run}@example.com`)).cookie;
     const created = await t.app.inject({
       method: 'POST',
       url: '/api/projects',
@@ -183,7 +183,7 @@ describe('Google sign-in (T1)', () => {
     expect(invited.json()).toMatchObject({
       email,
       roles: ['developer'],
-      invitedBy: 'Dana Director',
+      invitedBy: `lead-${run}`,
     });
 
     // Any Google account: the address is not on any particular domain.
@@ -212,8 +212,8 @@ describe('Google sign-in (T1)', () => {
       [projectId],
     );
     expect(history.rows).toEqual([
-      { action: 'member.invited', actor: 'Dana Director' },
-      { action: 'member.added', actor: 'Dana Director' },
+      { action: 'member.invited', actor: `lead-${run}` },
+      { action: 'member.added', actor: `lead-${run}` },
     ]);
   });
 
@@ -240,7 +240,6 @@ describe('Google sign-in (T1)', () => {
     await t.db.query('UPDATE users SET is_admin = false');
     const res = await signIn({ sub: `owner-${run}`, email: address('owner') });
     expect(await me(res.cookie!)).toMatchObject({ email: address('owner'), isAdmin: true });
-    await t.db.query(`UPDATE users SET is_admin = true WHERE email = 'director@gameweld.local'`);
   });
 
   it('sends a cancelled sign-in back quietly', async () => {

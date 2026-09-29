@@ -47,6 +47,39 @@ ATTACHMENTS_DIR=/data/attachments
 Director. To close it, follow [google-sign-in.md](google-sign-in.md): set `APP_ENV=production`,
 the Google settings, and `PUBLIC_URL`, and drop `AUTH_MOCK` and `SEED_DEMO`.
 
+### The demo beside teams
+
+One instance can hold both: the open demo, and teams who sign in with Google and see only their
+own projects. Add the Google settings from [google-sign-in.md](google-sign-in.md) to the
+demonstration environment, and let only admins start team projects:
+
+```sh
+PUBLIC_URL=https://gameweld.example.com
+GOOGLE_CLIENT_ID=…
+GOOGLE_CLIENT_SECRET=…
+INITIAL_ADMIN_EMAIL=you@example.com
+PROJECT_CREATORS=admins   # only admins start team projects; the default is everyone signed in
+```
+
+The sign-in page then offers Google above the personas. The two never mix:
+
+- **A project a persona creates is a demo project,** as are the seeded ones. It takes only
+  personas as members, so nobody gets into the instance through an invitation from the demo.
+- **A team project never takes a persona,** so no visitor can see into it. Its members see each
+  other in the member picker, and nobody else.
+- **The admin starts a team project for its Game Director:** **New project**, with the director's
+  address. They are added, or invited if they have not signed in yet, and the admin does not join
+  the project. The director then invites the team (**Project settings → Members**). Leaving the
+  address empty makes the admin its Game Director instead.
+- **No persona is an admin,** so the account with `INITIAL_ADMIN_EMAIL` becomes one at its first
+  sign-in.
+- **A demo reset** (below) replaces the demo projects and the personas, and nothing else.
+
+Session cookies are marked `Secure` whenever `PUBLIC_URL` is HTTPS.
+
+Once teams keep their work on an instance, it holds data worth keeping: set up the backups in
+[backup-plan.md](backup-plan.md) first.
+
 ## gameweld.eu
 
 gameweld.eu is a development and demonstration instance for showing GameWeld to prospective
@@ -59,7 +92,7 @@ Dokploy panel is not exposed to the internet, and the firewall admits only SSH, 
 
 ## Sample data
 
-The demo seed creates the Demo project only when the database is empty.
+The demo seed creates the personas and the Demo project when there are no personas yet.
 `scripts/populate-demo.mjs` then fills it out: backlog items across every lane, tasks with
 assignees, board progress (a fuller scope, tasks in each column, one item accepted), comments,
 and pictures drawn in the script, through the API as the demo personas. Existing items are
@@ -86,6 +119,33 @@ psql <database URL> -v ON_ERROR_STOP=1 -q < lanternfall.sql
 
 Locally, the second step is
 `docker compose exec -T db psql -U gameweld -d gameweld -v ON_ERROR_STOP=1 -q < lanternfall.sql`.
+
+## Resetting to the sample data
+
+Visitors change the demo, so it can go back to its sample data on a schedule. Set
+`DEMO_RESET_HOURS` beside the demonstration environment above:
+
+```sh
+DEMO_RESET_HOURS=24  # back to the sample data every 24 hours
+```
+
+Resets fall on whole multiples of the interval counted from midnight UTC, whenever the
+application was started: `24` is every midnight UTC, `6` is 00:00, 06:00, 12:00, and 18:00 UTC.
+It must be a whole number of hours, it needs `SEED_DEMO=true` and `AUTH_MOCK=true`, and a
+production configuration that sets it is refused at startup.
+
+At each reset the application itself deletes the demo projects and the personas, with their
+attachment files and pictures, seeds, runs `scripts/populate-demo.mjs` and
+`scripts/populate-large.mjs` against itself, and applies Lanternfall's SQL, so the demo ends up
+as the steps above leave it. Team projects and their people are not touched. It takes about ten
+seconds. Meanwhile the API answers personas and persona sign-ins from outside the container
+with 503 and `Retry-After`, while teams carry on; persona sessions end with the personas, so
+visitors pick one again afterwards. A reset that fails is logged (`demo reset failed`), and the
+next one is still attempted on time.
+
+The sign-in page tells visitors how often the data is reset and when next, and the MCP tool
+`list_projects` returns the time as `demoResetAt`, so an assistant can warn before work that
+would be lost. Locally, `DEMO_RESET_HOURS=1 make up` tries it.
 
 ## Continuous deployment
 

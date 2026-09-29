@@ -3,12 +3,15 @@ import { ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../api.ts';
+import { useSession } from '../session.tsx';
 import { t, tp } from '../i18n/index.ts';
 import { Shell } from './Shell.tsx';
 
 export function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const { session } = useSession();
+  const mayCreate = session.state === 'signed-in' && session.user.mayCreateProjects;
 
   useEffect(() => {
     setProjects(null);
@@ -23,9 +26,11 @@ export function ProjectsPage() {
           <button type="button" className="link" onClick={() => setShowArchived((v) => !v)}>
             {showArchived ? t('Show active') : t('Show archived')}
           </button>
-          <Link className="button primary" to="/projects/new">
-            {t('New project')}
-          </Link>
+          {mayCreate && (
+            <Link className="button primary" to="/projects/new">
+              {t('New project')}
+            </Link>
+          )}
         </div>
       </div>
       {projects === null ? (
@@ -34,7 +39,13 @@ export function ProjectsPage() {
         <p className="muted">
           {showArchived
             ? t('No archived projects.')
-            : t('You are not a member of any project yet. Create one to become its Game Director.')}
+            : mayCreate
+              ? t(
+                  'You are not a member of any project yet. Create one to become its Game Director.',
+                )
+              : t(
+                  'You are not a member of any project yet. Your Game Director adds you to your team’s project.',
+                )}
         </p>
       ) : (
         <ul className="card-list project-grid">

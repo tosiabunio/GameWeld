@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runAdmin } from '../src/admin.ts';
-import { signInAs, startApp, type TestContext } from './helpers.ts';
+import { signInAs, signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
 
 describe('admin recovery commands', () => {
   let t: TestContext;
@@ -14,11 +14,11 @@ describe('admin recovery commands', () => {
 
   beforeAll(async () => {
     t = await startApp();
-    const director = await signInAs(t.app, 'director');
+    const director = await signInAsTeamMember(t, `lead-${randomUUID().slice(0, 8)}@example.com`);
     const created = await t.app.inject({
       method: 'POST',
       url: '/api/projects',
-      headers: { cookie: director },
+      headers: { cookie: director.cookie },
       payload: { name: `Recovery ${randomUUID().slice(0, 8)}` },
     });
     projectId = created.json().id;
@@ -38,17 +38,32 @@ describe('admin recovery commands', () => {
   });
 
   it('makes an existing account a Game Director, keeping its other roles', async () => {
-    const tester = await signInAs(t.app, 'tester');
-    await admin('add-director', 'tester@gameweld.local', projectId);
+    const email = `second-${randomUUID().slice(0, 8)}@example.com`;
+    const second = await signInAsTeamMember(t, email);
+    await admin('add-director', email, projectId);
     expect(lines[0]).toMatch(/now a Game Director/);
     const res = await t.app.inject({
       method: 'GET',
       url: `/api/projects/${projectId}`,
-      headers: { cookie: tester },
+      headers: { cookie: second.cookie },
     });
     expect(res.json().roles).toEqual(['director']);
-    await admin('add-director', 'tester@gameweld.local', projectId);
+    await admin('add-director', email, projectId);
     expect(lines[0]).toMatch(/already/);
+  });
+
+  it('keeps the personas and the demo projects apart from team projects', async () => {
+    await expect(admin('add-director', 'tester@gameweld.local', projectId)).rejects.toThrow(
+      /apart/,
+    );
+    const persona = await signInAs(t.app, 'director');
+    const demo = await t.app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: { cookie: persona },
+      payload: { name: 'A demo one' },
+    });
+    await expect(admin('add-director', 'x@example.com', demo.json().id)).rejects.toThrow(/apart/);
   });
 
   it('invites someone who has not signed in as Game Director', async () => {

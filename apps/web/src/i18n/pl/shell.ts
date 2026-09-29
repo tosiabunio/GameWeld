@@ -18,6 +18,8 @@ export const texts: Record<string, string> = {
   'Sign in as': 'Zaloguj się jako',
   'Mock sign-in is enabled for local development. Pick a persona.':
     'Logowanie próbne jest włączone na potrzeby lokalnego rozwoju. Wybierz personę.',
+  'Or try the demo as one of its personas. Anyone can, so enter nothing private.':
+    'Albo wypróbuj demo jako jedna z jego person. Może to zrobić każdy, więc nie wpisuj niczego prywatnego.',
   'Sign in': 'Logowanie',
   'Sign in with {provider}': 'Zaloguj się przez: {provider}',
   'GameWeld is by invitation. Use the address you were invited with.':
@@ -34,6 +36,8 @@ export const texts: Record<string, string> = {
     'Dostawca logowania jest teraz nieosiągalny. Spróbuj ponownie za chwilę.',
   'No sign-in provider is configured for this instance.':
     'W tej instancji nie skonfigurowano żadnego sposobu logowania.',
+  'This is a demonstration. Everything here goes back to the sample data every {count} {hours}; next at {time}.':
+    'To jest demonstracja. Wszystko tutaj wraca do danych przykładowych co {count} {hours}; następnym razem: {time}.',
 
   // Projects
   Projects: 'Projekty',
@@ -44,6 +48,8 @@ export const texts: Record<string, string> = {
   'No archived projects.': 'Brak zarchiwizowanych projektów.',
   'You are not a member of any project yet. Create one to become its Game Director.':
     'Nie należysz jeszcze do żadnego projektu. Utwórz projekt, aby zostać jego Dyrektorem gry.',
+  'You are not a member of any project yet. Your Game Director adds you to your team’s project.':
+    'Nie należysz jeszcze do żadnego projektu. Do projektu zespołu dodaje cię jego Dyrektor gry.',
   'Your roles: {roles}': 'Twoje role: {roles}',
   'scope limit {limit}': 'limit zakresu {limit}',
   'Done restricted to Testers': '„Gotowe” tylko dla Testerów',
@@ -52,6 +58,13 @@ export const texts: Record<string, string> = {
   'Could not create the project': 'Nie udało się utworzyć projektu',
   "You become the project's Game Director. Settings can be changed later.":
     'Zostajesz Dyrektorem gry tego projektu. Ustawienia można zmienić później.',
+  'Name its Game Director to create it for them: they are added, or invited if they have not signed in yet, and you do not join it. Leave it empty to lead it yourself.':
+    'Podaj Dyrektora gry, aby utworzyć projekt dla niego: zostanie dodany albo zaproszony, jeśli jeszcze się nie logował, a ty nie dołączasz do projektu. Zostaw puste, aby prowadzić go samodzielnie.',
+  'As a persona you make a demo project, which the demo’s next reset removes.':
+    'Jako persona tworzysz projekt demo, który usunie najbliższy reset demo.',
+  'Game Director’s e-mail': 'E-mail Dyrektora gry',
+  '{project} is created, with {email} as its Game Director.':
+    'Utworzono projekt {project}; jego Dyrektorem gry jest {email}.',
   'Workboard scope limit': 'Limit zakresu Tablicy',
   "Maximum number of backlog items included in the active Workboard's scope.":
     'Największa liczba elementów backlogu w zakresie aktywnej Tablicy.',
@@ -202,4 +215,5 @@ export const texts: Record<string, string> = {
 export const plurals: Record<string, PluralForms> = {
   // The projects page counts "backlog items" with the same English word for any number.
   'backlog items': ['element backlogu', 'elementy backlogu', 'elementów backlogu'],
+  hour: ['godzinę', 'godziny', 'godzin'],
 };

@@ -5,9 +5,10 @@ import { recordActivity } from '../activity.ts';
 import { loadAccess, projectRoute, type ProjectRow } from '../authz.ts';
 import { avatarUrl } from '../avatars.ts';
 import { fetchLabels } from './labels.ts';
-import { projectInvitations } from './members.ts';
+import { addMember, projectInvitations } from './members.ts';
 import { withTransaction } from '../db.ts';
-import { badRequest, conflict } from '../errors.ts';
+import { isPersona } from '../demo.ts';
+import { badRequest, conflict, HttpError } from '../errors.ts';
 import { memberRoute } from '../openapi.ts';
 import * as schema from '../schemas.ts';
 
@@ -16,6 +17,7 @@ const createSchema = z.object({
   description: z.string().max(5000).default(''),
   doneRestricted: z.boolean().default(false),
   scopeLimit: z.number().int().min(1).max(1000).default(5),
+  directorEmail: z.string().trim().toLowerCase().email().optional(),
 });
 
 const updateSchema = z.object({
@@ -50,7 +52,7 @@ function toSummary(r: SummaryRow): ProjectSummary {
 
 const summarySelect = `
   SELECT p.id, p.name, p.description, p.done_restricted, p.scope_limit, p.archived_at, p.version,
-         m.roles::text[] AS roles, m.can_accept,
+         p.demo, m.roles::text[] AS roles, m.can_accept,
          (SELECT count(*) FROM backlog_items b WHERE b.project_id = p.id AND b.archived_at IS NULL) AS item_count
     FROM projects p
     JOIN project_memberships m ON m.project_id = p.id AND m.user_id = $1`;
@@ -82,49 +84,69 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // Any signed-in user may create a project and becomes its first Game Director.
+  // A persona makes a demo project; anyone else a team project, if PROJECT_CREATORS lets them.
+  // The creator becomes its first Game Director, unless an admin names someone else.
   app.post(
     '/projects',
     memberRoute({
       id: 'createProject',
       summary: 'Create a project',
-      description: 'Anyone signed in may; they become its first Game Director.',
+      description:
+        'The creator becomes its first Game Director. With PROJECT_CREATORS=admins only admins may create one, and a demo persona’s project is a demo project. An admin may give `directorEmail` instead: that person is added or invited as Game Director, and the admin does not become a member (the answer then has no roles).',
       body: createSchema,
       response: { status: 201, schema: schema.ProjectSummary },
     }),
     async (req, reply) => {
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) throw badRequest('Invalid project', parsed.error.flatten());
-      const input = parsed.data;
-      const userId = req.user!.id;
+      const { directorEmail, ...input } = parsed.data;
+      const user = req.user!;
+      if (!user.mayCreateProjects)
+        throw new HttpError(403, 'Only an admin of this instance may create projects.');
+      if (directorEmail && !user.isAdmin)
+        throw new HttpError(403, 'Only an admin may create a project for someone else.');
+      const demo = isPersona(user);
 
       const projectId = await withTransaction(db, async (tx) => {
         const created = await tx.query<{ id: string }>(
-          `INSERT INTO projects (name, description, done_restricted, scope_limit)
-           VALUES ($1, $2, $3, $4) RETURNING id`,
-          [input.name, input.description, input.doneRestricted, input.scopeLimit],
+          `INSERT INTO projects (name, description, done_restricted, scope_limit, demo)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [input.name, input.description, input.doneRestricted, input.scopeLimit, demo],
         );
         const id = created.rows[0]!.id;
-        await tx.query(
-          `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, '{director}')`,
-          [id, userId],
-        );
         await recordActivity(tx, {
           projectId: id,
-          actorId: userId,
+          actorId: user.id,
           action: 'project.created',
           entityType: 'project',
           entityId: id,
           next: input,
         });
+        if (directorEmail)
+          await addMember(tx, {
+            projectId: id,
+            demo,
+            email: directorEmail,
+            roles: ['director'],
+            canAccept: false,
+            actorId: user.id,
+          });
+        else
+          await tx.query(
+            `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, '{director}')`,
+            [id, user.id],
+          );
         return id;
       });
 
-      const res = await db.query<SummaryRow>(`${summarySelect} WHERE p.id = $2`, [
-        userId,
-        projectId,
-      ]);
-      return reply.status(201).send(toSummary(res.rows[0]!));
+      const res = await db.query<SummaryRow>(
+        `${summarySelect.replace('JOIN project_memberships', 'LEFT JOIN project_memberships')} WHERE p.id = $2`,
+        [user.id, projectId],
+      );
+      const row = res.rows[0]!;
+      return reply
+        .status(201)
+        .send(toSummary({ ...row, roles: row.roles ?? [], can_accept: row.can_accept ?? false }));
     },
   );
 
@@ -187,7 +209,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 
       await withTransaction(db, async (tx) => {
         const locked = await tx.query<ProjectRow>(
-          'SELECT id, name, description, done_restricted, scope_limit, archived_at, version FROM projects WHERE id = $1 FOR UPDATE',
+          'SELECT id, name, description, done_restricted, scope_limit, archived_at, version, demo FROM projects WHERE id = $1 FOR UPDATE',
           [project.id],
         );
         const current = locked.rows[0]!;

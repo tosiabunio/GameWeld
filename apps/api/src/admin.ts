@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { recordActivity } from './activity.ts';
 import { createPool, withTransaction, type Db } from './db.ts';
+import { isPersonaEmail } from './demo.ts';
 
 /**
  * Recovery commands for whoever runs the instance, for when nobody who can fix something in the
@@ -67,10 +68,13 @@ export async function runAdmin(db: Db, args: string[], out: (line: string) => vo
       if (!/^[0-9a-f-]{36}$/i.test(projectId))
         throw new Error(`Not a project id: ${projectId}. Run "projects" to list them.`);
       await withTransaction(db, async (tx) => {
-        const project = await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [
-          projectId,
-        ]);
+        const project = await tx.query<{ demo: boolean }>(
+          'SELECT demo FROM projects WHERE id = $1 FOR UPDATE',
+          [projectId],
+        );
         if (!project.rowCount) throw new Error(`No project has the id ${projectId}.`);
+        if (project.rows[0]!.demo || isPersonaEmail(email!))
+          throw new Error('Demo projects and the demo personas stay apart from team projects.');
         const user = await tx.query<{ id: string }>(
           'SELECT id FROM users WHERE lower(email) = $1 ORDER BY created_at LIMIT 1',
           [email],

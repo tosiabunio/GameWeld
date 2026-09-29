@@ -19,8 +19,10 @@ if (config.seedDemo) {
   console.log(seeded ? 'demo data seeded' : 'database not empty, seed skipped');
 }
 
-const app = await buildApp(createContext(config, db));
+const ctx = createContext(config, db);
+const app = await buildApp(ctx);
 await app.listen({ port: config.port, host: config.host });
+ctx.demoReset?.start(`http://127.0.0.1:${config.port}`);
 console.log(`GameWeld API listening on http://${config.host}:${config.port} (${config.appEnv})`);
 // The one value an administrator must copy into the provider's console, printed where they look.
 for (const provider of config.oidcProviders) {

@@ -5,23 +5,23 @@ import { withTransaction } from './db.ts';
 
 /**
  * Seeds the mock personas and a demo project with the worked example from specification
- * Section 17. Runs only when the database has no users, so it is safe to call on every start.
- * Returns true when it seeded.
+ * Section 17. Runs only when there are no personas yet, so it is safe to call on every start,
+ * and after a demo reset has taken them away. Returns true when it seeded.
  */
 export async function seedDemo(db: Db): Promise<boolean> {
   return withTransaction(db, async (tx) => {
     // Serialize concurrent starters (two replicas, or parallel test files) on one lock so the
     // second one sees the first one's data instead of seeding twice.
     await tx.query('SELECT pg_advisory_xact_lock(727001)');
-    const existing = await tx.query('SELECT 1 FROM users LIMIT 1');
+    const existing = await tx.query(`SELECT 1 FROM identities WHERE provider = 'mock' LIMIT 1`);
     if (existing.rowCount) return false;
 
     // Personas -> users + mock identities.
     const userIds = new Map<string, string>();
     for (const p of PERSONAS) {
       const user = await tx.query<{ id: string }>(
-        'INSERT INTO users (display_name, email, is_admin) VALUES ($1, $2, $3) RETURNING id',
-        [p.displayName, p.email, p.key === 'director'],
+        'INSERT INTO users (display_name, email) VALUES ($1, $2) RETURNING id',
+        [p.displayName, p.email],
       );
       const id = user.rows[0]!.id;
       userIds.set(p.key, id);
@@ -34,8 +34,8 @@ export async function seedDemo(db: Db): Promise<boolean> {
 
     // Demo project with all personas as members.
     const project = await tx.query<{ id: string }>(
-      `INSERT INTO projects (name, description, done_restricted, scope_limit)
-       VALUES ('Demo project', 'Seeded example from specification Section 17.', false, 3) RETURNING id`,
+      `INSERT INTO projects (name, description, done_restricted, scope_limit, demo)
+       VALUES ('Demo project', 'Seeded example from specification Section 17.', false, 3, true) RETURNING id`,
     );
     const projectId = project.rows[0]!.id;
     for (const p of PERSONAS) {

@@ -12,6 +12,8 @@ import { z } from 'zod';
 import { admit } from './admission.ts';
 import { avatarUrl } from './avatars.ts';
 import type { Queryable } from './db.ts';
+import type { Config } from './config.ts';
+import { mayCreateProjects } from './demo.ts';
 import { OidcProvider, type OidcChecks } from './oidc.ts';
 import { publicRoute } from './openapi.ts';
 import { requestContext } from './requestContext.ts';
@@ -77,7 +79,10 @@ interface UserRow {
 const userColumns = `u.id, u.display_name, u.email, u.is_admin, u.avatar_id,
   (SELECT provider FROM identities i WHERE i.user_id = u.id ORDER BY created_at LIMIT 1) AS provider`;
 
-function toCurrentUser(row: UserRow): CurrentUser {
+/** Who a session or token belongs to; the auth hook adds what they may do. */
+type UserIdentity = Omit<CurrentUser, 'mayCreateProjects'>;
+
+function toCurrentUser(row: UserRow): UserIdentity {
   return {
     id: row.id,
     displayName: row.display_name,
@@ -88,7 +93,7 @@ function toCurrentUser(row: UserRow): CurrentUser {
   };
 }
 
-export async function userForToken(db: Queryable, token: string): Promise<CurrentUser | null> {
+export async function userForToken(db: Queryable, token: string): Promise<UserIdentity | null> {
   const res = await db.query<UserRow>(
     `SELECT ${userColumns}
        FROM sessions s JOIN users u ON u.id = s.user_id
@@ -102,7 +107,7 @@ export async function userForToken(db: Queryable, token: string): Promise<Curren
 export async function userForApiToken(
   db: Queryable,
   secret: string,
-): Promise<{ user: CurrentUser; token: RequestToken } | null> {
+): Promise<{ user: UserIdentity; token: RequestToken } | null> {
   const res = await db.query<
     UserRow & { token_id: string; token_name: string; access: TokenAccess; stale: boolean }
   >(
@@ -144,6 +149,10 @@ export async function requireSession(req: FastifyRequest, reply: FastifyReply): 
       .send({ message: 'API tokens are managed in the app, not with a token' });
 }
 
+/** Over HTTPS the browser keeps the cookies to it, as it must once real teams sign in. */
+const secureCookies = (config: Config) =>
+  config.appEnv === 'production' || config.publicUrl?.startsWith('https://') === true;
+
 async function startSession(app: FastifyInstance, reply: FastifyReply, userId: string) {
   const { config, db } = app.ctx;
   const session = await createSession(db, userId, config.sessionTtlMs);
@@ -151,7 +160,7 @@ async function startSession(app: FastifyInstance, reply: FastifyReply, userId: s
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
-    secure: config.appEnv === 'production',
+    secure: secureCookies(config),
     expires: session.expiresAt,
   });
 }
@@ -160,6 +169,11 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
   const { config, db } = app.ctx;
   const mockEnabled = config.authMock && config.appEnv !== 'production';
   const providers = config.oidcProviders.map((p) => new OidcProvider(p, app.ctx.oidcFetch));
+
+  const withRights = (user: UserIdentity): CurrentUser => ({
+    ...user,
+    mayCreateProjects: mayCreateProjects(config, user),
+  });
 
   app.decorateRequest('user', null);
   app.decorateRequest('token', null);
@@ -180,7 +194,7 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
         !req.routeOptions.config?.readOnlySafe
       )
         return reply.status(403).send({ message: 'This API token can only read' });
-      req.user = found.user;
+      req.user = withRights(found.user);
       req.token = found.token;
       // The history says which changes came through a token, whichever route makes them.
       const context = requestContext.getStore();
@@ -188,7 +202,8 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
       return;
     }
     const token = req.cookies[SESSION_COOKIE];
-    req.user = token ? await userForToken(db, token) : null;
+    const user = token ? await userForToken(db, token) : null;
+    req.user = user && withRights(user);
   });
 
   const tag = 'Sign-in';
@@ -208,6 +223,10 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
           : [],
       },
       oidc: providers.map((p) => ({ id: p.config.id, label: p.config.label })),
+      demoReset: app.ctx.demoReset && {
+        everyHours: app.ctx.demoReset.everyHours,
+        nextAt: app.ctx.demoReset.next().toISOString(),
+      },
     }),
   );
 
@@ -310,7 +329,7 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
           httpOnly: true,
           // Lax, not strict: the provider's redirect back is a navigation from another site.
           sameSite: 'lax',
-          secure: config.appEnv === 'production',
+          secure: secureCookies(config),
           maxAge: 10 * 60,
         });
         return reply.redirect(started.url);

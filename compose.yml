@@ -24,6 +24,10 @@ services:
       APP_ENV: local
       AUTH_MOCK: 'true'
       SEED_DEMO: 'true'
+      # Hours between resets to the sample data, as on gameweld.eu; unset, it never resets.
+      DEMO_RESET_HOURS: ${DEMO_RESET_HOURS:-}
+      # `admins` lets only admins start team projects, as on gameweld.eu (docs/deployment.md).
+      PROJECT_CREATORS: ${PROJECT_CREATORS:-everyone}
       DATABASE_URL: postgres://gameweld:gameweld@db:5432/gameweld
       PORT: '3000'
       WEB_DIST: /app/apps/web/dist

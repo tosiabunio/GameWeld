@@ -16,8 +16,11 @@ It holds two sample projects:
 Keep in mind:
 
 - **It is open to everyone.** Anyone can sign in as any persona and change anything, so what you see may have been changed by other visitors, and what you enter is visible to them.
-- **Do not enter real or private data.** The instance is for demonstration, has no backups, and its data may be reset to the samples at any time.
+- **Do not enter real or private data.** The instance is for demonstration and has no backups. Its data goes back to the samples on a schedule, which the sign-in page shows, so what you make there does not last.
 - It runs the latest build of `main`, so it can change from one day to the next.
+
+Teams can also work there for real, signed in with Google, in projects only they can see; the
+demo and its personas never reach them.
 
 [The GameWeld method](https://gameweld.eu/method) explains the way of working GameWeld is built for, in English and in Polish, without signing in.
 

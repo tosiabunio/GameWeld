@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signInAs, startApp, type TestContext } from './helpers.ts';
+import { signInAs, signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
 
 describe('demo seed and project list', () => {
   let t: TestContext;
@@ -223,5 +224,80 @@ describe('project creation and settings', () => {
       headers: { cookie: director },
     });
     expect(archived.json().some((p: { id: string }) => p.id === id)).toBe(true);
+  });
+});
+
+describe('project creation with PROJECT_CREATORS=admins', () => {
+  let t: TestContext;
+  const run = randomUUID().slice(0, 8);
+  const address = (name: string) => `${name}-${run}@example.com`;
+  beforeAll(async () => {
+    t = await startApp({ PROJECT_CREATORS: 'admins' });
+  });
+  afterAll(async () => {
+    await t.close();
+  });
+
+  const create = (cookie: string, payload: object) =>
+    t.app.inject({ method: 'POST', url: '/api/projects', headers: { cookie }, payload });
+  const me = async (cookie: string) =>
+    (await t.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } })).json();
+
+  it('lets only an admin create a team project, and any persona a demo one', async () => {
+    const member = await signInAsTeamMember(t, address('member'));
+    expect((await me(member.cookie)).mayCreateProjects).toBe(false);
+    const refused = await create(member.cookie, { name: 'Side project' });
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().message).toMatch(/Only an admin/);
+
+    const persona = await signInAs(t.app, 'developer');
+    expect((await me(persona)).mayCreateProjects).toBe(true);
+    const demo = await create(persona, { name: `Try-out ${run}` });
+    expect(demo.statusCode).toBe(201);
+    const row = await t.db.query('SELECT demo FROM projects WHERE id = $1', [demo.json().id]);
+    expect(row.rows[0].demo).toBe(true);
+    expect((await create(persona, { name: 'x', directorEmail: address('x') })).statusCode).toBe(
+      403,
+    );
+  });
+
+  it('lets the admin create a project for its Game Director without joining it', async () => {
+    const admin = await signInAsTeamMember(t, address('admin'), { admin: true });
+    const lead = await signInAsTeamMember(t, address('lead'));
+    const forLead = await create(admin.cookie, {
+      name: `Studio ${run}`,
+      directorEmail: address('Lead').toUpperCase(),
+    });
+    expect(forLead.statusCode).toBe(201);
+    expect(forLead.json().roles).toEqual([]);
+    const id = forLead.json().id;
+    const asLead = await t.app.inject({
+      method: 'GET',
+      url: `/api/projects/${id}`,
+      headers: { cookie: lead.cookie },
+    });
+    expect(asLead.json().roles).toEqual(['director']);
+    const asAdmin = await t.app.inject({
+      method: 'GET',
+      url: `/api/projects/${id}`,
+      headers: { cookie: admin.cookie },
+    });
+    expect(asAdmin.statusCode).toBe(404);
+
+    // Someone who has not signed in yet is invited; a persona cannot lead a team project.
+    const invited = await create(admin.cookie, { name: 'Next', directorEmail: address('new') });
+    const inv = await t.db.query(
+      'SELECT roles::text[] AS roles FROM project_invitations WHERE project_id = $1',
+      [invited.json().id],
+    );
+    expect(inv.rows).toEqual([{ roles: ['director'] }]);
+    const persona = await create(admin.cookie, {
+      name: 'Nope',
+      directorEmail: 'director@gameweld.local',
+    });
+    expect(persona.statusCode).toBe(400);
+    expect(await t.db.query(`SELECT 1 FROM projects WHERE name = 'Nope'`)).toMatchObject({
+      rowCount: 0,
+    });
   });
 });

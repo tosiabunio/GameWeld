@@ -5,6 +5,12 @@ const schema = z.object({
   AUTH_MOCK: z.enum(['true', 'false']).default('false'),
   SEED_DEMO: z.enum(['true', 'false']).default('false'),
   RESET_DATABASE: z.enum(['true', 'false']).default('false'),
+  // An empty value (as Compose passes an unset variable) means unset.
+  DEMO_RESET_HOURS: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.coerce.number().int().positive().optional(),
+  ),
+  PROJECT_CREATORS: z.enum(['everyone', 'admins']).default('everyone'),
   DATABASE_URL: z.string().url(),
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().default('0.0.0.0'),
@@ -42,6 +48,10 @@ export interface Config {
   authMock: boolean;
   seedDemo: boolean;
   resetDatabase: boolean;
+  /** A demonstration instance goes back to its sample data every this many hours; null: never. */
+  demoResetHours: number | null;
+  /** Who may create a team project: anyone signed in, or only admins. Personas make demo ones. */
+  projectCreators: 'everyone' | 'admins';
   databaseUrl: string;
   port: number;
   host: string;
@@ -90,6 +100,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     authMock: e.AUTH_MOCK === 'true',
     seedDemo: e.SEED_DEMO === 'true',
     resetDatabase: e.RESET_DATABASE === 'true',
+    demoResetHours: e.DEMO_RESET_HOURS ?? null,
+    projectCreators: e.PROJECT_CREATORS,
     databaseUrl: e.DATABASE_URL,
     port: e.PORT,
     host: e.HOST,
@@ -102,6 +114,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     initialAdminEmail: e.INITIAL_ADMIN_EMAIL?.toLowerCase() ?? null,
   };
   assertSafe(config);
+  // The sample data is made by the demo seed and then through mock sign-in as the personas.
+  if (config.demoResetHours !== null && !(config.seedDemo && config.authMock))
+    throw new Error(
+      'Invalid configuration: DEMO_RESET_HOURS needs SEED_DEMO=true and AUTH_MOCK=true, which make the sample data',
+    );
   return config;
 }
 
@@ -128,7 +145,7 @@ function parsePublicUrl(value: string | undefined, appEnv: string): string | nul
 }
 
 /**
- * T1 guard: the mock provider, demo seed, and database reset are development conveniences.
+ * T1 guard: the mock provider, demo seed, and database resets are development conveniences.
  * A production configuration that enables any of them is refused at startup rather than served.
  */
 export function assertSafe(config: Config): void {
@@ -137,6 +154,7 @@ export function assertSafe(config: Config): void {
     config.authMock && 'AUTH_MOCK',
     config.seedDemo && 'SEED_DEMO',
     config.resetDatabase && 'RESET_DATABASE',
+    config.demoResetHours !== null && 'DEMO_RESET_HOURS',
   ].filter(Boolean);
   if (offenders.length > 0) {
     throw new Error(
