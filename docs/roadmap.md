@@ -64,7 +64,7 @@ Wekan, Taiga, and Plane.
 | Missing | Who has it | Notes |
 | --- | --- | --- |
 | Real sign-in and invitations | All five | Built (Phase 8): Google sign-in, access by invitation only ([google-sign-in.md](google-sign-in.md)). gameweld.eu still runs the open persona sign-in until it is switched over. |
-| Backups | n/a | [backup-plan.md](backup-plan.md) describes them; nothing is set up. Deferred (decided 21 September 2026): the AI tools come first, and gameweld.eu holds only demo data. Needed before gameweld.eu switches to Google sign-in or holds a pilot team's work. |
+| Backups | done | Duplicati on the server, every 12 hours, to Cloudflare R2, encrypted; restore tested on 29 September 2026 ([backup-plan.md](backup-plan.md)). Failure alerts still to set. |
 | Notifications by e-mail | All five | The app has a bell (since 19 September 2026): events that concern the viewer, and what waits for their decision. It reaches only someone who has the app open. E-mail needs real addresses, so it follows real sign-in. |
 
 ### 2. Everyday comfort that even the simplest tools offer

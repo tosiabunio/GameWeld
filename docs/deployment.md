@@ -77,14 +77,14 @@ The sign-in page then offers Google above the personas. The two never mix:
 
 Session cookies are marked `Secure` whenever `PUBLIC_URL` is HTTPS.
 
-Once teams keep their work on an instance, it holds data worth keeping: set up the backups in
-[backup-plan.md](backup-plan.md) first.
+Once teams keep their work on an instance, it holds data worth keeping: set up backups first, as
+[backup-plan.md](backup-plan.md) describes for gameweld.eu.
 
 ## gameweld.eu
 
-gameweld.eu is a development and demonstration instance for showing GameWeld to prospective
-users, not production. Its data is sample data that can be rebuilt, so it has no backups yet;
-[backup-plan.md](backup-plan.md) describes what to set up before it holds data worth keeping.
+gameweld.eu shows GameWeld to prospective users through the open demo, and teams keep their
+work beside it. Its database and attachments are backed up every 12 hours to Cloudflare R2
+([backup-plan.md](backup-plan.md)).
 
 It runs on a VPS under [Dokploy](https://dokploy.com), which manages the application and
 database containers and HTTPS through Traefik, with the demonstration environment above. The

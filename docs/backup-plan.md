@@ -1,83 +1,68 @@
-# Backup plan for gameweld.eu (deferred)
+# Backups of gameweld.eu
 
-**Status: not implemented, on purpose.** gameweld.eu is a development and demonstration
-instance for showing GameWeld to prospective users, not production. Everything on it can be
-rebuilt: a fresh database gets the Demo project from the seed, and
-`node scripts/populate-demo.mjs https://gameweld.eu` adds the sample work (see
-[deployment.md](deployment.md)). Losing the server today costs a redeploy, not data.
+**Status: in place since 29 September 2026.** gameweld.eu keeps teams' work beside the open
+demo ([deployment.md](deployment.md#the-demo-beside-teams)), so its data is worth keeping. The
+demo itself can always be rebuilt; the backups are for the teams.
 
-Put this plan in place before the instance holds data someone would miss: real accounts once
-Google sign-in lands, a pilot team's work, or anything entered during a demo that should outlive
-it.
+## What is protected
 
-## What to protect
-
-| Data | Where it lives | Notes |
+| Data | Where it lives | Backed up |
 | --- | --- | --- |
-| Database | Dokploy Postgres, database `gameweld` | Projects, backlog, tasks, boards, history, users |
-| Attachments and pictures | Docker volume `gameweld-attachments` (`/data/attachments`) | Originals are needed; cover renditions (`*.cover-*`) are regenerated on request |
-| Dokploy's own configuration | Dokploy's internal database | Application, domains, environment, registry credentials |
-| Server setup | The VPS | Rebuildable from the operator's notes: Docker, Dokploy, the firewall, the `deploy` user |
+| Database | Dokploy Postgres, database `gameweld` | Yes, as a dump |
+| Attachments and pictures | Docker volume `gameweld-attachments` (`/data/attachments`) | Yes |
+| Dokploy's own configuration | Dokploy's internal database | No: rebuildable from the operator's notes |
+| Server setup | The VPS | No: rebuildable from the operator's notes |
 
-## The plan
+## How it works
 
-### 1. Off-site copies of the data, made by Dokploy (the core)
+[Duplicati](https://duplicati.com), installed on the server as a service, runs a job every
+12 hours:
 
-Dokploy schedules both kinds of backup to S3-compatible storage, with a
-retention count and failure notifications.
+1. Before each run, a script dumps the database from its container (`pg_dump`, custom format)
+   into a directory only root can read. It uses the container's own credentials, so no password
+   is stored for it. If the dump fails, the job fails, rather than uploading an old dump.
+2. The job uploads that dump and the attachments volume, encrypted with AES-256 before they leave
+   the server, to a private **Cloudflare R2** bucket: outside OVH, so the copies survive a problem
+   with the server or the account. The key it uses can reach only that bucket.
+3. Duplicati keeps versions incrementally: one a day for a week, one a week for a month, and one
+   a month for a year (`1W:1D,4W:1W,12M:1M`).
 
-| What | Schedule | Keep |
-| --- | --- | --- |
-| Postgres dump | daily at 03:00 | 14 |
-| Attachments volume | daily at 03:15 | 14 |
-| Dokploy configuration | weekly | 4 |
+The data is a few megabytes, well inside R2's free 10 GB, and restoring costs nothing, since R2
+does not charge for downloads.
 
-The volume backup runs after the dump, so every file the dump refers to is in the copy; at
-worst it holds a few files deleted in between, which is harmless. Daily copies lose at most a
-day. Dumps are a few megabytes, so the database can go every six hours once a team works on the
-instance.
+The dump, not the database's files, is what is copied: files copied while Postgres runs may not
+restore, a dump always does.
 
-In Dokploy: add an S3 destination (Settings → S3 Destinations), then a backup on the database
-service and a volume backup on the application, both pointing at it. Through the API these are
-`destination.create`, `backup.create`, and `volumeBackups.create`.
+### R2 settings in Duplicati
 
-### 2. Storage with another provider
+R2 is reached as **S3 Compatible** storage at `<account id>.r2.cloudflarestorage.com`. Duplicati's
+default AWS library does not work with R2 (its uploads fail with `STREAMING-AWS4-HMAC-SHA256-PAYLOAD
+not implemented`, then with `You can only specify one non-default checksum at a time`), so the
+destination's advanced options set `s3-client=minio`.
 
-Keep the copies outside OVH, so they survive a problem with the account as well as the server.
-At this size any of these costs next to nothing:
+## What to keep outside the server
 
-- **Cloudflare R2** (recommended): 10 GB free, no fees for downloading during a restore.
-- **Backblaze B2**: similar price, simple.
-- **OVH Object Storage in another region**: one provider, protects against losing the server
-  but not the account.
+Without these, the copies in R2 cannot be restored. Both belong in the operator's password
+manager:
 
-The bucket stays private, and the access key is limited to that bucket. Dokploy does not
-encrypt backups on its side, so the key is what protects them.
+- the job's **encryption passphrase**;
+- the R2 **access key** of the bucket, or access to the Cloudflare account to make a new one.
 
-### 3. Alerts when a backup fails
+## Restoring
 
-A backup that silently stopped is worse than none. Dokploy notifies on database and volume
-backup failures by email, Discord, Slack, Telegram, ntfy, and others.
+In Duplicati: **Restore → GameWeld**, pick a version, and restore to a directory. The dump is
+loaded into an empty database with
+`pg_restore --clean --if-exists --no-owner -d <database URL> gameweld.dump`, and the attachments
+go back into the volume. Without the server, Duplicati on any machine restores from R2 with the
+passphrase and the key (**Restore → Direct restore from backup files**).
 
-### 4. A rehearsed restore
+A test restore on 29 September 2026 brought back a dump identical to the one on the server, which
+`pg_restore` reads, and every attachment. Repeat it every quarter, and after changing the job.
 
-The implementation plan's Phase 8 already asks for a restore rehearsed on a fresh host.
+## Still open
 
-- `make restore`: fetch the latest backup and load it into the local stack. This also gives a
-  copy of the instance's data for local work.
-- A one-time restore into a fresh Dokploy project, written up step by step here.
-- Repeat the rehearsal every quarter.
-
-### 5. Optional: OVH automated VPS backup
-
-A few euros a month buys a daily snapshot of the whole machine, including Docker, Dokploy, the
-firewall, and every setting. It restores the server in minutes instead of an hour of setup. It
-complements the off-site copies but does not replace them: the snapshots stay with OVH, and they
-capture the database as if power had been cut.
-
-## Decisions to make when this is picked up
-
-- Where the copies go (section 2); then create the bucket and a key limited to it.
-- Which channel receives failure alerts (section 3).
-- Whether to enable OVH's VPS backup (section 5), which is switched on in the OVH control panel.
-- Whether the schedule and retention in section 1 fit how the instance is used by then.
+- **Alerts when a backup fails.** Duplicati can report each run by e-mail or to an address such as
+  ntfy; until that is set, a failure shows only in its web interface.
+- **OVH automated VPS backup.** A few euros a month buys a daily snapshot of the whole machine,
+  restoring the server in minutes instead of an hour of setup. It complements the copies in R2
+  but does not replace them: the snapshots stay with OVH.

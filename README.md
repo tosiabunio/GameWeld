@@ -16,7 +16,7 @@ It holds two sample projects:
 Keep in mind:
 
 - **It is open to everyone.** Anyone can sign in as any persona and change anything, so what you see may have been changed by other visitors, and what you enter is visible to them.
-- **Do not enter real or private data.** The instance is for demonstration and has no backups. Its data goes back to the samples on a schedule, which the sign-in page shows, so what you make there does not last.
+- **Do not enter real or private data in the demo.** Its data goes back to the samples on a schedule, which the sign-in page shows, so what you make there does not last.
 - It runs the latest build of `main`, so it can change from one day to the next.
 
 Teams can also work there for real, signed in with Google, in projects only they can see; the
@@ -76,7 +76,7 @@ Builds and starts the application with a PostgreSQL database, seeds the Demo pro
 
 ### On a server
 
-The image `ghcr.io/tosiabunio/gameweld` is published from every green build of `main`. It needs PostgreSQL and a volume for attachments. For a team, set up [Google sign-in](docs/google-sign-in.md): access is then by invitation only, and the persona sign-in is refused. [Deployment](docs/deployment.md) lists the environment for a team or a demonstration instance, and [the backup plan](docs/backup-plan.md) what to set up before the instance holds data worth keeping.
+The image `ghcr.io/tosiabunio/gameweld` is published from every green build of `main`. It needs PostgreSQL and a volume for attachments. For a team, set up [Google sign-in](docs/google-sign-in.md): access is then by invitation only, and the persona sign-in is refused. [Deployment](docs/deployment.md) lists the environment for a team or a demonstration instance, and [the backups](docs/backup-plan.md) how gameweld.eu keeps its data safe.
 
 ## Documents
 
@@ -87,7 +87,7 @@ The image `ghcr.io/tosiabunio/gameweld` is published from every green build of `
 | [Google sign-in](docs/google-sign-in.md) | Setting up sign-in with Google for an instance, invitations, troubleshooting, and the admin recovery commands. |
 | [The API](docs/api.md) | API tokens for scripts and assistants, calling the API, the MCP server, the Claude Code skill, and the OpenAPI description at `/api/openapi.json`. |
 | [Deployment](docs/deployment.md) | What a server instance needs, its environment for a team or a demo, the sample data, and continuous deployment. |
-| [Backup plan](docs/backup-plan.md) | What to set up before an instance holds data worth keeping. |
+| [Backups](docs/backup-plan.md) | How gameweld.eu backs up its database and attachments, and how to restore them. |
 | [Production specification v0.2](docs/gameweld-production-specification-v0.2.md) | Product purpose, terminology, data model, backlog and Workboard behavior, permissions, MVP acceptance scenarios, and recorded decisions. |
 | [Specification review notes](docs/gameweld-spec-review-notes.md) | Review findings and gaps to fold into the specification's open decisions (Polish). |
 | [Implementation plan](docs/gameweld-implementation-plan.md) | Assumed decisions, proposed technical baseline, architecture and invariants, phased delivery mapped to the acceptance scenarios, test strategy, and risks. |
