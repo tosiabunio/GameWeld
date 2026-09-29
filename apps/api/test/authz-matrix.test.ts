@@ -34,7 +34,12 @@ describe('permission matrix is enforced on every project-scoped route', () => {
   let attachmentId: string;
   let commentId: string;
   let otherItemId: string;
-  const cookies: Record<ProjectRole, string> = { director: '', developer: '', tester: '' };
+  const cookies: Record<ProjectRole, string> = {
+    director: '',
+    developer: '',
+    tester: '',
+    observer: '',
+  };
 
   beforeAll(async () => {
     const config = testConfig();
@@ -75,7 +80,7 @@ describe('permission matrix is enforced on every project-scoped route', () => {
       payload: { name: 'Matrix project' },
     });
     projectId = created.json().id;
-    for (const role of ['developer', 'tester'] as const) {
+    for (const role of ['developer', 'tester', 'observer'] as const) {
       await app.inject({
         method: 'POST',
         url: `/api/projects/${projectId}/members`,

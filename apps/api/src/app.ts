@@ -15,6 +15,7 @@ import { requestContext } from './requestContext.ts';
 import { FilesystemStorage, type Storage } from './storage.ts';
 import { currentVersion } from './migrate.ts';
 import { acceptanceRoutes } from './routes/acceptance.ts';
+import { adminRoutes } from './routes/admin.ts';
 import { avatarRoutes } from './routes/avatars.ts';
 import { backlogRoutes } from './routes/backlog.ts';
 import { checklistRoutes } from './routes/checklist.ts';
@@ -185,6 +186,7 @@ export async function buildApp(
     [historyRoutes, 'History'],
     [mcpRoutes, 'MCP'],
     [claudeRoutes, 'Claude Code'],
+    [adminRoutes, 'Administration'],
   ];
   for (const [routes, tag] of groups) await app.register(tagged(routes, tag), { prefix: '/api' });
 

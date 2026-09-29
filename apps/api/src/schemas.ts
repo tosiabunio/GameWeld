@@ -601,3 +601,32 @@ export const components: Record<string, ZodTypeAny> = {
   ApiToken,
   CreatedToken,
 };
+
+// Administration ----------------------------------------------------------------------------
+
+export const InstancePerson = exact<d.InstancePerson>()(
+  z.object({
+    id: id(),
+    displayName: z.string(),
+    email: z.string().nullable(),
+    avatarUrl: z.string().nullable(),
+    isAdmin: z.boolean(),
+    canCreateProjects: z.boolean(),
+    projectCount: z.number().int(),
+  }),
+);
+
+export const InstanceInvitation = exact<d.InstanceInvitation>()(
+  z.object({
+    id: id(),
+    email: z.string(),
+    isAdmin: z.boolean(),
+    canCreateProjects: z.boolean(),
+    invitedBy: z.string().nullable(),
+    createdAt: timestamp(),
+  }),
+);
+
+export const InstancePeople = exact<d.InstancePeople>()(
+  z.object({ people: z.array(InstancePerson), invitations: z.array(InstanceInvitation) }),
+);

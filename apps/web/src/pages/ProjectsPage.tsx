@@ -56,9 +56,11 @@ export function ProjectsPage() {
               </h3>
               {p.description && <p className="project-desc">{p.description}</p>}
               <p className="muted small">
-                {t('Your roles: {roles}', {
-                  roles: p.roles.map((r) => t(ROLE_LABELS[r])).join(', '),
-                })}
+                {p.roles.length === 0
+                  ? t('Admin access: you are not a member')
+                  : t('Your roles: {roles}', {
+                      roles: p.roles.map((r) => t(ROLE_LABELS[r])).join(', '),
+                    })}
               </p>
               <p className="stats">
                 {/* English says "backlog items" for any count, one included. */}

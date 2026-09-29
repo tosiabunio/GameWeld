@@ -4,6 +4,8 @@ import {
   permissionsFor,
   PROJECT_ACTIONS,
   PROJECT_ROLES,
+  toggleRole,
+  validRoles,
   type Membership,
 } from '../src/index.ts';
 
@@ -22,11 +24,29 @@ describe('permission matrix (specification Section 4)', () => {
     }
   });
 
-  it('lets every member view the project and work on tasks', () => {
+  it('lets every member view the project, and all but Observers read its history and work', () => {
     for (const role of PROJECT_ROLES) {
       expect(can(only(role), 'project.view', open)).toBe(true);
-      expect(can(only(role), 'task.work', open)).toBe(true);
+      expect(can(only(role), 'project.history', open)).toBe(role !== 'observer');
+      expect(can(only(role), 'task.work', open)).toBe(role !== 'observer');
     }
+  });
+
+  it('lets an Observer only view, even when allowed to accept', () => {
+    const observer = { roles: ['observer' as const], canAccept: true };
+    const allowed = PROJECT_ACTIONS.filter((a) => can(observer, a, open));
+    expect(allowed).toEqual(['project.view']);
+  });
+
+  it('keeps the Observer role alone', () => {
+    expect(validRoles(['observer'])).toBe(true);
+    expect(validRoles(['observer', 'tester'])).toBe(false);
+    expect(validRoles(['director', 'tester'])).toBe(true);
+    expect(validRoles([])).toBe(false);
+    expect(toggleRole(['director', 'tester'], 'observer', true)).toEqual(['observer']);
+    expect(toggleRole(['observer'], 'developer', true)).toEqual(['developer']);
+    expect(toggleRole(['director'], 'tester', true)).toEqual(['director', 'tester']);
+    expect(toggleRole(['director', 'tester'], 'tester', false)).toEqual(['director']);
   });
 
   it('reserves settings, membership, backlog, scope, and out-of-scope approval to Directors', () => {

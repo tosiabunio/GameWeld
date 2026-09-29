@@ -238,7 +238,9 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
             />
           </section>
 
-          <History query={{ entityType: 'task', entityId: task.id }} />
+          {project.permissions['project.history'] && (
+            <History query={{ entityType: 'task', entityId: task.id }} />
+          )}
         </div>
         <aside className="detail-resources" aria-label={t('Task resources')}>
           {/* Beside the checklist and the comments, which are long, rather than beside the

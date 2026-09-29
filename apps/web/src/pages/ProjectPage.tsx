@@ -1,6 +1,6 @@
-import type { ProjectDetail } from '@gameweld/domain';
+import { isObserver, type ProjectDetail } from '@gameweld/domain';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams } from 'react-router';
+import { Navigate, NavLink, Outlet, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { TaskModal, type OpenTask } from '../components/TaskModal.tsx';
 import { t } from '../i18n/index.ts';
@@ -32,6 +32,7 @@ export function useProject(): ProjectContextValue {
  */
 export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
   const { projectId } = useParams<{ projectId: string }>();
+  const location = useLocation();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,43 +98,55 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
     );
   }
 
+  // An Observer reads the Backlog, the Workboard, and the Overview, and opens items and tasks
+  // from them; the other pages are not theirs.
+  const observer = isObserver(project.roles);
+  if (observer && /\/(settings|my-tasks|breakdown)\/?$/.test(location.pathname))
+    return <Navigate to={`/projects/${project.id}/backlog`} replace />;
+
   return (
     <Shell
       title={project.name}
       titleAction={
-        <NavLink
-          to="settings"
-          className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}
-          aria-label={t('Project settings')}
-          title={t('Project settings')}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+        !observer && (
+          <NavLink
+            to="settings"
+            className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}
+            aria-label={t('Project settings')}
+            title={t('Project settings')}
           >
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </NavLink>
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </NavLink>
+        )
       }
       nav={
         <nav className="tabs" aria-label={t('Project sections')}>
-          <NavLink to="my-tasks" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-            {t('My tasks')}
-          </NavLink>
+          {!observer && (
+            <NavLink to="my-tasks" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+              {t('My tasks')}
+            </NavLink>
+          )}
           <NavLink to="backlog" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
             {t('Backlog')}
           </NavLink>
-          <NavLink to="breakdown" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
-            {t('Breakdown')}
-          </NavLink>
+          {!observer && (
+            <NavLink to="breakdown" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+              {t('Breakdown')}
+            </NavLink>
+          )}
           <NavLink to="board" className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
             {t('Workboard')}
           </NavLink>

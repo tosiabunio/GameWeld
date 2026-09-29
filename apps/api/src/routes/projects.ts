@@ -50,12 +50,13 @@ function toSummary(r: SummaryRow): ProjectSummary {
   };
 }
 
+// The viewer's roles, or none where an admin sees a project they are not a member of.
 const summarySelect = `
   SELECT p.id, p.name, p.description, p.done_restricted, p.scope_limit, p.archived_at, p.version,
-         p.demo, m.roles::text[] AS roles, m.can_accept,
+         p.demo, COALESCE(m.roles::text[], '{}') AS roles, COALESCE(m.can_accept, false) AS can_accept,
          (SELECT count(*) FROM backlog_items b WHERE b.project_id = p.id AND b.archived_at IS NULL) AS item_count
     FROM projects p
-    JOIN project_memberships m ON m.project_id = p.id AND m.user_id = $1`;
+    LEFT JOIN project_memberships m ON m.project_id = p.id AND m.user_id = $1`;
 
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
@@ -64,7 +65,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     '/projects',
     memberRoute({
       id: 'listProjects',
-      summary: 'The projects the viewer is a member of',
+      summary: 'The projects the viewer is a member of; for an admin, every project',
       query: z.object({
         archived: z
           .enum(['true', 'false'])
@@ -77,8 +78,9 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       const query = req.query as { archived?: string };
       const archived = query.archived === 'true';
       const res = await db.query<SummaryRow>(
-        `${summarySelect} WHERE p.archived_at IS ${archived ? 'NOT NULL' : 'NULL'} ORDER BY p.created_at`,
-        [req.user!.id],
+        `${summarySelect} WHERE (m.user_id IS NOT NULL OR $2) AND p.archived_at IS ${archived ? 'NOT NULL' : 'NULL'}
+          ORDER BY p.created_at`,
+        [req.user!.id, req.user!.isAdmin],
       );
       return res.rows.map(toSummary);
     },
@@ -139,14 +141,11 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
         return id;
       });
 
-      const res = await db.query<SummaryRow>(
-        `${summarySelect.replace('JOIN project_memberships', 'LEFT JOIN project_memberships')} WHERE p.id = $2`,
-        [user.id, projectId],
-      );
-      const row = res.rows[0]!;
-      return reply
-        .status(201)
-        .send(toSummary({ ...row, roles: row.roles ?? [], can_accept: row.can_accept ?? false }));
+      const res = await db.query<SummaryRow>(`${summarySelect} WHERE p.id = $2`, [
+        user.id,
+        projectId,
+      ]);
+      return reply.status(201).send(toSummary(res.rows[0]!));
     },
   );
 
@@ -185,7 +184,8 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
           canAccept: m.can_accept,
           avatarUrl: avatarUrl(m.user_id, m.avatar_id),
         })),
-        invitations: await projectInvitations(db, project.id),
+        // Addresses of people not yet in are for those who manage members.
+        invitations: permissions['members.manage'] ? await projectInvitations(db, project.id) : [],
         permissions,
         labels: await fetchLabels(db, project.id),
       };
@@ -253,7 +253,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
         });
       });
 
-      const access = (await loadAccess(db, project.id, userId))!;
+      const access = (await loadAccess(db, project.id, req.user!))!;
       const res = await db.query<SummaryRow>(`${summarySelect} WHERE p.id = $2`, [
         userId,
         project.id,

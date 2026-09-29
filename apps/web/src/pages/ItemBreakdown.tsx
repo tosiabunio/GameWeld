@@ -124,7 +124,9 @@ export function ItemBreakdown({
       <div className="detail-bottom">
         <div>
           <ReviewPanel item={item} onChanged={changed} />
-          <History query={{ entityType: 'backlog_item', entityId: item.id }} />
+          {project.permissions['project.history'] && (
+            <History query={{ entityType: 'backlog_item', entityId: item.id }} />
+          )}
         </div>
         <aside className="detail-resources" aria-label={t('Item resources')}>
           <ResourcePanel title="Links" count={item.links.length}>

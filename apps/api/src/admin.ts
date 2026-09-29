@@ -108,7 +108,8 @@ export async function runAdmin(db: Db, args: string[], out: (line: string) => vo
           out(`${email} is already a Game Director of that project.`);
           return;
         }
-        const roles = [...(previous ?? []), 'director'];
+        // An Observer holds no other role, so becoming a Game Director replaces it.
+        const roles = [...(previous ?? []).filter((r) => r !== 'observer'), 'director'];
         await tx.query(
           `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, $3)
            ON CONFLICT (project_id, user_id) DO UPDATE SET roles = EXCLUDED.roles`,

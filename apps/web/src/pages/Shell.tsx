@@ -47,6 +47,11 @@ export function Shell({
         </div>
         {nav}
         <div className="user">
+          {user.isAdmin && (
+            <Link to="/admin" className="method-link" data-testid="admin-link">
+              {t('Administration')}
+            </Link>
+          )}
           <Link to="/method" className="method-link" title={t('How GameWeld works: the method')}>
             {t('Method')}
           </Link>

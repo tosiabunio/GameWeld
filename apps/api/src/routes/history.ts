@@ -56,7 +56,7 @@ export const historyRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/projects/:projectId/activity',
-    projectRoute('project.view', {
+    projectRoute('project.history', {
       id: 'listActivity',
       summary: 'The project’s history, newest first',
       description:
@@ -151,7 +151,7 @@ export const historyRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/projects/:projectId/column-stays',
-    projectRoute('project.view', {
+    projectRoute('project.history', {
       id: 'listColumnStays',
       summary: 'How long cards stayed in each column',
       description: `One entry per stay of a task's card in a column of a Workboard, oldest first, with its length in hours: where work waits, and for how long. A stay on an archived board ends when the board was archived. At most ${MAX_STAYS}.`,

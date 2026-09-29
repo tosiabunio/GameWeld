@@ -1,5 +1,6 @@
 import { matchPath, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { TaskHome, type OpenTask } from './components/TaskModal.tsx';
+import { AdminPage } from './pages/AdminPage.tsx';
 import { BacklogPage } from './pages/BacklogPage.tsx';
 import { BreakdownPage } from './pages/BreakdownPage.tsx';
 import { MethodPage } from './pages/MethodPage.tsx';
@@ -28,6 +29,7 @@ export function App() {
     <Routes location={openTask?.background ?? location}>
       <Route path="/" element={<ProjectsPage />} />
       <Route path="/projects/new" element={<NewProjectPage />} />
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="/projects/:projectId" element={<ProjectPage openTask={openTask} />}>
         <Route index element={<Navigate to="backlog" replace />} />
         <Route path="my-tasks" element={<MyTasksPage />} />

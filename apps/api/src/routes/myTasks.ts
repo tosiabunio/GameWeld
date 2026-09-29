@@ -62,7 +62,7 @@ export const myTaskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     `${base}/:taskId/move`,
-    projectRoute('project.view', {
+    projectRoute('task.work', {
       id: 'moveMyTask',
       summary: 'Reorder a task among the viewer’s own tasks',
       description:

@@ -819,7 +819,7 @@ const project = await as.director('POST', '/projects', {
     'A larger sample project: a 2D action-adventure eight months into production, with a few hundred Backlog items and their tasks. For trying GameWeld at the size of a real game.',
 });
 const p = (path) => `/projects/${project.id}${path}`;
-for (const role of ['developer', 'tester'])
+for (const role of ['developer', 'tester', 'observer'])
   await as.director('POST', p('/members'), { email: `${role}@gameweld.local`, roles: [role] });
 const members = (await as.director('GET', p(''))).members;
 const userId = Object.fromEntries(members.map((m) => [m.email.split('@')[0], m.userId]));

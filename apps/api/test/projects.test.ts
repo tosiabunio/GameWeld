@@ -17,7 +17,7 @@ describe('demo seed and project list', () => {
     const persona = await t.db.query(
       `SELECT count(*)::int AS n FROM identities WHERE provider = 'mock'`,
     );
-    expect(persona.rows[0].n).toBe(3);
+    expect(persona.rows[0].n).toBe(4);
   });
 
   it('lists the demo project for every persona with its own roles', async () => {
@@ -282,7 +282,10 @@ describe('project creation with PROJECT_CREATORS=admins', () => {
       url: `/api/projects/${id}`,
       headers: { cookie: admin.cookie },
     });
-    expect(asAdmin.statusCode).toBe(404);
+    // Not a member, so no roles of their own; as an admin they may still do everything there.
+    expect(asAdmin.statusCode).toBe(200);
+    expect(asAdmin.json().roles).toEqual([]);
+    expect(Object.values(asAdmin.json().permissions).every(Boolean)).toBe(true);
 
     // Someone who has not signed in yet is invited; a persona cannot lead a team project.
     const invited = await create(admin.cookie, { name: 'Next', directorEmail: address('new') });

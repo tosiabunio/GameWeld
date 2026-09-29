@@ -1,5 +1,7 @@
 import {
+  isObserver,
   PROJECT_ROLES,
+  validRoles,
   type ProjectInvitation,
   type ProjectMember,
   type ProjectRole,
@@ -107,7 +109,10 @@ export async function addMember(
     actorId: string;
   },
 ): Promise<{ member: ProjectMember } | { invitation: ProjectInvitation }> {
-  const { projectId, email, roles, canAccept, actorId } = m;
+  const { projectId, email, roles, actorId } = m;
+  if (!validRoles(roles)) throw badRequest(OBSERVER_ALONE);
+  // An Observer decides nothing, so never accepts items.
+  const canAccept = m.canAccept && !isObserver(roles);
   if (m.demo && !isPersonaEmail(email))
     throw badRequest('A demo project takes only the demo personas.');
   if (!m.demo && isPersonaEmail(email))
@@ -151,6 +156,8 @@ export async function addMember(
   });
   return { member: (await memberById(tx, projectId, userId))! };
 }
+
+const OBSERVER_ALONE = 'An Observer holds no other role.';
 
 /** A project must always keep at least one Game Director. */
 async function assertDirectorRemains(
@@ -255,12 +262,14 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
         const before = await memberById(tx, projectId, userId);
         if (!before) throw notFound('Member not found');
         const nextRoles = roles ?? before.roles;
+        if (!validRoles(nextRoles)) throw badRequest(OBSERVER_ALONE);
+        const nextAccept = !isObserver(nextRoles) && (canAccept ?? before.canAccept);
         if (before.roles.includes('director') && !nextRoles.includes('director')) {
           await assertDirectorRemains(tx, projectId, userId);
         }
         await tx.query(
           'UPDATE project_memberships SET roles = $3, can_accept = $4 WHERE project_id = $1 AND user_id = $2',
-          [projectId, userId, nextRoles, canAccept ?? before.canAccept],
+          [projectId, userId, nextRoles, nextAccept],
         );
         const after = (await memberById(tx, projectId, userId))!;
         await recordActivity(tx, {

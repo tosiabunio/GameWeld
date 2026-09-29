@@ -2,10 +2,14 @@ import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.ts';
-import { createPool } from '../src/db.ts';
 import { nextDemoReset } from '../src/demoReset.ts';
-import { migrate } from '../src/migrate.ts';
-import { signInAs, signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
+import {
+  ownDatabase,
+  signInAs,
+  signInAsTeamMember,
+  startApp,
+  type TestContext,
+} from './helpers.ts';
 
 const base = { DATABASE_URL: 'postgres://x:y@localhost:5432/z' };
 
@@ -42,19 +46,10 @@ describe('demo reset', () => {
   let t: TestContext;
   const attachments = 'test-results/demo-reset-attachments';
   beforeAll(async () => {
-    // A database of its own: a reset drops everything, and the other test files share theirs.
-    const shared = createPool(process.env.TEST_DATABASE_URL!);
-    await shared.query('DROP DATABASE IF EXISTS gameweld_demo_reset WITH (FORCE)');
-    await shared.query('CREATE DATABASE gameweld_demo_reset');
-    await shared.end();
-    const url = new URL(process.env.TEST_DATABASE_URL!);
-    url.pathname = '/gameweld_demo_reset';
+    // A database of its own: a reset deletes every persona, which the other test files sign in as.
     await rm(attachments, { recursive: true, force: true });
-    const own = createPool(url.href);
-    await migrate(own);
-    await own.end();
     t = await startApp({
-      DATABASE_URL: url.href,
+      DATABASE_URL: await ownDatabase('gameweld_demo_reset'),
       SEED_DEMO: 'true',
       DEMO_RESET_HOURS: '24',
       ATTACHMENTS_DIR: attachments,

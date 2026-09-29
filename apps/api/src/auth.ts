@@ -72,15 +72,16 @@ interface UserRow {
   display_name: string;
   email: string | null;
   is_admin: boolean;
+  can_create_projects: boolean;
   provider: string | null;
   avatar_id: string | null;
 }
 
-const userColumns = `u.id, u.display_name, u.email, u.is_admin, u.avatar_id,
+const userColumns = `u.id, u.display_name, u.email, u.is_admin, u.can_create_projects, u.avatar_id,
   (SELECT provider FROM identities i WHERE i.user_id = u.id ORDER BY created_at LIMIT 1) AS provider`;
 
-/** Who a session or token belongs to; the auth hook adds what they may do. */
-type UserIdentity = Omit<CurrentUser, 'mayCreateProjects'>;
+/** Who a session or token belongs to; the auth hook turns it into what they may do. */
+type UserIdentity = Omit<CurrentUser, 'mayCreateProjects'> & { canCreateProjects: boolean };
 
 function toCurrentUser(row: UserRow): UserIdentity {
   return {
@@ -88,6 +89,7 @@ function toCurrentUser(row: UserRow): UserIdentity {
     displayName: row.display_name,
     email: row.email,
     isAdmin: row.is_admin,
+    canCreateProjects: row.can_create_projects,
     provider: row.provider ?? 'unknown',
     avatarUrl: avatarUrl(row.id, row.avatar_id),
   };
@@ -170,9 +172,9 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
   const mockEnabled = config.authMock && config.appEnv !== 'production';
   const providers = config.oidcProviders.map((p) => new OidcProvider(p, app.ctx.oidcFetch));
 
-  const withRights = (user: UserIdentity): CurrentUser => ({
+  const withRights = ({ canCreateProjects, ...user }: UserIdentity): CurrentUser => ({
     ...user,
-    mayCreateProjects: mayCreateProjects(config, user),
+    mayCreateProjects: mayCreateProjects(config, { ...user, canCreateProjects }),
   });
 
   app.decorateRequest('user', null);

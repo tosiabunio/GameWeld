@@ -6,7 +6,7 @@ GameWeld is a web application that connects the intended scope of a game with th
 
 ## Try it
 
-A demonstration instance runs at **[gameweld.eu](https://gameweld.eu)**. No account is needed: pick a persona on the sign-in page (Dana Director, Devin Developer, or Tess Tester) and you are in, with the rights of that role. "Switch persona" in the header goes back to the picker, so you can see the same project as a Game Director, a Developer, and a Tester in one browser.
+A demonstration instance runs at **[gameweld.eu](https://gameweld.eu)**. No account is needed: pick a persona on the sign-in page (Dana Director, Devin Developer, Tess Tester, or Olivia Observer) and you are in, with the rights of that role. "Switch persona" in the header goes back to the picker, so you can see the same project as a Game Director, a Developer, a Tester, and an Observer, who only reads, in one browser.
 
 It holds two sample projects:
 

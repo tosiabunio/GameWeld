@@ -141,7 +141,9 @@ export function WorkboardPage() {
       )}
       <Columns board={board} onChange={run} onNotice={setNotice} />
       <RequestsPanel board={board} onBoardChanged={reload} />
-      <History query={{ entityType: 'workboard', entityId: board.id }} />
+      {project.permissions['project.history'] && (
+        <History query={{ entityType: 'workboard', entityId: board.id }} />
+      )}
       <ArchivedBoards projectId={project.id} except={board.id} />
     </div>
   );

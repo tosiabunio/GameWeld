@@ -54,6 +54,26 @@ export const texts: Record<string, string> = {
   'scope limit {limit}': 'limit zakresu {limit}',
   'Done restricted to Testers': '„Gotowe” tylko dla Testerów',
 
+  'Admin access: you are not a member': 'Dostęp administratora: nie jesteś członkiem',
+
+  // Administration
+  Administration: 'Administracja',
+  'Admins may do everything: they see and manage every project, member or not. Game Directors here may create projects, and lead them. The demo personas are not listed.':
+    'Administratorzy mogą wszystko: widzą każdy projekt i nim zarządzają, także gdy nie są jego członkami. Dyrektorzy gry mogą tu tworzyć projekty i je prowadzić. Persony demo nie są tu wymienione.',
+  Invite: 'Zaproś',
+  As: 'Jako',
+  'Game Director: may create projects': 'Dyrektor gry: może tworzyć projekty',
+  'Admin: may do everything': 'Administrator: może wszystko',
+  People: 'Osoby',
+  Person: 'Osoba',
+  Admin: 'Administrator',
+  'May create projects': 'Może tworzyć projekty',
+  '{name} is admin': '{name} jest administratorem',
+  '{name} may create projects': '{name} może tworzyć projekty',
+  '{email} has it now.': '{email} ma to już teraz.',
+  '{email} is invited. GameWeld sends no e-mail: tell them to sign in at {address} with that Google account.':
+    'Zaproszono {email}. GameWeld nie wysyła e-maili: poproś tę osobę o zalogowanie się na {address} tym kontem Google.',
+
   // A new project
   'Could not create the project': 'Nie udało się utworzyć projektu',
   "You become the project's Game Director. Settings can be changed later.":

@@ -67,10 +67,17 @@ The sign-in page then offers Google above the personas. The two never mix:
   personas as members, so nobody gets into the instance through an invitation from the demo.
 - **A team project never takes a persona,** so no visitor can see into it. Its members see each
   other in the member picker, and nobody else.
-- **The admin starts a team project for its Game Director:** **New project**, with the director's
-  address. They are added, or invited if they have not signed in yet, and the admin does not join
-  the project. The director then invites the team (**Project settings → Members**). Leaving the
-  address empty makes the admin its Game Director instead.
+- **Admins may do everything:** they see every project in their list and manage it with a Game
+  Director's rights, member or not. **Administration** (in the header) lists everyone with an
+  account, and there an admin makes others admins, or lets them create projects: the instance's
+  Game Directors, who then start and lead projects of their own. Someone who has not signed in
+  yet is invited, and gets it at their first sign-in with Google.
+- **The admin can also start a team project for its Game Director:** **New project**, with the
+  director's address. They are added, or invited if they have not signed in yet, and the admin
+  does not join the project. The director then invites the team (**Project settings →
+  Members**), as Game Directors, Developers, Testers, or Observers, who only read the Backlog,
+  the Workboard, and the Overview. Leaving the address empty makes the admin its Game Director
+  instead.
 - **No persona is an admin,** so the account with `INITIAL_ADMIN_EMAIL` becomes one at its first
   sign-in.
 - **A demo reset** (below) replaces the demo projects and the personas, and nothing else.

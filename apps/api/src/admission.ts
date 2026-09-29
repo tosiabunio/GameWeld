@@ -14,11 +14,12 @@ export type Admission = { userId: string } | { refused: Refusal; email: string |
  *   changed address at the provider changes nothing here.
  * - A new identity needs an address its provider has verified. It joins the account that already
  *   has that address (the same person through another provider), or becomes a new account if the
- *   address has a pending invitation or is `INITIAL_ADMIN_EMAIL`. Anyone else is refused, and no
- *   account is made for them.
+ *   address has a pending invitation, to a project or from an admin, or is `INITIAL_ADMIN_EMAIL`.
+ *   Anyone else is refused, and no account is made for them.
  *
- * Every sign-in then turns pending invitations for its verified address into memberships, and
- * the initial admin address becomes admin while the instance has none.
+ * Every sign-in then turns pending invitations for its verified address into memberships and into
+ * what an admin invited them as, and the initial admin address becomes admin while the instance
+ * has none.
  */
 export async function admit(
   db: Db,
@@ -47,9 +48,11 @@ export async function admit(
       );
       userId = existing.rows[0]?.id;
       if (!userId) {
-        const invited = await tx.query('SELECT 1 FROM project_invitations WHERE email = $1', [
-          email,
-        ]);
+        const invited = await tx.query(
+          `SELECT 1 FROM project_invitations WHERE email = $1
+           UNION ALL SELECT 1 FROM instance_invitations WHERE email = $1`,
+          [email],
+        );
         if (!invited.rowCount && email !== initialAdminEmail)
           return { refused: 'not_invited', email };
         const created = await tx.query<{ id: string }>(
@@ -66,6 +69,7 @@ export async function admit(
 
     if (email) {
       await claimInvitations(tx, userId, email);
+      await claimInstanceInvitation(tx, userId, email);
       if (email === initialAdminEmail)
         await tx.query(
           `UPDATE users SET is_admin = true
@@ -109,4 +113,20 @@ export async function claimInvitations(
       next: { roles: inv.roles, canAccept: inv.can_accept, invited: true },
     });
   }
+}
+
+/** Turns an admin's invitation for the address into admin or the right to create projects. */
+export async function claimInstanceInvitation(
+  tx: Queryable,
+  userId: string,
+  email: string,
+): Promise<void> {
+  await tx.query(
+    `WITH inv AS (DELETE FROM instance_invitations WHERE email = $2
+                  RETURNING is_admin, can_create_projects)
+     UPDATE users u SET is_admin = u.is_admin OR inv.is_admin,
+                        can_create_projects = u.can_create_projects OR inv.can_create_projects
+       FROM inv WHERE u.id = $1`,
+    [userId, email],
+  );
 }

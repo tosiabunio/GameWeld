@@ -15,10 +15,18 @@ export const isPersonaEmail = (email: string): boolean =>
 export const personaSql = (userId: string): string =>
   `EXISTS (SELECT 1 FROM identities pi WHERE pi.user_id = ${userId} AND pi.provider = 'mock')`;
 
-/** A persona makes demo projects; anyone else a team project, when PROJECT_CREATORS lets them. */
+/**
+ * A persona makes demo projects; anyone else a team project, when PROJECT_CREATORS lets everyone
+ * or they are an admin or someone an admin let create projects (the instance's Game Directors).
+ */
 export function mayCreateProjects(
   config: Pick<Config, 'projectCreators'>,
-  user: Pick<CurrentUser, 'provider' | 'isAdmin'>,
+  user: Pick<CurrentUser, 'provider' | 'isAdmin'> & { canCreateProjects: boolean },
 ): boolean {
-  return isPersona(user) || config.projectCreators === 'everyone' || user.isAdmin;
+  return (
+    isPersona(user) ||
+    config.projectCreators === 'everyone' ||
+    user.isAdmin ||
+    user.canCreateProjects
+  );
 }

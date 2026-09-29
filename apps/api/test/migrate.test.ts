@@ -8,8 +8,8 @@ describe('migration runner', () => {
     try {
       const again = await migrate(db);
       expect(again.applied).toEqual([]);
-      expect(again.current).toBe('0015_demo_projects');
-      expect(await currentVersion(db)).toBe('0015_demo_projects');
+      expect(again.current).toBe('0016_admins_and_observers');
+      expect(await currentVersion(db)).toBe('0016_admins_and_observers');
     } finally {
       await db.end();
     }

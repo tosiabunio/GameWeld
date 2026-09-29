@@ -135,3 +135,46 @@ export interface SearchResults {
   items: { id: string; title: string; state: 'open' | 'ready_for_review' | 'done' }[];
   tasks: { id: string; title: string; completed: boolean; itemTitle: string }[];
 }
+
+/** What an admin invites someone to be on the instance. */
+export const INSTANCE_ROLES = ['admin', 'director'] as const;
+export type InstanceRole = (typeof INSTANCE_ROLES)[number];
+
+/** An account on the instance, as an admin sees it on the Administration page. */
+export interface InstancePerson {
+  id: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  isAdmin: boolean;
+  /** May start projects, becoming their Game Director (admins may anyway). */
+  canCreateProjects: boolean;
+  /** How many projects they are a member of. */
+  projectCount: number;
+}
+
+/** An admin's invitation for someone who has not signed in yet. */
+export interface InstanceInvitation {
+  id: string;
+  email: string;
+  isAdmin: boolean;
+  canCreateProjects: boolean;
+  invitedBy: string | null;
+  createdAt: string;
+}
+
+export interface InstancePeople {
+  people: InstancePerson[];
+  invitations: InstanceInvitation[];
+}
+
+export interface InviteToInstanceInput {
+  email: string;
+  /** `director`: may create projects; `admin`: may do everything. */
+  as: InstanceRole;
+}
+
+export interface UpdateInstancePersonInput {
+  isAdmin?: boolean;
+  canCreateProjects?: boolean;
+}

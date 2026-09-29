@@ -19,7 +19,10 @@ at `/api/mcp` with the same token.
 What a token may do:
 
 - **It acts as you.** It sees the projects you see and may do what your roles allow, no more. If
-  a Game Director takes a role from you, the token loses it too.
+  a Game Director takes a role from you, the token loses it too. An Observer's token reads the
+  Backlog, the Workboards, and the Overview, and nothing else; an admin's token may do
+  everything in every project, as the admin may in the app. Making admins and letting people
+  create projects (`/api/admin/…`) needs the app, never a token.
 - **Read only** is for looking: GET requests only. Anything else is refused with 403 and "This
   API token can only read".
 - **Read and write** may do everything you can do in the app, except manage tokens. Making,

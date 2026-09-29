@@ -25,6 +25,12 @@ export const PERSONAS: readonly Persona[] = [
     roles: ['developer'],
   },
   { key: 'tester', displayName: 'Tess Tester', email: 'tester@gameweld.local', roles: ['tester'] },
+  {
+    key: 'observer',
+    displayName: 'Olivia Observer',
+    email: 'observer@gameweld.local',
+    roles: ['observer'],
+  },
 ];
 
 export function findPersona(key: string): Persona | undefined {

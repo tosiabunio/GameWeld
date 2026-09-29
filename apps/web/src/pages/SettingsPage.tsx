@@ -1,5 +1,5 @@
 import type { ProjectInvitation, ProjectMember, ProjectRole, UserSummary } from '@gameweld/domain';
-import { PROJECT_ROLES, ROLE_LABELS } from '@gameweld/domain';
+import { PROJECT_ROLES, ROLE_LABELS, toggleRole } from '@gameweld/domain';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
@@ -203,7 +203,7 @@ function MembersTable({ readOnly }: { readOnly: boolean }) {
                     disabled={readOnly}
                     onChange={(e) =>
                       void update(m, {
-                        roles: e.target.checked ? [...m.roles, r] : m.roles.filter((x) => x !== r),
+                        roles: toggleRole(m.roles, r, e.target.checked),
                       })
                     }
                   />
@@ -356,9 +356,7 @@ function AddMemberForm() {
             <input
               type="checkbox"
               checked={roles.includes(r)}
-              onChange={(e) =>
-                setRoles(e.target.checked ? [...roles, r] : roles.filter((x) => x !== r))
-              }
+              onChange={(e) => setRoles(toggleRole(roles, r, e.target.checked))}
             />
             {t(ROLE_LABELS[r])}
           </label>

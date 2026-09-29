@@ -60,6 +60,11 @@ import type {
   UpdateMemberInput,
   UpdateProjectInput,
   UserSummary,
+  InstanceInvitation,
+  InstancePeople,
+  InstancePerson,
+  InviteToInstanceInput,
+  UpdateInstancePersonInput,
 } from '@gameweld/domain';
 
 import { clientId } from './live.ts';
@@ -170,6 +175,14 @@ export const api = {
     request<void>(`/api/projects/${projectId}/invitations/${invitationId}`, { method: 'DELETE' }),
 
   users: () => request<UserSummary[]>('/api/users'),
+
+  instancePeople: () => request<InstancePeople>('/api/admin/people'),
+  inviteToInstance: (input: InviteToInstanceInput) =>
+    request<InstancePerson | InstanceInvitation>('/api/admin/invitations', json('POST', input)),
+  cancelInstanceInvitation: (id: string) =>
+    request<void>(`/api/admin/invitations/${id}`, { method: 'DELETE' }),
+  updateInstancePerson: (userId: string, input: UpdateInstancePersonInput) =>
+    request<InstancePerson>(`/api/admin/people/${userId}`, json('PATCH', input)),
 
   backlog: (projectId: string) => request<BacklogItem[]>(`/api/projects/${projectId}/backlog`),
   createItem: (projectId: string, input: CreateItemInput) =>

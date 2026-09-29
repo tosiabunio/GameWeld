@@ -17,7 +17,11 @@ gameweld tools are connected, the same things can be done over HTTP: see
 - **Project.** Members hold one or more roles. A **Game Director** manages the Backlog, the
   Workboard, and its scope, and accepts finished items. **Developers** and **Testers** work on
   tasks. A member may also be allowed to accept items. If the project restricts Done, only
-  Testers may move cards into or out of Done.
+  Testers may move cards into or out of Done. An **Observer** holds that role alone and only
+  reads the Backlog, the Workboard, and the Overview: no history, no comments, no changes. For
+  an Observer, answer questions and do not offer to change anything. An instance **admin** may
+  do everything in every project; `list_projects` then also lists projects with no roles of
+  theirs.
 - **Backlog item.** A feature or piece of the game. Each has a MoSCoW **category** (`must`,
   `should`, `could`, `wont`) and a place within it: the Backlog is ordered. Its **state** is
   `open`, `ready_for_review`, or `done`.

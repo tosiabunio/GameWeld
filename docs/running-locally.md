@@ -30,7 +30,7 @@ Run `make up` again after any code change to see it live. Data you entered by ha
 
 ## Personas
 
-Mock sign-in is enabled only in local and test configuration. The sign-in page offers three seeded personas: Dana Director, Devin Developer, and Tess Tester. "Switch persona" in the header returns to the picker. All three are members of the seeded demo project, which contains the worked example from specification Section 17.
+Mock sign-in is enabled only in local and test configuration. The sign-in page offers four seeded personas: Dana Director, Devin Developer, Tess Tester, and Olivia Observer, who only reads. "Switch persona" in the header returns to the picker. All four are members of the seeded demo project, which contains the worked example from specification Section 17.
 
 ## If something goes wrong
 

@@ -19,6 +19,7 @@ describe('mock sign-in (T1)', () => {
       'director',
       'developer',
       'tester',
+      'observer',
     ]);
   });
 

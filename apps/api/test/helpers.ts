@@ -4,6 +4,7 @@ import { buildApp, createContext, type AppContext } from '../src/app.ts';
 import { createSession, SESSION_COOKIE } from '../src/auth.ts';
 import { loadConfig, type Config } from '../src/config.ts';
 import { createPool, type Db } from '../src/db.ts';
+import { migrate } from '../src/migrate.ts';
 import { seedDemo } from '../src/seed.ts';
 
 export function testConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): Config {
@@ -90,4 +91,21 @@ export async function signInAsTeamMember(
   );
   const session = await createSession(t.db, id, 60 * 60 * 1000);
   return { id, cookie: `${SESSION_COOKIE}=${session.token}` };
+}
+
+/**
+ * A fresh, migrated database beside the shared one, for a test that must know everything in it
+ * or would disturb the other test files; returns its URL for DATABASE_URL.
+ */
+export async function ownDatabase(name: string): Promise<string> {
+  const shared = createPool(process.env.TEST_DATABASE_URL!);
+  await shared.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+  await shared.query(`CREATE DATABASE ${name}`);
+  await shared.end();
+  const url = new URL(process.env.TEST_DATABASE_URL!);
+  url.pathname = `/${name}`;
+  const own = createPool(url.href);
+  await migrate(own);
+  await own.end();
+  return url.href;
 }

@@ -61,14 +61,15 @@ export const sessionRoute = (doc: RouteDoc) => ({ config: { doc }, preHandler: r
 
 /** Who holds each permission, for the description of the routes that need it. */
 const PERMISSION_HOLDERS: Record<ProjectAction, string> = {
-  'project.view': 'any member',
+  'project.view': 'any member, Observers included',
+  'project.history': 'any member except Observers',
   'project.settings': 'Game Directors',
   'members.manage': 'Game Directors',
   'backlog.manage': 'Game Directors',
   'board.manage': 'Game Directors',
   'board.select_scope': 'Game Directors',
-  'task.work': 'any member',
-  'task.complete': 'any member, or only Testers when the project restricts Done',
+  'task.work': 'any member except Observers',
+  'task.complete': 'any member except Observers, or only Testers when the project restricts Done',
   'item.accept': 'Game Directors and members allowed to accept',
   'out_of_scope.approve': 'Game Directors',
 };

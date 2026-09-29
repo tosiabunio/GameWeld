@@ -1,12 +1,34 @@
-/** Project roles from specification Section 4. A member may hold several. */
-export const PROJECT_ROLES = ['director', 'developer', 'tester'] as const;
+/**
+ * Project roles from specification Section 4. A member may hold several, except an Observer, who
+ * holds only that role: they read the Backlog, the Workboard, and the Overview, and change nothing.
+ */
+export const PROJECT_ROLES = ['director', 'developer', 'tester', 'observer'] as const;
 export type ProjectRole = (typeof PROJECT_ROLES)[number];
 
 export const ROLE_LABELS: Record<ProjectRole, string> = {
   director: 'Game Director',
   developer: 'Developer',
   tester: 'Tester',
+  observer: 'Observer',
 };
+
+/** An Observer's roles are that one alone; any other set of roles leaves it out. */
+export function validRoles(roles: readonly ProjectRole[]): boolean {
+  return roles.length > 0 && (!roles.includes('observer') || roles.length === 1);
+}
+
+export const isObserver = (roles: readonly ProjectRole[]): boolean => roles.includes('observer');
+
+/** Roles after ticking or unticking one: Observer replaces the others, and they replace it. */
+export function toggleRole(
+  roles: readonly ProjectRole[],
+  role: ProjectRole,
+  on: boolean,
+): ProjectRole[] {
+  if (!on) return roles.filter((r) => r !== role);
+  if (role === 'observer') return ['observer'];
+  return [...roles.filter((r) => r !== 'observer' && r !== role), role];
+}
 
 export function isProjectRole(value: unknown): value is ProjectRole {
   return typeof value === 'string' && (PROJECT_ROLES as readonly string[]).includes(value);
@@ -15,6 +37,7 @@ export function isProjectRole(value: unknown): value is ProjectRole {
 /** Actions from the permission table in specification Section 4, plus project administration. */
 export const PROJECT_ACTIONS = [
   'project.view',
+  'project.history',
   'project.settings',
   'members.manage',
   'backlog.manage',
@@ -52,9 +75,12 @@ export function can(
   policy: ProjectPolicy,
 ): boolean {
   if (!membership || membership.roles.length === 0) return false;
+  // An Observer reads the project and nothing more: no history, no work, no decisions.
+  if (isObserver(membership.roles)) return action === 'project.view';
   const has = (role: ProjectRole) => membership.roles.includes(role);
   switch (action) {
     case 'project.view':
+    case 'project.history':
     case 'task.work':
       return true;
     case 'project.settings':

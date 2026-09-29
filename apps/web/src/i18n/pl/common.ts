@@ -27,6 +27,7 @@ export const texts: Record<string, string> = {
   'Game Director': 'Dyrektor gry',
   Developer: 'Deweloper',
   Tester: 'Tester',
+  Observer: 'Obserwator',
 
   // Sections
   Backlog: 'Backlog',
