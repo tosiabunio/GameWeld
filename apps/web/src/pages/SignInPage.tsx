@@ -2,7 +2,7 @@ import type { AuthProviders, SignInError } from '@gameweld/domain';
 import { ROLE_LABELS } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api.ts';
-import { Avatar, Logo } from '../components/Brand.tsx';
+import { Avatar, Logo, SOURCE_URL } from '../components/Brand.tsx';
 import { t, tp } from '../i18n/index.ts';
 import { useSession } from '../session.tsx';
 
@@ -135,6 +135,10 @@ export function SignInPage() {
         )}
         <p className="auth-foot">
           <a href="/method">{t('How GameWeld works: the method')}</a>
+          {' · '}
+          <a href={SOURCE_URL} target="_blank" rel="noreferrer" data-testid="source-link">
+            {t('Source code on GitHub')}
+          </a>
         </p>
       </div>
     </main>

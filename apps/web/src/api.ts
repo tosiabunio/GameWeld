@@ -60,9 +60,9 @@ import type {
   UpdateMemberInput,
   UpdateProjectInput,
   UserSummary,
-  InstanceInvitation,
   InstancePeople,
   InstancePerson,
+  InviteResult,
   InviteToInstanceInput,
   UpdateInstancePersonInput,
 } from '@gameweld/domain';
@@ -178,7 +178,7 @@ export const api = {
 
   instancePeople: () => request<InstancePeople>('/api/admin/people'),
   inviteToInstance: (input: InviteToInstanceInput) =>
-    request<InstancePerson | InstanceInvitation>('/api/admin/invitations', json('POST', input)),
+    request<InviteResult>('/api/admin/invitations', json('POST', input)),
   cancelInstanceInvitation: (id: string) =>
     request<void>(`/api/admin/invitations/${id}`, { method: 'DELETE' }),
   updateInstancePerson: (userId: string, input: UpdateInstancePersonInput) =>

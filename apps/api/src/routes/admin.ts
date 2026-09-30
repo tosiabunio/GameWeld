@@ -3,6 +3,9 @@ import {
   type InstanceInvitation,
   type InstancePeople,
   type InstancePerson,
+  type InviteResult,
+  type PendingProjectInvitation,
+  type ProjectRole,
 } from '@gameweld/domain';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -10,14 +13,21 @@ import { requireSession } from '../auth.ts';
 import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { isPersonaEmail, personaSql } from '../demo.ts';
-import { badRequest, conflict, notFound } from '../errors.ts';
+import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import type { RouteDoc } from '../openapi.ts';
 import * as schema from '../schemas.ts';
+import { addMember } from './members.ts';
 
-const inviteSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
-  as: z.enum(INSTANCE_ROLES),
-});
+const inviteSchema = z
+  .object({
+    email: z.string().trim().toLowerCase().email(),
+    as: z.enum(INSTANCE_ROLES),
+    projectIds: z.array(z.string().uuid()).max(200).optional(),
+  })
+  .refine((v) => v.as !== 'observer' || (v.projectIds?.length ?? 0) > 0, {
+    message: 'Choose the projects an Observer may read.',
+    path: ['projectIds'],
+  });
 
 const updateSchema = z.object({
   isAdmin: z.boolean().optional(),
@@ -42,7 +52,7 @@ interface PersonRow {
   avatar_id: string | null;
   is_admin: boolean;
   can_create_projects: boolean;
-  project_count: string;
+  memberships: { projectId: string; projectName: string; roles: ProjectRole[] }[];
 }
 
 const toPerson = (r: PersonRow): InstancePerson => ({
@@ -52,14 +62,17 @@ const toPerson = (r: PersonRow): InstancePerson => ({
   avatarUrl: avatarUrl(r.id, r.avatar_id),
   isAdmin: r.is_admin,
   canCreateProjects: r.can_create_projects,
-  projectCount: Number(r.project_count),
+  memberships: r.memberships,
 });
 
 // The personas are the demo's, not people of the instance: no admin page lists or changes them.
 async function people(db: Queryable, userId?: string): Promise<InstancePerson[]> {
   const res = await db.query<PersonRow>(
     `SELECT u.id, u.display_name, u.email, u.avatar_id, u.is_admin, u.can_create_projects,
-            (SELECT count(*) FROM project_memberships m WHERE m.user_id = u.id) AS project_count
+            COALESCE((SELECT json_agg(json_build_object('projectId', p.id, 'projectName', p.name,
+                                                        'roles', m.roles::text[]) ORDER BY p.name)
+                        FROM project_memberships m JOIN projects p ON p.id = m.project_id
+                       WHERE m.user_id = u.id AND p.archived_at IS NULL), '[]') AS memberships
        FROM users u
       WHERE NOT ${personaSql('u.id')} AND ($1::uuid IS NULL OR u.id = $1)
       ORDER BY u.display_name`,
@@ -94,6 +107,32 @@ async function invitations(db: Queryable, id?: string): Promise<InstanceInvitati
   }));
 }
 
+async function projectInvitations(
+  db: Queryable,
+  ids?: string[],
+): Promise<PendingProjectInvitation[]> {
+  const res = await db.query<{
+    id: string;
+    project_id: string;
+    project_name: string;
+    email: string;
+    roles: ProjectRole[];
+  }>(
+    `SELECT i.id, i.project_id, p.name AS project_name, i.email, i.roles::text[] AS roles
+       FROM project_invitations i JOIN projects p ON p.id = i.project_id
+      WHERE p.archived_at IS NULL AND ($1::uuid[] IS NULL OR i.id = ANY($1))
+      ORDER BY i.email, p.name`,
+    [ids ?? null],
+  );
+  return res.rows.map((i) => ({
+    id: i.id,
+    projectId: i.project_id,
+    projectName: i.project_name,
+    email: i.email,
+    roles: i.roles,
+  }));
+}
+
 /** The instance must keep one admin, or nobody could appoint the next. */
 async function assertAdminRemains(tx: Queryable, exceptUserId: string): Promise<void> {
   const res = await tx.query('SELECT 1 FROM users WHERE is_admin AND id <> $1 LIMIT 1', [
@@ -113,65 +152,112 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     '/admin/people',
     adminRoute({
       id: 'listInstancePeople',
-      summary: 'Everyone with an account, and pending admin invitations',
-      description: 'Admins only. The demo personas are not listed.',
+      summary: 'Everyone with an account and their projects, and pending invitations',
+      description:
+        'Admins only. The demo personas and demo projects are not listed; `projects` are the open team projects, to choose an Observer’s from.',
       response: schema.InstancePeople,
     }),
-    async (): Promise<InstancePeople> => ({
-      people: await people(db),
-      invitations: await invitations(db),
-    }),
+    async (): Promise<InstancePeople> => {
+      const projects = await db.query<{ id: string; name: string }>(
+        'SELECT id, name FROM projects WHERE NOT demo AND archived_at IS NULL ORDER BY name',
+      );
+      return {
+        people: await people(db),
+        invitations: await invitations(db),
+        projectInvitations: await projectInvitations(db),
+        projects: projects.rows,
+      };
+    },
   );
 
   app.post(
     '/admin/invitations',
     adminRoute({
       id: 'inviteToInstance',
-      summary: 'Make someone an admin, or let them create projects',
+      summary: 'Make someone an admin, let them create projects, or let them observe projects',
       description:
-        'Admins only. `as: director` lets them create projects and lead them as Game Director; `as: admin` makes them an admin, who may do everything. Someone with an account gets it at once (201); anyone else is invited (202), and their first sign-in with that address, with Google, gives it to them. GameWeld sends no e-mail.',
+        'Admins only. `as: director` lets them create projects and lead them as Game Director; `as: admin` makes them an admin, who may do everything; `as: observer` makes them an Observer of each project in `projectIds` (team projects only), who reads it and changes nothing. Someone with an account gets it at once (201, `person`); anyone else is invited (202), and their first sign-in with that address, with Google, gives it to them. Projects where they are already a member, or invited, are left as they are and named in `skipped`. GameWeld sends no e-mail.',
       body: inviteSchema,
       response: [
-        { status: 201, schema: schema.InstancePerson, description: 'Given' },
-        { status: 202, schema: schema.InstanceInvitation, description: 'Invited' },
+        { status: 201, schema: schema.InviteResult, description: 'Given' },
+        { status: 202, schema: schema.InviteResult, description: 'Invited' },
       ],
     }),
     async (req, reply) => {
       const parsed = inviteSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid invitation', parsed.error.flatten());
-      const { email, as } = parsed.data;
+      if (!parsed.success)
+        throw badRequest(
+          parsed.error.issues.find((i) => i.path[0] === 'projectIds')?.message ??
+            'Invalid invitation',
+          parsed.error.flatten(),
+        );
+      const { email, as, projectIds } = parsed.data;
       if (isPersonaEmail(email)) throw badRequest('The demo personas cannot be given rights.');
-      const admin = as === 'admin';
-      const result = await withTransaction(db, async (tx) => {
+      const result = await withTransaction(db, async (tx): Promise<InviteResult> => {
         const user = await tx.query<{ id: string }>(
           'SELECT id FROM users WHERE lower(email) = $1 ORDER BY created_at LIMIT 1',
           [email],
         );
-        const userId = user.rows[0]?.id;
-        if (userId) {
+        const userId = user.rows[0]?.id ?? null;
+        const done: InviteResult = {
+          person: null,
+          invitation: null,
+          projectInvitations: [],
+          skipped: [],
+        };
+
+        if (as === 'observer') {
+          const ids = [...new Set(projectIds)];
+          const projects = await tx.query<{ id: string; name: string; demo: boolean }>(
+            'SELECT id, name, demo FROM projects WHERE id = ANY($1) AND archived_at IS NULL',
+            [ids],
+          );
+          if (projects.rowCount !== ids.length || projects.rows.some((p) => p.demo))
+            throw badRequest('An Observer is given open team projects only.');
+          const invited: string[] = [];
+          for (const project of projects.rows) {
+            try {
+              const added = await addMember(tx, {
+                projectId: project.id,
+                demo: false,
+                email,
+                roles: ['observer'],
+                canAccept: false,
+                actorId: req.user!.id,
+              });
+              if ('invitation' in added) invited.push(added.invitation.id);
+            } catch (err) {
+              // Already a member there, whatever their roles, or already invited: left alone.
+              if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
+              done.skipped.push(project.name);
+            }
+          }
+          done.projectInvitations = invited.length ? await projectInvitations(tx, invited) : [];
+        } else if (userId) {
           await tx.query(
-            admin
+            as === 'admin'
               ? 'UPDATE users SET is_admin = true WHERE id = $1'
               : 'UPDATE users SET can_create_projects = true WHERE id = $1',
             [userId],
           );
-          return { person: (await people(tx, userId))[0]! };
+        } else {
+          const admin = as === 'admin';
+          const invitation = await tx.query<{ id: string }>(
+            `INSERT INTO instance_invitations (email, is_admin, can_create_projects, invited_by)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (email) DO UPDATE
+               SET is_admin = instance_invitations.is_admin OR EXCLUDED.is_admin,
+                   can_create_projects = instance_invitations.can_create_projects
+                                         OR EXCLUDED.can_create_projects
+             RETURNING id`,
+            [email, admin, !admin, req.user!.id],
+          );
+          done.invitation = (await invitations(tx, invitation.rows[0]!.id))[0]!;
         }
-        const invited = await tx.query<{ id: string }>(
-          `INSERT INTO instance_invitations (email, is_admin, can_create_projects, invited_by)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (email) DO UPDATE
-             SET is_admin = instance_invitations.is_admin OR EXCLUDED.is_admin,
-                 can_create_projects = instance_invitations.can_create_projects
-                                       OR EXCLUDED.can_create_projects
-           RETURNING id`,
-          [email, admin, !admin, req.user!.id],
-        );
-        return { invitation: (await invitations(tx, invited.rows[0]!.id))[0]! };
+        if (userId) done.person = (await people(tx, userId))[0]!;
+        return done;
       });
-      return 'person' in result
-        ? reply.status(201).send(result.person)
-        : reply.status(202).send(result.invitation);
+      return reply.status(result.person ? 201 : 202).send(result);
     },
   );
 

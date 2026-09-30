@@ -136,8 +136,11 @@ export interface SearchResults {
   tasks: { id: string; title: string; completed: boolean; itemTitle: string }[];
 }
 
-/** What an admin invites someone to be on the instance. */
-export const INSTANCE_ROLES = ['admin', 'director'] as const;
+/**
+ * What an admin invites someone to be: an admin, a Game Director who may create projects, or an
+ * Observer of chosen projects (a teacher following students' work, say).
+ */
+export const INSTANCE_ROLES = ['admin', 'director', 'observer'] as const;
 export type InstanceRole = (typeof INSTANCE_ROLES)[number];
 
 /** An account on the instance, as an admin sees it on the Administration page. */
@@ -149,8 +152,17 @@ export interface InstancePerson {
   isAdmin: boolean;
   /** May start projects, becoming their Game Director (admins may anyway). */
   canCreateProjects: boolean;
-  /** How many projects they are a member of. */
-  projectCount: number;
+  /** The projects they are a member of, with their roles there. */
+  memberships: { projectId: string; projectName: string; roles: ProjectRole[] }[];
+}
+
+/** An invitation to one project, for someone who has not signed in yet. */
+export interface PendingProjectInvitation {
+  id: string;
+  projectId: string;
+  projectName: string;
+  email: string;
+  roles: ProjectRole[];
 }
 
 /** An admin's invitation for someone who has not signed in yet. */
@@ -165,13 +177,32 @@ export interface InstanceInvitation {
 
 export interface InstancePeople {
   people: InstancePerson[];
+  /** Admins' invitations to be admin or Game Director. */
   invitations: InstanceInvitation[];
+  /** Invitations to projects, waiting for their first sign-in. */
+  projectInvitations: PendingProjectInvitation[];
+  /** The team projects that are open, to choose an Observer's from. */
+  projects: { id: string; name: string }[];
 }
 
 export interface InviteToInstanceInput {
   email: string;
-  /** `director`: may create projects; `admin`: may do everything. */
+  /** `director`: may create projects; `admin`: may do everything; `observer`: reads `projectIds`. */
   as: InstanceRole;
+  /** For an Observer: the team projects they may read. */
+  projectIds?: string[];
+}
+
+/** What an admin's invitation did. */
+export interface InviteResult {
+  /** Their account, when they have one: what they were given applies at once. */
+  person: InstancePerson | null;
+  /** Otherwise, as admin or Game Director: the invitation their first sign-in claims. */
+  invitation: InstanceInvitation | null;
+  /** Otherwise, as Observer: an invitation to each project. */
+  projectInvitations: PendingProjectInvitation[];
+  /** Projects left alone because they were already a member there, or invited. */
+  skipped: string[];
 }
 
 export interface UpdateInstancePersonInput {

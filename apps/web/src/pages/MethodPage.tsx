@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Logo } from '../components/Brand.tsx';
+import { Logo, SOURCE_URL } from '../components/Brand.tsx';
 import { lang, LANGUAGES, setLang, t, type Lang } from '../i18n/index.ts';
 
 const RichTextMarkdown = lazy(() => import('../components/RichTextMarkdown.tsx'));
@@ -63,6 +63,12 @@ export function MethodPage() {
           </Suspense>
         )}
       </main>
+      <footer className="method-foot">
+        {t('GameWeld is open source.')}{' '}
+        <a href={SOURCE_URL} target="_blank" rel="noreferrer">
+          {t('Source code on GitHub')}
+        </a>
+      </footer>
     </div>
   );
 }

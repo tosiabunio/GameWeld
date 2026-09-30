@@ -11,6 +11,8 @@ export const texts: Record<string, string> = {
   'Sign out': 'Wyloguj się',
   Method: 'Metoda',
   'How GameWeld works: the method': 'Jak działa GameWeld: metoda',
+  'Source code on GitHub': 'Kod źródłowy na GitHubie',
+  'GameWeld is open source.': 'GameWeld jest otwartym oprogramowaniem.',
 
   // Signing in
   'Sign-in failed': 'Logowanie nie powiodło się',
@@ -61,6 +63,14 @@ export const texts: Record<string, string> = {
   'Admins may do everything: they see and manage every project, member or not. Game Directors here may create projects, and lead them. The demo personas are not listed.':
     'Administratorzy mogą wszystko: widzą każdy projekt i nim zarządzają, także gdy nie są jego członkami. Dyrektorzy gry mogą tu tworzyć projekty i je prowadzić. Persony demo nie są tu wymienione.',
   Invite: 'Zaproś',
+  'Observer: reads the projects you choose': 'Obserwator: czyta wybrane przez ciebie projekty',
+  'Projects to observe': 'Projekty do obserwowania',
+  'There are no team projects yet.': 'Nie ma jeszcze projektów zespołów.',
+  'Stop {name} observing {project}': 'Zakończ obserwowanie projektu {project} przez: {name}',
+  'Invited to projects, not signed in yet': 'Zaproszeni do projektów, jeszcze niezalogowani',
+  'Left alone, as they were already there: {projects}.':
+    'Bez zmian, bo ta osoba już tam była: {projects}.',
+  'Nothing to do: {email} was already there.': 'Nic do zrobienia: {email} już tam jest.',
   As: 'Jako',
   'Game Director: may create projects': 'Dyrektor gry: może tworzyć projekty',
   'Admin: may do everything': 'Administrator: może wszystko',

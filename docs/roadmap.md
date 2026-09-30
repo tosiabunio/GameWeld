@@ -1,6 +1,6 @@
 # Roadmap: what GameWeld still lacks
 
-**Status: proposal, 19 September 2026; last updated 22 September 2026.** This compares what is
+**Status: proposal, 19 September 2026; last updated 30 September 2026.** This compares what is
 implemented with similar tools, especially the simpler ones: Trello, Planka, and Wekan, and then
 Taiga and Plane. The gaps below were checked against the code, not guessed. Nothing here is
 decided; an entry becomes a decision when it moves into the
@@ -9,8 +9,8 @@ decided; an entry becomes a decision when it moves into the
 
 The short version: next to the simple tools, GameWeld most lacked notifications, live updates, and
 a handful of small things on a card (Markdown, checklists, labels, dates); those are done, and so
-are the AI tools, which none of them has. Before a first real team, it needs backups and Google
-sign-in switched on at gameweld.eu.
+are the AI tools, which none of them has. Since 29 September 2026 gameweld.eu is ready for real
+teams: Google sign-in beside the open demo, backups, admins, and read-only Observers.
 
 ## Where GameWeld stands
 
@@ -54,6 +54,11 @@ skill for Claude Code, which every instance serves as a plugin, teaches an assis
 vocabulary and rules and the common jobs: breaking an item down into Code, Assets, and Content
 tasks, the week's summary, and where work waits ([api.md](api.md)).
 
+**Access.** Game Directors, Developers, and Testers in each project, and read-only Observers who
+see the Backlog, the Workboard, and the Overview. Instance admins manage everything, make other
+admins, let people create projects, and give Observers the projects they follow
+([deployment.md](deployment.md#the-demo-beside-teams)).
+
 ## What is missing
 
 Each entry says who has it, so the comparison stays honest. "All five" means Trello, Planka,
@@ -63,7 +68,7 @@ Wekan, Taiga, and Plane.
 
 | Missing | Who has it | Notes |
 | --- | --- | --- |
-| Real sign-in and invitations | All five | Built (Phase 8): Google sign-in, access by invitation only ([google-sign-in.md](google-sign-in.md)). gameweld.eu still runs the open persona sign-in until it is switched over. |
+| Real sign-in and invitations | done | Google sign-in, access by invitation only ([google-sign-in.md](google-sign-in.md)); on gameweld.eu since 29 September 2026, beside the open demo. |
 | Backups | done | Duplicati on the server, every 12 hours, to Cloudflare R2, encrypted; restore tested on 29 September 2026 ([backup-plan.md](backup-plan.md)). Failure alerts still to set. |
 | Notifications by e-mail | All five | The app has a bell (since 19 September 2026): events that concern the viewer, and what waits for their decision. It reaches only someone who has the app open. E-mail needs real addresses, so it follows real sign-in. |
 

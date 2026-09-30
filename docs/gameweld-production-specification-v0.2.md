@@ -80,17 +80,20 @@ Alternative names considered during drafting (Playwork, Content Forge, Game Asse
 
 ## 4. Users and permissions
 
-**Confirmed:** roles are assigned per project, and a user may hold multiple roles in the same project.
+**Confirmed:** roles are assigned per project, and a user may hold multiple roles in the same project. **Confirmed (29 September 2026):** the Observer role is the exception: it is held alone.
 
-| Action | Game Director | Developer | Tester |
-| --- | --- | --- | --- |
-| View the project backlog, breakdowns, and boards | Yes | Yes | Yes |
-| Create, edit, reprioritize, or remove backlog items | Yes | No | No |
-| Select Workboard scope | Yes | No | No |
-| Work on tasks, add comments, and attach material | Yes | Yes | Yes |
-| Move tasks into Done | According to the project's completion policy | According to the project's completion policy | According to the project's completion policy |
-| Accept a backlog item as Done | Yes | No | Only if explicitly granted acceptance permission |
-| Approve out-of-scope work | Yes | No | No |
+| Action | Game Director | Developer | Tester | Observer |
+| --- | --- | --- | --- | --- |
+| View the project backlog, breakdowns, and boards | Yes | Yes | Yes | Backlog, Workboard, and Overview, and the items and tasks opened from them |
+| View the project's history | Yes | Yes | Yes | No |
+| Create, edit, reprioritize, or remove backlog items | Yes | No | No | No |
+| Select Workboard scope | Yes | No | No | No |
+| Work on tasks, add comments, and attach material | Yes | Yes | Yes | No |
+| Move tasks into Done | According to the project's completion policy | According to the project's completion policy | According to the project's completion policy | No |
+| Accept a backlog item as Done | Yes | No | Only if explicitly granted acceptance permission | No, even if granted |
+| Approve out-of-scope work | Yes | No | No | No |
+
+The Observer follows a project without taking part in it, such as a teacher following a student group's work.
 
 This table is the source of truth for permissions. Other sections describe behavior that follows from it and do not restate it.
 
@@ -111,6 +114,16 @@ This table is the source of truth for permissions. Other sections describe behav
 A task is completed by moving its card into Done, or with **Mark complete** in the task's window, which moves a placed card into Done as well. A task that waits in the Breakdown has no card to move, so its row offers **Mark complete** too. All three ways need the same permission, and none is shown to a member who lacks it.
 
 Backlog acceptance is a separate permission. Its default holder is the Game Director. Granting it to a lead tester should not require a new role in the MVP.
+
+### Instance administration — Confirmed (29–30 September 2026)
+
+Beside the project roles, an instance has **admins**. An admin may do everything in every project, member or not, including what the completion restriction reserves to Testers, and appears in no project's member list for it. On the **Administration** page an admin sees everyone with an account and their projects, and gives, or invites people to:
+
+- **Admin**;
+- **Game Director of the instance**: may create projects, becoming their Game Director (with `PROJECT_CREATORS=admins`, nobody else may);
+- **Observer** of chosen team projects.
+
+Someone who has not signed in yet receives it at their first sign-in. An instance always keeps at least one admin. Demo personas are never admins and never receive these rights, and an API token cannot grant them.
 
 ## 5. Core data model
 

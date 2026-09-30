@@ -69,9 +69,15 @@ The sign-in page then offers Google above the personas. The two never mix:
   other in the member picker, and nobody else.
 - **Admins may do everything:** they see every project in their list and manage it with a Game
   Director's rights, member or not. **Administration** (in the header) lists everyone with an
-  account, and there an admin makes others admins, or lets them create projects: the instance's
-  Game Directors, who then start and lead projects of their own. Someone who has not signed in
-  yet is invited, and gets it at their first sign-in with Google.
+  account and their projects. There an admin invites people, or gives those with an account:
+  - **Admin**: may do everything;
+  - **Game Director**: may create projects of their own, and lead them;
+  - **Observer** of the team projects the admin ticks: reads their Backlog, Workboard, and
+    Overview and changes nothing, such as a teacher following student groups. **Remove** beside
+    a project ends it.
+
+  Someone who has not signed in yet is invited, and gets it at their first sign-in with Google;
+  pending invitations are listed there and can be cancelled.
 - **The admin can also start a team project for its Game Director:** **New project**, with the
   director's address. They are added, or invited if they have not signed in yet, and the admin
   does not join the project. The director then invites the team (**Project settings →

@@ -20,7 +20,7 @@ Keep in mind:
 - It runs the latest build of `main`, so it can change from one day to the next.
 
 Teams can also work there for real, signed in with Google, in projects only they can see; the
-demo and its personas never reach them.
+demo and its personas never reach them. Teachers can follow student groups there as Observers.
 
 [The GameWeld method](https://gameweld.eu/method) explains the way of working GameWeld is built for, in English and in Polish, without signing in.
 
@@ -34,6 +34,7 @@ demo and its personas never reach them.
 - **Everyday board tools**: dragging by pointer, touch, and keyboard; "My tasks"; notifications; live updates; Markdown with @mentions; checklists; labels, a "blocked" flag, and dates; covers and attachments; filters and quick open (Cmd+K / Ctrl+K); a full activity history; dark mode; a phone layout.
 - **Import from Trello** and export of a whole project.
 - **English and Polish** interface.
+- **Roles and access**: Game Directors, Developers, Testers, and read-only Observers in each project; instance admins who manage everything and, on an Administration page, let people create projects or observe chosen ones, such as teachers following student groups.
 - **For scripts and AI assistants**: API tokens, an OpenAPI description, an MCP server, and a Claude Code plugin (below).
 
 ## Using it with an AI assistant

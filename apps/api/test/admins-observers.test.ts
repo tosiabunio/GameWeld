@@ -133,7 +133,7 @@ describe('Admins', () => {
       as: 'director',
     });
     expect(given.statusCode).toBe(201);
-    expect(given.json()).toMatchObject({ canCreateProjects: true, isAdmin: false });
+    expect(given.json().person).toMatchObject({ canCreateProjects: true, isAdmin: false });
     expect((await call('POST', '/api/projects', member.cookie, { name: 'Mine' })).statusCode).toBe(
       201,
     );
@@ -143,6 +143,7 @@ describe('Admins', () => {
       as: 'director',
     });
     expect(invited.statusCode).toBe(202);
+    expect(invited.json().invitation).toMatchObject({ email: 'newcomer@example.com' });
     const admitted = await admit(
       t.db,
       'google',
@@ -160,6 +161,80 @@ describe('Admins', () => {
     expect(people.people.map((p: { email: string }) => p.email)).not.toContain(
       'director@gameweld.local',
     );
+  });
+
+  it('make someone an Observer of chosen team projects, at once or at their first sign-in', async () => {
+    const other = (
+      await call('POST', '/api/projects', lead.cookie, { name: 'Second group' })
+    ).json().id as string;
+    const teacher = await signInAsTeamMember(t, 'teacher@example.com');
+    const given = await call('POST', '/api/admin/invitations', admin.cookie, {
+      email: 'teacher@example.com',
+      as: 'observer',
+      projectIds: [projectId, other],
+    });
+    expect(given.statusCode).toBe(201);
+    expect(given.json().person.memberships.map((m: { roles: string[] }) => m.roles)).toEqual([
+      ['observer'],
+      ['observer'],
+    ]);
+    const seen = (await call('GET', '/api/projects', teacher.cookie)).json();
+    expect(seen.map((p: { roles: string[] }) => p.roles)).toEqual([['observer'], ['observer']]);
+    // Again, or where they already have a role: left as it is.
+    const again = await call('POST', '/api/admin/invitations', admin.cookie, {
+      email: 'lead@example.com',
+      as: 'observer',
+      projectIds: [other],
+    });
+    expect(again.json().skipped).toEqual(['Second group']);
+    const leadRoles = (await call('GET', `/api/projects/${other}`, lead.cookie)).json().roles;
+    expect(leadRoles).toEqual(['director']);
+
+    // Someone new gets an invitation to each project, which their first sign-in claims.
+    const invited = await call('POST', '/api/admin/invitations', admin.cookie, {
+      email: 'examiner@example.com',
+      as: 'observer',
+      projectIds: [other],
+    });
+    expect(invited.statusCode).toBe(202);
+    expect(invited.json().projectInvitations).toMatchObject([
+      { projectName: 'Second group', roles: ['observer'] },
+    ]);
+    const people = (await call('GET', '/api/admin/people', admin.cookie)).json();
+    expect(people.projectInvitations.map((i: { email: string }) => i.email)).toContain(
+      'examiner@example.com',
+    );
+    expect(people.projects.map((p: { name: string }) => p.name)).toContain('Second group');
+    await admit(
+      t.db,
+      'google',
+      { subject: 'examiner', email: 'examiner@example.com', emailVerified: true, name: 'E' },
+      null,
+    );
+    const member = await t.db.query(
+      `SELECT m.roles::text[] AS roles FROM project_memberships m JOIN users u ON u.id = m.user_id
+        WHERE u.email = 'examiner@example.com' AND m.project_id = $1`,
+      [other],
+    );
+    expect(member.rows).toEqual([{ roles: ['observer'] }]);
+  });
+
+  it('give Observers team projects only, and some', async () => {
+    const none = await call('POST', '/api/admin/invitations', admin.cookie, {
+      email: 'x@example.com',
+      as: 'observer',
+    });
+    expect(none.statusCode).toBe(400);
+    expect(none.json().message).toMatch(/Choose the projects/);
+    const persona = await signInAs(t.app, 'director');
+    const demo = (await call('POST', '/api/projects', persona, { name: 'Demo one' })).json().id;
+    const refused = await call('POST', '/api/admin/invitations', admin.cookie, {
+      email: 'x@example.com',
+      as: 'observer',
+      projectIds: [demo],
+    });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().message).toMatch(/team projects only/);
   });
 
   it('keep at least one admin, and give no rights to personas or through others', async () => {
@@ -180,7 +255,7 @@ describe('Admins', () => {
       email: 'lead@example.com',
       as: 'admin',
     });
-    expect(second.json().isAdmin).toBe(true);
+    expect(second.json().person.isAdmin).toBe(true);
     const stepDown = await call('PATCH', `/api/admin/people/${admin.id}`, admin.cookie, {
       isAdmin: false,
     });

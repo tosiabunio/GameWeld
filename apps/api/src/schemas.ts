@@ -612,7 +612,19 @@ export const InstancePerson = exact<d.InstancePerson>()(
     avatarUrl: z.string().nullable(),
     isAdmin: z.boolean(),
     canCreateProjects: z.boolean(),
-    projectCount: z.number().int(),
+    memberships: z.array(
+      z.object({ projectId: id(), projectName: z.string(), roles: z.array(ProjectRole) }),
+    ),
+  }),
+);
+
+export const PendingProjectInvitation = exact<d.PendingProjectInvitation>()(
+  z.object({
+    id: id(),
+    projectId: id(),
+    projectName: z.string(),
+    email: z.string(),
+    roles: z.array(ProjectRole),
   }),
 );
 
@@ -628,5 +640,19 @@ export const InstanceInvitation = exact<d.InstanceInvitation>()(
 );
 
 export const InstancePeople = exact<d.InstancePeople>()(
-  z.object({ people: z.array(InstancePerson), invitations: z.array(InstanceInvitation) }),
+  z.object({
+    people: z.array(InstancePerson),
+    invitations: z.array(InstanceInvitation),
+    projectInvitations: z.array(PendingProjectInvitation),
+    projects: z.array(z.object({ id: id(), name: z.string() })),
+  }),
+);
+
+export const InviteResult = exact<d.InviteResult>()(
+  z.object({
+    person: InstancePerson.nullable(),
+    invitation: InstanceInvitation.nullable(),
+    projectInvitations: z.array(PendingProjectInvitation),
+    skipped: z.array(z.string()).describe('Projects where they were already a member, or invited.'),
+  }),
 );

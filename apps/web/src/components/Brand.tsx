@@ -1,6 +1,9 @@
 import { useState } from 'react';
 
 /** Decorative marks: the accessible names live on the surrounding link, heading, or label. */
+/** Where GameWeld's source lives: it is open source (MIT). */
+export const SOURCE_URL = 'https://github.com/tosiabunio/GameWeld';
+
 export function Logo({ size = 24 }: { size?: number }) {
   return (
     <svg

@@ -5,8 +5,15 @@ test('the method is open to anyone, from the sign-in page and from the top bar',
   page,
 }) => {
   await page.goto('/');
+  // Both pages anyone can open lead to the source code.
+  const source = 'https://github.com/tosiabunio/GameWeld';
+  await expect(page.getByTestId('source-link')).toHaveAttribute('href', source);
   await page.getByRole('link', { name: 'How GameWeld works: the method' }).click();
   await expect(page).toHaveURL(/\/method$/);
+  await expect(page.getByRole('link', { name: 'Source code on GitHub' })).toHaveAttribute(
+    'href',
+    source,
+  );
   await expect(page.getByRole('heading', { level: 1, name: 'The GameWeld Method' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '5. Code, Assets, and Content' })).toBeVisible();
   // Nothing on it scrolls the page sideways on a phone.
