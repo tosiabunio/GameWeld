@@ -619,7 +619,11 @@ const TOOLS: Tool[] = [
             title: z.string().min(1).max(500),
             category: z.enum(TASK_CATEGORIES),
             description: z.string().max(50_000).optional().describe('Markdown.'),
-            assigneeId: z.string().uuid().optional().describe('A member, from get_project.'),
+            assigneeId: z
+              .string()
+              .uuid()
+              .optional()
+              .describe('A member from get_project who is not an Observer.'),
           }),
         )
         .min(1)
@@ -653,7 +657,12 @@ const TOOLS: Tool[] = [
       taskId: z.string().uuid(),
       title: z.string().min(1).max(500).optional(),
       description: z.string().max(50_000).optional().describe('Markdown; replaces the old one.'),
-      assigneeId: z.string().uuid().nullable().optional().describe('A member, or null for nobody.'),
+      assigneeId: z
+        .string()
+        .uuid()
+        .nullable()
+        .optional()
+        .describe('A member who is not an Observer, or null for nobody.'),
       labelIds: z.array(z.string().uuid()).optional().describe('All its labels, from get_project.'),
       dueDate: z.string().date().nullable().optional().describe('YYYY-MM-DD, or null for none.'),
       blocked: z.boolean().optional(),

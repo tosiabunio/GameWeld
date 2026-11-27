@@ -3,6 +3,7 @@ import { BACKLOG_LANES, LANE_LABELS, laneOf } from '@gameweld/domain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router';
 import { api } from '../api.ts';
+import { LoadError } from '../components/LoadError.tsx';
 import { t } from '../i18n/index.ts';
 import { ItemBreakdown } from './ItemBreakdown.tsx';
 import { useProject } from './ProjectPage.tsx';
@@ -16,8 +17,15 @@ export function BreakdownPage() {
   const { itemId } = useParams<{ itemId?: string }>();
   const [items, setItems] = useState<BacklogItem[] | null>(null);
 
+  const [loadFailed, setLoadFailed] = useState(false);
   const reload = useCallback(async () => {
-    setItems(await api.backlog(project.id));
+    try {
+      setItems(await api.backlog(project.id));
+      setLoadFailed(false);
+    } catch {
+      // The list that is shown stays. With none shown yet, there is another try to offer.
+      setLoadFailed(true);
+    }
   }, [project.id]);
 
   // Also when someone else changes the project (live updates).
@@ -46,7 +54,15 @@ export function BreakdownPage() {
     <div className="breakdown-layout">
       <nav className="item-nav" aria-label={t('Backlog items')} data-testid="item-nav" ref={nav}>
         {items === null ? (
-          <p className="muted small">{t('Loading…')}</p>
+          loadFailed ? (
+            <LoadError
+              small
+              message={t('Could not load the Backlog')}
+              retry={() => void reload()}
+            />
+          ) : (
+            <p className="muted small">{t('Loading…')}</p>
+          )
         ) : items.length === 0 ? (
           <p className="muted small">{t('No backlog items yet. Add some on the Backlog tab.')}</p>
         ) : (

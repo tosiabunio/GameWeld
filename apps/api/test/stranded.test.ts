@@ -150,6 +150,38 @@ describe('nothing is stranded', () => {
     expect((await task(id)).completed).toBe(true);
   });
 
+  it('a task of an archived item stays off the board, placed or asked for, until the item is back', async () => {
+    const item = await createItem('Shelved');
+    const id = await createTask(item, 'Waiting with its item');
+    const current = (await call('GET', `/backlog/${item}`)).json();
+    const archived = await call('PATCH', `/backlog/${item}`, {
+      version: current.version,
+      archived: true,
+    });
+    expect(archived.statusCode, archived.body).toBe(200);
+
+    const placed = await call('POST', `/boards/${boardId}/placements`, { taskId: id });
+    expect(placed.statusCode, placed.body).toBe(409);
+    expect(placed.json().message).toMatch(/archived/);
+    const asked = await call('POST', `/boards/${boardId}/requests`, {
+      taskId: id,
+      reason: 'There is time for it.',
+    });
+    expect(asked.statusCode, asked.body).toBe(409);
+    expect(asked.json().message).toMatch(/archived/);
+    expect((await task(id)).placement).toBeNull();
+    expect((await requests()).some((r) => r.task.id === id)).toBe(false);
+
+    const restored = await call('PATCH', `/backlog/${item}`, {
+      version: archived.json().version,
+      archived: false,
+    });
+    expect(restored.statusCode, restored.body).toBe(200);
+    const again = await call('POST', `/boards/${boardId}/placements`, { taskId: id });
+    expect(again.statusCode, again.body).toBeLessThan(300);
+    expect((await task(id)).placement).toMatchObject({ boardId });
+  });
+
   it('a removed member’s unfinished tasks are handed back, finished ones keep their name', async () => {
     const item = await createItem('Member leaves');
     const open = await createTask(item, 'Theirs, open', { assigneeId: developerId });

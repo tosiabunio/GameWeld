@@ -93,7 +93,7 @@ Alternative names considered during drafting (Playwork, Content Forge, Game Asse
 | Accept a backlog item as Done | Yes | No | Only if explicitly granted acceptance permission | No, even if granted |
 | Approve out-of-scope work | Yes | No | No | No |
 
-The Observer follows a project without taking part in it, such as a teacher following a student group's work.
+The Observer follows a project without taking part in it, such as a teacher following a student group's work. An Observer is given no tasks, and the unfinished tasks of a member who becomes an Observer are left unassigned, as those of a member who leaves are.
 
 This table is the source of truth for permissions. Other sections describe behavior that follows from it and do not restate it.
 

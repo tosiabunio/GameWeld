@@ -29,6 +29,40 @@ describe('configuration guard (T1)', () => {
     expect(loadConfig({ ...base, ...google, APP_ENV: 'production' }).authMock).toBe(false);
   });
 
+  it('refuses to reset the database of an instance that may hold teams’ work', () => {
+    // The demo beside teams runs outside production mode, where the guard above does not reach.
+    expect(() =>
+      loadConfig({
+        ...base,
+        ...google,
+        APP_ENV: 'local',
+        AUTH_MOCK: 'true',
+        RESET_DATABASE: 'true',
+      }),
+    ).toThrow(/RESET_DATABASE.*sign-in provider/);
+    expect(loadConfig({ ...base, APP_ENV: 'test', RESET_DATABASE: 'true' }).resetDatabase).toBe(
+      true,
+    );
+  });
+
+  it('limits visitors and the demo’s storage unless told otherwise', () => {
+    expect(loadConfig(base)).toMatchObject({
+      rateLimitPerMinute: 1200,
+      demoStorageBytes: 1024 * 1024 * 1024,
+    });
+    expect(loadConfig({ ...base, RATE_LIMIT_PER_MINUTE: '0', DEMO_STORAGE_MB: '0' })).toMatchObject(
+      { rateLimitPerMinute: null, demoStorageBytes: null },
+    );
+    // An empty value, as Compose passes an unset variable, is the default and not zero.
+    expect(loadConfig({ ...base, RATE_LIMIT_PER_MINUTE: '', DEMO_STORAGE_MB: '' })).toMatchObject({
+      rateLimitPerMinute: 1200,
+      demoStorageBytes: 1024 * 1024 * 1024,
+    });
+    expect(() => loadConfig({ ...base, RATE_LIMIT_PER_MINUTE: '-5' })).toThrow(
+      /RATE_LIMIT_PER_MINUTE/,
+    );
+  });
+
   it('refuses to start production with no sign-in provider, naming what to set', () => {
     expect(() => loadConfig({ ...base, APP_ENV: 'production' })).toThrow(
       /no sign-in provider.*GOOGLE_CLIENT_ID/,

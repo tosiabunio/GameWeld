@@ -132,6 +132,58 @@ describe('backlog', () => {
     expect(items[items.length - 1]!.id).toBe(first); // the original first item is now last
   });
 
+  it('makes room between two items that came to share a rank', async () => {
+    // A lane of its own: a project nothing else has put items in.
+    const project = (
+      await t.app.inject({
+        method: 'POST',
+        url: '/api/projects',
+        headers: { cookie: director },
+        payload: { name: 'Shared ranks' },
+      })
+    ).json().id as string;
+    const at = `/api/projects/${project}/backlog`;
+    const call = (method: 'GET' | 'POST' | 'PATCH', url: string, payload?: object) =>
+      t.app.inject({
+        method,
+        url,
+        headers: { cookie: director },
+        ...(payload ? { payload } : {}),
+      });
+    const make = async (title: string): Promise<BacklogItem> =>
+      (await call('POST', at, { title, category: 'must' })).json();
+    const lane = async (): Promise<BacklogItem[]> => (await call('GET', at)).json();
+
+    await make('Stays');
+    const away = await make('Away for a while');
+    // While it is archived, the rank after "Stays" is free, and the next item takes it.
+    const archived = await call('PATCH', `${at}/${away.id}`, {
+      version: away.version,
+      archived: true,
+    });
+    const meanwhile = await make('Made meanwhile');
+    await call('PATCH', `${at}/${away.id}`, { version: archived.json().version, archived: false });
+    const shared = (await lane()).filter((i) => i.rank === meanwhile.rank);
+    expect(shared.map((i) => i.title).sort()).toEqual(['Away for a while', 'Made meanwhile']);
+
+    // Dropping a third between the two has a rank to take.
+    const third = await make('Between them');
+    const moved = await call('POST', `${at}/${third.id}/move`, {
+      category: 'must',
+      afterId: shared[0]!.id,
+      beforeId: shared[1]!.id,
+    });
+    expect(moved.statusCode, moved.body).toBe(200);
+    const after = await lane();
+    expect(after.map((i) => i.title)).toEqual([
+      'Stays',
+      shared[0]!.title,
+      'Between them',
+      shared[1]!.title,
+    ]);
+    expect(new Set(after.map((i) => i.rank)).size).toBe(4);
+  });
+
   it('edits title and description with optimistic concurrency', async () => {
     const item = (await create({ title: 'Edit me', category: 'could' })).json();
     const ok = await t.app.inject({

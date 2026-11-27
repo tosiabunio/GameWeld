@@ -89,6 +89,19 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Told when the server no longer knows who is asking: the session ended, was signed out in
+ * another tab, or went with a demo reset. Whoever keeps the session listens (session.tsx), so
+ * the sign-in page comes up instead of a page whose every action is refused.
+ */
+let signedOut: (() => void) | null = null;
+export function onSignedOut(listener: (() => void) | null): void {
+  signedOut = listener;
+}
+
+/** Answers null rather than 401 when nobody is signed in: it is how the session is asked for. */
+const ME = '/api/me';
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: 'same-origin',
@@ -106,6 +119,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T;
   const body = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
+    if (res.status === 401 && path !== ME) signedOut?.();
     const obj =
       body && typeof body === 'object' ? (body as { message?: unknown; details?: unknown }) : {};
     throw new ApiError(
@@ -124,7 +138,7 @@ const json = (method: string, body: unknown): RequestInit => ({
 
 export const api = {
   providers: () => request<AuthProviders>('/api/auth/providers'),
-  me: () => request<CurrentUser | null>('/api/me'),
+  me: () => request<CurrentUser | null>(ME),
   myAvatar: () => request<MyAvatar | null>('/api/me/avatar'),
   /** A new picture and the circle to keep from it. */
   uploadAvatar: (file: File, crop: AvatarCrop) => {

@@ -56,6 +56,7 @@ export const texts: Record<string, string> = {
   'Saved.': 'Zapisano.',
   'Saving…': 'Zapisywanie…',
   'Something went wrong': 'Coś poszło nie tak',
+  'Try again': 'Spróbuj ponownie',
   Title: 'Tytuł',
   Name: 'Nazwa',
   Description: 'Opis',

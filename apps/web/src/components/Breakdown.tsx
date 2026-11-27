@@ -10,6 +10,7 @@ import { isCardClick, useTaskLinks } from '../taskLinks.ts';
 import { AssigneePicker } from './AssigneePicker.tsx';
 import { useCollapsedLanes } from './CardLanes.tsx';
 import { ChecklistProgress } from './Checklist.tsx';
+import { LoadError } from './LoadError.tsx';
 import { LabelChips, TaskFlags } from './TaskBadges.tsx';
 import { TaskStatus } from './TaskStatus.tsx';
 
@@ -42,8 +43,15 @@ export function Breakdown({
   const [showArchived, setShowArchived] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [loadFailed, setLoadFailed] = useState(false);
   const reload = useCallback(async () => {
-    setTasks(await api.tasks(projectId, itemId));
+    try {
+      setTasks(await api.tasks(projectId, itemId));
+      setLoadFailed(false);
+    } catch {
+      // The tasks that are shown stay. With none shown yet, there is another try to offer.
+      setLoadFailed(true);
+    }
   }, [projectId, itemId]);
 
   // Also after a task's window, open over this page, changed something.
@@ -59,7 +67,12 @@ export function Breakdown({
   const [requesting, setRequesting] = useState<{ taskId: string; reason: string } | null>(null);
   useEffect(() => {
     if (activeBoard) setBoardId(activeBoard.id);
-    else api.activeBoard(projectId).then((b) => setBoardId(b?.id ?? null));
+    else
+      api.activeBoard(projectId).then(
+        (b) => setBoardId(b?.id ?? null),
+        // Not knowing the board only leaves the tasks without their way onto it.
+        () => undefined,
+      );
   }, [activeBoard, projectId]);
 
   async function act(action: () => Promise<unknown>, failure: string) {
@@ -98,7 +111,12 @@ export function Breakdown({
     }
   }
 
-  if (tasks === null) return <p>{t('Loading…')}</p>;
+  if (tasks === null)
+    return loadFailed ? (
+      <LoadError message={t('Could not load the tasks')} retry={() => void reload()} />
+    ) : (
+      <p>{t('Loading…')}</p>
+    );
   const archivedCount = tasks.filter((t) => t.archived).length;
 
   return (

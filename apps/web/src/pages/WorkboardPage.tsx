@@ -3,6 +3,7 @@ import { CATEGORY_LABELS, STATE_LABELS, TASK_CATEGORY_LABELS, todoKindFor } from
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { assignable } from '../assignees.ts';
 import { boardFiltersOn, boardItemsOf, matchesCard, useCardFilters } from '../cardFilters.ts';
 import { ActionMenu } from '../components/ActionMenu.tsx';
 import { CardFilterControls, CardFilterRow } from '../components/CardFilterBar.tsx';
@@ -12,6 +13,7 @@ import { ChecklistProgress } from '../components/Checklist.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { History } from '../components/History.tsx';
+import { LoadError } from '../components/LoadError.tsx';
 import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { daysUntil, formatDay, LabelChips, TaskFlags } from '../components/TaskBadges.tsx';
 import { t, tj, tp } from '../i18n/index.ts';
@@ -29,6 +31,8 @@ export function WorkboardPage() {
   const canManage = project.permissions['board.manage'];
   const [board, setBoard] = useState<BoardView | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  // Why the board could not be loaded, apart from what an action on it answered.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{
     text: string;
     link?: { to: string; state?: unknown; label: string };
@@ -37,10 +41,22 @@ export function WorkboardPage() {
   const reload = useCallback(async () => {
     try {
       setBoard(boardId ? await api.board(project.id, boardId) : await api.activeBoard(project.id));
+      setLoadError(null);
     } catch (e) {
-      setBoard(null);
-      setError(
-        e instanceof ApiError && e.status === 404
+      const missing = e instanceof ApiError && e.status === 404;
+      // A board asked for by its address that is not there is shown as such. Any other failure
+      // (the network, a restart of the server) says nothing about the board: what is on screen
+      // stays, if it is what was asked for, and never gives way to "No active Workboard".
+      if (missing && boardId) setBoard(null);
+      else
+        setBoard((shown) => {
+          if (shown === undefined) return undefined;
+          const asked =
+            shown === null ? !boardId : boardId ? shown.id === boardId : shown.state === 'active';
+          return asked ? shown : undefined;
+        });
+      setLoadError(
+        missing && boardId
           ? t('That Workboard does not exist.')
           : t('Could not load the Workboard'),
       );
@@ -58,8 +74,10 @@ export function WorkboardPage() {
     setNotice(null);
     try {
       const next = await action();
-      if (next) setBoard(next);
-      else await reload();
+      if (next) {
+        setBoard(next);
+        setLoadError(null);
+      } else await reload();
       return true;
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('Something went wrong'));
@@ -68,12 +86,17 @@ export function WorkboardPage() {
     }
   }
 
-  if (board === undefined) return <p>{t('Loading…')}</p>;
+  if (board === undefined)
+    return loadError ? (
+      <LoadError message={loadError} retry={() => void reload()} />
+    ) : (
+      <p>{t('Loading…')}</p>
+    );
 
   if (board === null && boardId) {
     return (
       <div className="panel">
-        <p className="error">{error}</p>
+        <p className="error">{loadError ?? error}</p>
         <Link to={`/projects/${project.id}/board`}>{t('← The active Workboard')}</Link>
       </div>
     );
@@ -82,6 +105,7 @@ export function WorkboardPage() {
     return (
       <div className="panel">
         <h2>{t('No active Workboard')}</h2>
+        {loadError && <LoadError message={loadError} retry={() => void reload()} />}
         {canManage ? (
           <CreateBoardForm
             onCreate={(name) => run(() => api.createBoard(project.id, { name }))}
@@ -126,6 +150,7 @@ export function WorkboardPage() {
           {error}
         </p>
       )}
+      {loadError && <LoadError message={loadError} retry={() => void reload()} />}
       {notice && (
         <p className="notice info" role="status" data-testid="board-notice">
           {notice.text}
@@ -744,7 +769,7 @@ function Columns({
               </span>
               <AssigneePicker
                 assignee={card.assignee}
-                people={project.members}
+                people={assignable(project.members)}
                 taskTitle={card.title}
                 onAssign={
                   canWork

@@ -2,6 +2,7 @@ import { todoKindFor, type ColumnKind, type TaskCategory } from '@gameweld/domai
 import { generateKeyBetween } from 'fractional-indexing';
 import { recordActivity } from '../activity.ts';
 import type { Queryable } from '../db.ts';
+import { conflict, notFound } from '../errors.ts';
 
 /** Placement helpers shared by the board, request, and task routes. */
 
@@ -179,4 +180,24 @@ export async function returnTask(tx: Queryable, taskId: string, reason: string) 
       WHERE task_id = $1 AND is_current`,
     [taskId, reason],
   );
+}
+
+/**
+ * Section 12: an archived item keeps no cards on the board, so none of its tasks may enter one,
+ * by placement or by an out-of-scope request. Call with the active board locked, as archiving an
+ * item does, so the two cannot pass each other.
+ */
+export async function assertItemNotArchived(
+  tx: Queryable,
+  projectId: string,
+  itemId: string,
+): Promise<void> {
+  const item = (
+    await tx.query<{ archived_at: Date | null }>(
+      'SELECT archived_at FROM backlog_items WHERE project_id = $1 AND id = $2 FOR UPDATE',
+      [projectId, itemId],
+    )
+  ).rows[0];
+  if (!item) throw notFound('Backlog item not found');
+  if (item.archived_at) throw conflict('The task’s backlog item is archived. Restore it first.');
 }

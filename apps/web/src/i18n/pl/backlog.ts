@@ -39,6 +39,8 @@ export const texts: Record<string, string> = {
   'Choose a backlog item to see its breakdown.':
     'Wybierz element backlogu, aby zobaczyć jego podział.',
   'Could not load the item': 'Nie udało się wczytać elementu',
+  'Could not load the Backlog': 'Nie udało się wczytać Backlogu',
+  'Could not load the tasks': 'Nie udało się wczytać zadań',
   Archived: 'Zarchiwizowany',
   '{completed}/{total} tasks complete': 'Ukończono {completed}/{total} zadań',
   Tasks: 'Zadania',

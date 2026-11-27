@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.ts';
 import { t, tj } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
+import { LoadError } from './LoadError.tsx';
 
 const LABELS: Record<string, string> = {
   'project.created': 'created the project',
@@ -113,12 +114,26 @@ export function History({
   const { project, dataVersion } = useProject();
   const [open, setOpen] = useState(initiallyOpen);
   const [entries, setEntries] = useState<ActivityEntry[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retries, setRetries] = useState(0);
 
   // An open history follows what happens, by whoever's hand.
   useEffect(() => {
     if (!open) return;
-    api.activity(project.id, query).then(setEntries);
-  }, [open, project.id, query.entityType, query.entityId, dataVersion]);
+    let current = true;
+    api.activity(project.id, query).then(
+      (list) => {
+        if (!current) return;
+        setEntries(list);
+        setLoadFailed(false);
+      },
+      // The entries that are shown stay. With none shown yet, there is another try to offer.
+      () => current && setLoadFailed(true),
+    );
+    return () => {
+      current = false;
+    };
+  }, [open, project.id, query.entityType, query.entityId, dataVersion, retries]);
 
   return (
     <section
@@ -138,7 +153,18 @@ export function History({
       </h3>
       {open &&
         (entries === null ? (
-          <p className="muted small">{t('Loading…')}</p>
+          loadFailed ? (
+            <LoadError
+              small
+              message={t('Could not load the history')}
+              retry={() => {
+                setLoadFailed(false);
+                setRetries((n) => n + 1);
+              }}
+            />
+          ) : (
+            <p className="muted small">{t('Loading…')}</p>
+          )
         ) : entries.length === 0 ? (
           <p className="muted small">{t('Nothing recorded yet.')}</p>
         ) : (

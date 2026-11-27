@@ -1,8 +1,10 @@
 import {
   can,
+  isObserver,
   TASK_CATEGORIES,
   type ChecklistItem,
   type Label,
+  type ProjectRole,
   type Task,
   type TaskCategory,
   type TaskDetail,
@@ -216,12 +218,21 @@ async function fetchDetail(
   return { ...task, item, comments, attachments, links, checklistItems };
 }
 
-async function assertMember(tx: Queryable, projectId: string, userId: string): Promise<void> {
-  const res = await tx.query(
-    'SELECT 1 FROM project_memberships WHERE project_id = $1 AND user_id = $2',
+/**
+ * A task is given to a member who can work on it: an Observer only reads. The membership is held
+ * until the task is saved, so that a member being removed at the same moment is either gone
+ * before the task is theirs, or loses it with their other unfinished tasks.
+ */
+async function assertAssignable(tx: Queryable, projectId: string, userId: string): Promise<void> {
+  const res = await tx.query<{ roles: ProjectRole[] }>(
+    `SELECT roles::text[] AS roles FROM project_memberships
+      WHERE project_id = $1 AND user_id = $2 FOR KEY SHARE`,
     [projectId, userId],
   );
-  if (!res.rowCount) throw badRequest('The assignee must be a member of the project.');
+  const member = res.rows[0];
+  if (!member) throw badRequest('The assignee must be a member of the project.');
+  if (isObserver(member.roles))
+    throw badRequest('An Observer reads the project and cannot be given tasks.');
 }
 
 function requireDirector(req: FastifyRequest, what: string): void {
@@ -377,7 +388,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         if (!item.rows[0]) throw notFound('Backlog item not found');
         if (item.rows[0].archived_at)
           throw conflict('Restore the backlog item before adding tasks to it.');
-        if (input.assigneeId) await assertMember(tx, projectId, input.assigneeId);
+        if (input.assigneeId) await assertAssignable(tx, projectId, input.assigneeId);
         const created = await tx.query<{ id: string }>(
           `INSERT INTO tasks (project_id, item_id, category, title, description, assignee_id)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
@@ -509,7 +520,10 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         ) {
           throw conflict('Category cannot be changed while the task is on a Workboard.');
         }
-        if (assigneeId) await assertMember(tx, projectId, assigneeId);
+        // Only a new assignee is checked: an edit that leaves the task with whoever has it goes
+        // through whatever became of them since.
+        if (assigneeId && assigneeId !== current.assignee?.id)
+          await assertAssignable(tx, projectId, assigneeId);
         if (coverAttachmentId) {
           const cover = await tx.query<{ content_type: string }>(
             'SELECT content_type FROM attachments WHERE task_id = $1 AND id = $2',

@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signInAs, signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
+import {
+  ownDatabase,
+  signInAs,
+  signInAsTeamMember,
+  startApp,
+  type TestContext,
+} from './helpers.ts';
 
 // Other test files use the same personas and database at the same time, so a stream also carries
 // their projects' events: every expectation here names this file's own project.
@@ -204,42 +210,55 @@ describe('live updates', () => {
       creator.close();
     }
   });
+});
+
+describe('live updates for admins', () => {
+  let t: TestContext;
+  let base: string;
+
+  beforeAll(async () => {
+    // A database of its own: other test files count on the shared one having no admin.
+    t = await startApp({ DATABASE_URL: await ownDatabase('gameweld_live_admins') });
+    await t.app.listen({ port: 0, host: '127.0.0.1' });
+    base = `http://127.0.0.1:${(t.app.server.address() as { port: number }).port}`;
+  });
+  afterAll(async () => {
+    t.app.server.closeAllConnections();
+    await t.close();
+  });
 
   it('tells an admin about every project, member or not, and stops when they are admin no longer', async () => {
-    const run = Math.random().toString(36).slice(2, 8);
-    const admin = await signInAsTeamMember(t, `live-admin-${run}@example.com`, { admin: true });
-    const second = await signInAsTeamMember(t, `live-admin2-${run}@example.com`, { admin: true });
+    const send = async (cookie: string, method: string, url: string, payload: object) => {
+      const res = await fetch(`${base}/api${url}`, {
+        method,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      expect(res.status, url).toBeLessThan(300);
+      return (await res.json()) as { id: string };
+    };
+    const admin = await signInAsTeamMember(t, 'watching@example.com', { admin: true });
+    const second = await signInAsTeamMember(t, 'second@example.com', { admin: true });
+    const lead = await signInAsTeamMember(t, 'lead@example.com');
+    const project = (await send(lead.cookie, 'POST', '/projects', { name: 'Not the admin’s' })).id;
+    const add = (title: string) =>
+      send(lead.cookie, 'POST', `/projects/${project}/backlog`, { title, category: 'must' });
+
     const watching = await Stream.open(base, admin.cookie);
     try {
-      await sent(director, `/projects/${projectId}/backlog/${itemId}/tasks`, {
-        title: 'Seen by the admin',
-        category: 'code',
+      await add('Seen by the admin');
+      expect(await watching.next((e) => e.p === project && e.a === 'item.created')).toMatchObject({
+        p: project,
       });
-      expect(await watching.next((e) => e.p === projectId && e.a === 'task.created')).toMatchObject(
-        { p: projectId },
-      );
 
-      const demoted = await fetch(`${base}/api/admin/people/${admin.id}`, {
-        method: 'PATCH',
-        headers: { cookie: second.cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ isAdmin: false }),
-      });
-      expect(demoted.status).toBe(200);
-      await demoted.text();
+      await send(second.cookie, 'PATCH', `/admin/people/${admin.id}`, { isAdmin: false });
       await watching.next((e) => e.t === 'user' && e.a === 'admin.updated');
       watching.events.length = 0;
-      await sent(director, `/projects/${projectId}/backlog/${itemId}/tasks`, {
-        title: 'Not for them any more',
-        category: 'code',
-      });
+      await add('Not for them any more');
       await new Promise((done) => setTimeout(done, 150));
-      expect(watching.events.filter((e) => e.p === projectId)).toEqual([]);
+      expect(watching.events.filter((e) => e.p === project)).toEqual([]);
     } finally {
       watching.close();
-      // Other test files share this database and count on it having no admin.
-      await t.db.query('UPDATE users SET is_admin = false WHERE id = ANY($1)', [
-        [admin.id, second.id],
-      ]);
     }
   });
 });

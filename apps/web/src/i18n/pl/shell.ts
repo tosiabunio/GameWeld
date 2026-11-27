@@ -16,6 +16,7 @@ export const texts: Record<string, string> = {
 
   // Signing in
   'Sign-in failed': 'Logowanie nie powiodło się',
+  'Could not reach GameWeld.': 'Nie udało się połączyć z GameWeld.',
   'Production Management System': 'System zarządzania produkcją',
   'Sign in as': 'Zaloguj się jako',
   'Mock sign-in is enabled for local development. Pick a persona.':
@@ -155,6 +156,7 @@ export const texts: Record<string, string> = {
   'Project not found, or you are not a member.':
     'Nie znaleziono projektu albo do niego nie należysz.',
   'Could not load the project': 'Nie udało się wczytać projektu',
+  'Could not load the projects': 'Nie udało się wczytać projektów',
   'Project settings': 'Ustawienia projektu',
   'Project sections': 'Sekcje projektu',
 

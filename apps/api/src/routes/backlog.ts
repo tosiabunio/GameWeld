@@ -8,7 +8,7 @@ import {
   type MoscowCategory,
 } from '@gameweld/domain';
 import type { FastifyPluginAsync } from 'fastify';
-import { generateKeyBetween } from 'fractional-indexing';
+import { generateKeyBetween, generateNKeysBetween } from 'fractional-indexing';
 import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
@@ -170,6 +170,43 @@ async function rankAtEnd(
   return generateKeyBetween(last.rows[0]?.rank ?? null, null);
 }
 
+/**
+ * Gives every open item of a lane a rank of its own. Ranks are handed out among the open items,
+ * so an item that comes back to a lane (reopened after review, or restored) can hold the rank of
+ * one made or moved while it was away. The two then list in a fixed order, but nothing could be
+ * dropped between them: there is no key between a rank and itself. Those that share a rank keep
+ * their listed order and take keys up to the next rank. Call with the project locked.
+ */
+async function separateEqualRanks(
+  tx: Queryable,
+  projectId: string,
+  category: MoscowCategory,
+): Promise<void> {
+  const lane = (
+    await tx.query<{ id: string; rank: string }>(
+      `SELECT id, rank FROM backlog_items
+        WHERE project_id = $1 AND category = $2 AND state = 'open' AND archived_at IS NULL
+        ORDER BY rank, id`,
+      [projectId, category],
+    )
+  ).rows;
+  for (let first = 0; first < lane.length;) {
+    let next = first + 1;
+    while (next < lane.length && lane[next]!.rank === lane[first]!.rank) next++;
+    const keys = generateNKeysBetween(
+      lane[first]!.rank,
+      lane[next]?.rank ?? null,
+      next - first - 1,
+    );
+    for (const [i, rank] of keys.entries())
+      await tx.query('UPDATE backlog_items SET rank = $2 WHERE id = $1', [
+        lane[first + 1 + i]!.id,
+        rank,
+      ]);
+    first = next;
+  }
+}
+
 export const backlogRoutes: FastifyPluginAsync = async (app) => {
   const { db } = app.ctx;
   const base = '/projects/:projectId/backlog';
@@ -218,7 +255,7 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
       const projectId = req.access!.project.id;
 
       const itemId = await withTransaction(db, async (tx) => {
-        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR NO KEY UPDATE', [projectId]);
         const rank = await rankAtEnd(tx, projectId, input.category);
         const created = await tx.query<{ id: string }>(
           `INSERT INTO backlog_items (project_id, title, description, category, rank)
@@ -435,7 +472,7 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
 
       await withTransaction(db, async (tx) => {
         // Serialize every reorder in the project so concurrent moves see each other's ranks.
-        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR NO KEY UPDATE', [projectId]);
         const current = (
           await tx.query<ItemRow>('SELECT * FROM backlog_items WHERE project_id = $1 AND id = $2', [
             projectId,
@@ -445,6 +482,7 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
         if (!current || current.archived_at) throw notFound('Backlog item not found');
         if (current.state !== 'open')
           throw conflict('Only open items can be reordered; this item is awaiting review or done.');
+        await separateEqualRanks(tx, projectId, category);
 
         const neighbor = async (id: string | null | undefined): Promise<string | null> => {
           if (!id) return null;

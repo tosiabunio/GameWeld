@@ -108,10 +108,15 @@ export async function checkProjectAction(req: FastifyRequest, reply: FastifyRepl
 export function projectRoute(
   action: ProjectAction,
   doc: RouteDoc,
-  options: { ownerScoped?: boolean } = {},
+  options: { ownerScoped?: boolean; costly?: boolean } = {},
 ): RouteShorthandOptions {
   return {
-    config: { projectAction: action, doc, ...(options.ownerScoped ? { ownerScoped: true } : {}) },
+    config: {
+      projectAction: action,
+      doc,
+      ...(options.ownerScoped ? { ownerScoped: true } : {}),
+      ...(options.costly ? { costly: true } : {}),
+    },
     preHandler: [requireUser, checkProjectAction],
   };
 }

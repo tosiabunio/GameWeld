@@ -21,6 +21,15 @@ const schema = z.object({
     .positive()
     .default(24 * 14),
   ATTACHMENT_MAX_MB: z.coerce.number().positive().default(25),
+  // An empty value (as Compose passes an unset variable) means unset. 0 turns either off.
+  RATE_LIMIT_PER_MINUTE: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.coerce.number().int().min(0).default(1200),
+  ),
+  DEMO_STORAGE_MB: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.coerce.number().min(0).default(1024),
+  ),
   PUBLIC_URL: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -59,6 +68,13 @@ export interface Config {
   attachmentsDir: string;
   sessionTtlMs: number;
   attachmentMaxBytes: number;
+  /**
+   * Requests a minute one address may make while not signed in or as a demo persona; null: any
+   * number. Members of teams are not limited.
+   */
+  rateLimitPerMinute: number | null;
+  /** What the attachments of all demo projects may take together; null: any amount. */
+  demoStorageBytes: number | null;
   /** The address people open, without a trailing slash; null when no provider needs it. */
   publicUrl: string | null;
   oidcProviders: OidcProviderConfig[];
@@ -109,11 +125,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     attachmentsDir: e.ATTACHMENTS_DIR,
     sessionTtlMs: e.SESSION_TTL_HOURS * 60 * 60 * 1000,
     attachmentMaxBytes: Math.round(e.ATTACHMENT_MAX_MB * 1024 * 1024),
+    rateLimitPerMinute: e.RATE_LIMIT_PER_MINUTE || null,
+    demoStorageBytes: e.DEMO_STORAGE_MB ? Math.round(e.DEMO_STORAGE_MB * 1024 * 1024) : null,
     publicUrl,
     oidcProviders,
     initialAdminEmail: e.INITIAL_ADMIN_EMAIL?.toLowerCase() ?? null,
   };
   assertSafe(config);
+  // Production refuses RESET_DATABASE outright. An instance with the demo beside teams is not in
+  // production mode, and a reset would take the teams' work with the demo.
+  if (config.resetDatabase && config.oidcProviders.length > 0)
+    throw new Error(
+      'Refusing to start: RESET_DATABASE deletes everything, and this instance has a sign-in provider, so it may hold teams’ work. Remove RESET_DATABASE, or the provider’s settings',
+    );
   // The sample data is made by the demo seed and then through mock sign-in as the personas.
   if (config.demoResetHours !== null && !(config.seedDemo && config.authMock))
     throw new Error(

@@ -405,6 +405,19 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
           projectId,
           req.params as { itemId?: string; taskId?: string },
         );
+        // The demo is open to anyone and shares its disk with the teams: together its projects
+        // hold only so much, until the next reset empties them.
+        if (req.access!.project.demo && config.demoStorageBytes !== null) {
+          const used = await db.query<{ bytes: string }>(
+            `SELECT coalesce(sum(a.size_bytes), 0) AS bytes
+               FROM attachments a JOIN projects p ON p.id = a.project_id WHERE p.demo`,
+          );
+          if (Number(used.rows[0]!.bytes) >= config.demoStorageBytes)
+            throw new HttpError(
+              413,
+              'The demo has no room for more files until it next goes back to its sample data.',
+            );
+        }
         const part = await req
           .file({ limits: { fileSize: config.attachmentMaxBytes } })
           .catch(() => null);

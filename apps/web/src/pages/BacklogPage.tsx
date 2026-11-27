@@ -17,6 +17,7 @@ import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { useDisplayOptions } from '../displayOptions.ts';
 import { acceptedMonth, byAcceptance, recentCount } from '../doneWindow.ts';
+import { LoadError } from '../components/LoadError.tsx';
 import { lang, t, tj, tp } from '../i18n/index.ts';
 import { LANE_PAGE } from '../lanePaging.ts';
 import { useProject } from './ProjectPage.tsx';
@@ -38,13 +39,20 @@ export function BacklogPage() {
   const canSetCover = project.permissions['backlog.manage'];
   const [uploading, setUploading] = useState<string | null>(null);
 
+  const [loadFailed, setLoadFailed] = useState(false);
   const reload = useCallback(async () => {
-    const [nextItems, nextBoard] = await Promise.all([
-      api.backlog(project.id),
-      api.activeBoard(project.id),
-    ]);
-    setItems(nextItems);
-    setBoard(nextBoard);
+    try {
+      const [nextItems, nextBoard] = await Promise.all([
+        api.backlog(project.id),
+        api.activeBoard(project.id),
+      ]);
+      setItems(nextItems);
+      setBoard(nextBoard);
+      setLoadFailed(false);
+    } catch {
+      // What is shown stays. With nothing shown yet, the page says so and offers another try.
+      setLoadFailed(true);
+    }
   }, [project.id]);
 
   // Also when someone else changes the project (live updates).
@@ -144,7 +152,12 @@ export function BacklogPage() {
     [grouped, canManage, project.id, filtering, filters, doneWindow],
   );
 
-  if (items === null) return <p>{t('Loading…')}</p>;
+  if (items === null)
+    return loadFailed ? (
+      <LoadError message={t('Could not load the Backlog')} retry={() => void reload()} />
+    ) : (
+      <p>{t('Loading…')}</p>
+    );
 
   return (
     <div data-testid="backlog">

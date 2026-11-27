@@ -72,6 +72,47 @@ describe('Observers', () => {
     ).toEqual(['project.view']);
   });
 
+  it('is given no tasks, and one who becomes an Observer hands unfinished ones back', async () => {
+    const p = `/api/projects/${projectId}`;
+    const watcher = (await call('GET', '/api/me', observer)).json().id as string;
+    const refused = await call('POST', `${p}/backlog/${itemId}/tasks`, lead, {
+      category: 'code',
+      title: 'For the Observer',
+      assigneeId: watcher,
+    });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().message).toMatch(/Observer/);
+
+    const maker = await signInAsTeamMember(t, `maker-${run}@example.com`);
+    await call('POST', `${p}/members`, lead, {
+      email: `maker-${run}@example.com`,
+      roles: ['developer'],
+    });
+    const mine = async (title: string) =>
+      (
+        await call('POST', `${p}/backlog/${itemId}/tasks`, lead, {
+          category: 'code',
+          title,
+          assigneeId: maker.id,
+        })
+      ).json();
+    const open = await mine('Still to do');
+    const done = await mine('Done already');
+    await call('POST', `${p}/tasks/${done.id}/complete`, maker.cookie);
+
+    const changed = await call('PATCH', `${p}/members/${maker.id}`, lead, { roles: ['observer'] });
+    expect(changed.statusCode, changed.body).toBe(200);
+    const task = async (id: string) => (await call('GET', `${p}/tasks/${id}`, lead)).json();
+    expect((await task(open.id)).assignee).toBeNull();
+    expect((await task(done.id)).assignee).toMatchObject({ id: maker.id });
+    // And a task cannot be passed to them afterwards.
+    const passed = await call('PATCH', `${p}/tasks/${open.id}`, lead, {
+      version: (await task(open.id)).version,
+      assigneeId: maker.id,
+    });
+    expect(passed.statusCode).toBe(400);
+  });
+
   it('changes nothing, not even a comment', async () => {
     const p = `/api/projects/${projectId}`;
     const tries: [Method, string, object][] = [

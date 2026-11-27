@@ -2,6 +2,7 @@ import { isObserver, type ProjectDetail } from '@gameweld/domain';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Navigate, NavLink, Outlet, useLocation, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { LoadError } from '../components/LoadError.tsx';
 import { TaskModal, type OpenTask } from '../components/TaskModal.tsx';
 import { t } from '../i18n/index.ts';
 import { isForeignChange, subscribeLive } from '../live.ts';
@@ -34,18 +35,20 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ text: string; gone: boolean } | null>(null);
 
   const reload = useCallback(async () => {
     try {
       setProject(await api.project(projectId!));
       setError(null);
     } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === 404
+      const gone = e instanceof ApiError && e.status === 404;
+      setError({
+        text: gone
           ? t('Project not found, or you are not a member.')
           : t('Could not load the project'),
-      );
+        gone,
+      });
     }
   }, [projectId]);
 
@@ -83,10 +86,18 @@ export function ProjectPage({ openTask }: { openTask: OpenTask | null }) {
     };
   }, [projectId, reload, notifyChanged]);
 
-  if (error) {
+  // A project that is gone, or no longer the viewer's, takes the page. Any other failed load
+  // does so only while there is nothing to show: once the project is on screen, a reload that
+  // fails (the network, a restart of the server) leaves it there, with whatever is being
+  // written in it, and the next reload tries again.
+  if (error && (error.gone || !project || project.id !== projectId)) {
     return (
       <Shell>
-        <p className="error">{error}</p>
+        {error.gone ? (
+          <p className="error">{error.text}</p>
+        ) : (
+          <LoadError message={error.text} retry={() => void reload()} />
+        )}
       </Shell>
     );
   }

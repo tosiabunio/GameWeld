@@ -214,7 +214,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 
       await withTransaction(db, async (tx) => {
         const locked = await tx.query<ProjectRow>(
-          'SELECT id, name, description, done_restricted, scope_limit, archived_at, version, demo FROM projects WHERE id = $1 FOR UPDATE',
+          'SELECT id, name, description, done_restricted, scope_limit, archived_at, version, demo FROM projects WHERE id = $1 FOR NO KEY UPDATE',
           [project.id],
         );
         const current = locked.rows[0]!;

@@ -1,4 +1,5 @@
 import { matchPath, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
+import { LoadError } from './components/LoadError.tsx';
 import { TaskHome, type OpenTask } from './components/TaskModal.tsx';
 import { AdminPage } from './pages/AdminPage.tsx';
 import { BacklogPage } from './pages/BacklogPage.tsx';
@@ -12,16 +13,26 @@ import { ProjectsPage } from './pages/ProjectsPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { SignInPage } from './pages/SignInPage.tsx';
 import { WorkboardPage } from './pages/WorkboardPage.tsx';
+import { t } from './i18n/index.ts';
 import { useSession } from './session.tsx';
 import type { TaskLinkState } from './taskLinks.ts';
 
 export function App() {
-  const { session } = useSession();
+  const { session, refresh } = useSession();
   const location = useLocation();
   const openTask = openTaskAt(location.pathname, location.state);
   // The method is for anyone, signed in or not.
   if (location.pathname === '/method') return <MethodPage />;
-  if (session.state === 'loading') return <main className="page">Loading…</main>;
+  if (session.state === 'loading') return <main className="page">{t('Loading…')}</main>;
+  if (session.state === 'unreachable')
+    return (
+      <main className="page">
+        <LoadError
+          message={t('Could not reach GameWeld.')}
+          retry={() => void refresh().catch(() => undefined)}
+        />
+      </main>
+    );
   if (session.state === 'anonymous') return <SignInPage />;
   return (
     // A task's window opens over a page: the routes keep showing that page, and the project

@@ -61,7 +61,9 @@ A few conventions hold across the API:
 - **Refusals say why** in `{ "message": "…" }`, in English: 400 for invalid input (with
   `details` naming the fields), 401 without a working token, 403 without the permission, 404
   for what does not exist or is in a project you are not in, 409 when the current state does not
-  allow it.
+  allow it. 429 means too many requests in a minute from one address while not signed in or as a
+  demo persona, with `Retry-After` in seconds; a team's members and their tokens are not
+  limited.
 - **Updates carry a version.** A project, item, task, Workboard, or column is changed with the
   `version` it was read at. If someone changed it since, the answer is 409 and nothing changes:
   read it again and decide.

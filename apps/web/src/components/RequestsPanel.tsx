@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { t, tj, tp } from '../i18n/index.ts';
+import { LoadError } from './LoadError.tsx';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { useCurrentUser } from '../session.tsx';
 
@@ -42,8 +43,15 @@ export function RequestsPanel({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [loadFailed, setLoadFailed] = useState(false);
   const reload = useCallback(async () => {
-    setRequests(await api.requests(project.id, board.id));
+    try {
+      setRequests(await api.requests(project.id, board.id));
+      setLoadFailed(false);
+    } catch {
+      // The requests that are shown stay. With none shown yet, there is another try to offer.
+      setLoadFailed(true);
+    }
   }, [project.id, board.id]);
 
   useEffect(() => {
@@ -110,7 +118,17 @@ export function RequestsPanel({
               onClose={() => setAsking(false)}
             />
           )}
-          {pending.length === 0 ? (
+          {requests === null ? (
+            loadFailed ? (
+              <LoadError
+                small
+                message={t('Could not load the requests')}
+                retry={() => void reload()}
+              />
+            ) : (
+              <p className="muted small">{t('Loading…')}</p>
+            )
+          ) : pending.length === 0 ? (
             <p className="muted small">
               {t(
                 "No pending requests. Members ask here, or from a task’s row in the Breakdown, when the task's item is outside the scope.",

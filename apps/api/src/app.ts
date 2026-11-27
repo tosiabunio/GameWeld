@@ -5,13 +5,14 @@ import Fastify, { type FastifyError, type FastifyInstance, type FastifyPluginAsy
 import path from 'node:path';
 import pg from 'pg';
 import type { CustomFetch } from 'openid-client';
-import { registerAuth } from './auth.ts';
+import { registerAuth, servedOverHttps } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
 import { isPersona } from './demo.ts';
 import { DemoReset } from './demoReset.ts';
 import { LiveHub } from './live.ts';
 import { ApiDescription, checkResponses, publicRoute } from './openapi.ts';
+import { COSTLY, isLoopback, RateLimiter } from './rateLimit.ts';
 import { requestContext } from './requestContext.ts';
 import { FilesystemStorage, type Storage } from './storage.ts';
 import { currentVersion } from './migrate.ts';
@@ -109,6 +110,20 @@ export async function buildApp(
   if (ctx.config.appEnv === 'test') checkResponses(app);
   beforeRoutes?.(app);
 
+  // What the browser is told about every answer: to take its type as given, to show the app in
+  // no frame, to load scripts only from the instance, and, where it is served over HTTPS, to
+  // come back that way. A route that sends a file sets a stricter policy of its own, which stays.
+  // A stream the server writes itself (live updates, MCP) does not pass here.
+  const https = servedOverHttps(ctx.config);
+  app.addHook('onSend', async (_req, reply) => {
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('x-frame-options', 'DENY');
+    reply.header('referrer-policy', 'same-origin');
+    if (!reply.hasHeader('content-security-policy'))
+      reply.header('content-security-policy', CONTENT_SECURITY_POLICY);
+    if (https) reply.header('strict-transport-security', 'max-age=31536000');
+  });
+
   // Must precede route registration: child contexts inherit the handler that exists at that time.
   app.setErrorHandler((err: FastifyError | HttpError | pg.DatabaseError, _req, reply) => {
     // Input the database cannot hold is the caller's mistake, not a failure of the server.
@@ -158,13 +173,30 @@ export async function buildApp(
   // carry on.
   app.addHook('onRequest', async (req, reply) => {
     if (!ctx.demoReset?.resetting) return;
-    if (['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')) return;
+    if (isLoopback(req.socket.remoteAddress)) return;
     if (req.url !== '/api/auth/mock/sign-in' && !(req.user && isPersona(req.user))) return;
     return reply
       .status(503)
       .header('retry-after', '60')
       .send({ message: 'The demo is going back to its sample data. Try again in a minute.' });
   });
+  // Those nobody invited, visitors not signed in and the demo's personas, may ask only so much
+  // in a minute. Teams are not limited, nor are requests from the server itself.
+  const limiter =
+    ctx.config.rateLimitPerMinute === null ? null : new RateLimiter(ctx.config.rateLimitPerMinute);
+  if (limiter)
+    app.addHook('onRequest', async (req, reply) => {
+      if (!req.url.startsWith('/api/')) return;
+      if (req.user && !isPersona(req.user)) return;
+      if (isLoopback(req.socket.remoteAddress)) return;
+      const { costly, doc } = req.routeOptions.config;
+      const wait = limiter.take(req.ip, costly || doc?.upload ? COSTLY : 1);
+      if (wait === 0) return;
+      return reply
+        .status(429)
+        .header('retry-after', String(wait))
+        .send({ message: 'Too many requests from your address. Try again in a minute.' });
+    });
   app.decorateRequest('access', null);
   // Each group of routes, and the name the API's description lists it under.
   const groups: [FastifyPluginAsync, string][] = [
@@ -206,6 +238,24 @@ export async function buildApp(
 
   return app;
 }
+
+/**
+ * The application loads its own scripts, styles, and pictures and talks to its own API. Styles
+ * may be inline, as some set by scripts are; pictures may be data and blob addresses, as the
+ * icon and a picture being cropped are.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
 
 /**
  * PostgreSQL's refusals of a value it was given, by SQLSTATE, and what they mean to the caller.

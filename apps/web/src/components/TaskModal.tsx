@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { assignable } from '../assignees.ts';
 import { t } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import type { TaskLinkState } from '../taskLinks.ts';
@@ -200,7 +201,7 @@ export function TaskModal({ taskId, background, direct }: OpenTask) {
         key={task.id}
         task={task}
         readOnly={!editable}
-        members={project.members}
+        members={assignable(project.members)}
         onSave={(input) =>
           run(() => api.updateTask(project.id, task.id, { version: task.version, ...input }))
         }
@@ -619,6 +620,10 @@ function TaskForm({
             disabled={readOnly || assigning || saving}
           >
             <option value="">{t('Unassigned')}</option>
+            {/* Whoever holds the task without being offered (an Observer by now) is still shown. */}
+            {task.assignee && !members.some((m) => m.userId === task.assignee!.id) && (
+              <option value={task.assignee.id}>{task.assignee.displayName}</option>
+            )}
             {members.map((m) => (
               <option key={m.userId} value={m.userId}>
                 {m.displayName}

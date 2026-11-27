@@ -3,6 +3,7 @@ import { CATEGORY_LABELS, STATE_LABELS } from '@gameweld/domain';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
+import { assignable } from '../assignees.ts';
 import { Breakdown } from '../components/Breakdown.tsx';
 import { EditableText, EditableTitle } from '../components/ClickToEdit.tsx';
 import { MentionTextarea } from '../components/MentionTextarea.tsx';
@@ -110,7 +111,7 @@ export function ItemBreakdown({
         </p>
         <Breakdown
           projectId={project.id}
-          people={project.members}
+          people={assignable(project.members)}
           itemId={item.id}
           canWork={project.permissions['task.work']}
           canPlaceOutside={project.permissions['out_of_scope.approve']}
@@ -217,10 +218,10 @@ function ItemForm({
     setEditing(field);
   };
 
-  useEffect(() => {
-    setTitle(item.title);
-    setDescription(item.description);
-  }, [item.title, item.description]);
+  // Each field follows the server only when it changed there, so a new title from someone else
+  // does not wipe a description that is still being written.
+  useEffect(() => setTitle(item.title), [item.title]);
+  useEffect(() => setDescription(item.description), [item.description]);
   const dirty = title !== item.title || description !== item.description;
 
   async function submit(e: FormEvent) {

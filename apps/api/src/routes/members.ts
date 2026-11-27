@@ -159,6 +159,34 @@ export async function addMember(
 
 const OBSERVER_ALONE = 'An Observer holds no other role.';
 
+/**
+ * Work still to do must not stay with someone who can no longer do it, because they left the
+ * project or now only observe it: their unfinished tasks go back to nobody. Finished tasks keep
+ * the name of who did them.
+ */
+async function handBackTasks(
+  tx: Queryable,
+  m: { projectId: string; userId: string; actorId: string; reason: string },
+): Promise<void> {
+  const handedBack = await tx.query<{ id: string }>(
+    `UPDATE tasks SET assignee_id = NULL, version = version + 1, updated_at = now()
+      WHERE project_id = $1 AND assignee_id = $2 AND NOT completed RETURNING id`,
+    [m.projectId, m.userId],
+  );
+  for (const task of handedBack.rows) {
+    await tx.query('DELETE FROM my_task_ranks WHERE task_id = $1', [task.id]);
+    await recordActivity(tx, {
+      projectId: m.projectId,
+      actorId: m.actorId,
+      action: 'task.updated',
+      entityType: 'task',
+      entityId: task.id,
+      previous: { assigneeId: m.userId },
+      next: { assigneeId: null, reason: m.reason },
+    });
+  }
+}
+
 /** A project must always keep at least one Game Director. */
 async function assertDirectorRemains(
   tx: Queryable,
@@ -246,7 +274,8 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
     projectRoute('members.manage', {
       id: 'updateMember',
       summary: 'Change a member’s roles, or whether they may accept items',
-      description: 'A project always keeps at least one Game Director.',
+      description:
+        'A project always keeps at least one Game Director. Someone who becomes an Observer no longer works on tasks: their unfinished ones are left unassigned.',
       body: updateSchema,
       response: schema.ProjectMember,
     }),
@@ -258,7 +287,7 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
       const { userId } = req.params as { userId: string };
 
       return withTransaction(db, async (tx) => {
-        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR NO KEY UPDATE', [projectId]);
         const before = await memberById(tx, projectId, userId);
         if (!before) throw notFound('Member not found');
         const nextRoles = roles ?? before.roles;
@@ -271,6 +300,13 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
           'UPDATE project_memberships SET roles = $3, can_accept = $4 WHERE project_id = $1 AND user_id = $2',
           [projectId, userId, nextRoles, nextAccept],
         );
+        if (isObserver(nextRoles) && !isObserver(before.roles))
+          await handBackTasks(tx, {
+            projectId,
+            userId,
+            actorId: req.user!.id,
+            reason: 'member became an Observer',
+          });
         const after = (await memberById(tx, projectId, userId))!;
         await recordActivity(tx, {
           projectId,
@@ -300,7 +336,7 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
       const { userId } = req.params as { userId: string };
 
       await withTransaction(db, async (tx) => {
-        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR NO KEY UPDATE', [projectId]);
         const before = await memberById(tx, projectId, userId);
         if (!before) throw notFound('Member not found');
         if (before.roles.includes('director')) await assertDirectorRemains(tx, projectId, userId);
@@ -308,25 +344,12 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
           projectId,
           userId,
         ]);
-        // Work still to do must not stay with someone who can no longer see the project: their
-        // unfinished tasks go back to nobody. Finished tasks keep the name of who did them.
-        const handedBack = await tx.query<{ id: string }>(
-          `UPDATE tasks SET assignee_id = NULL, version = version + 1, updated_at = now()
-            WHERE project_id = $1 AND assignee_id = $2 AND NOT completed RETURNING id`,
-          [projectId, userId],
-        );
-        for (const task of handedBack.rows) {
-          await tx.query('DELETE FROM my_task_ranks WHERE task_id = $1', [task.id]);
-          await recordActivity(tx, {
-            projectId,
-            actorId: req.user!.id,
-            action: 'task.updated',
-            entityType: 'task',
-            entityId: task.id,
-            previous: { assigneeId: userId },
-            next: { assigneeId: null, reason: 'member removed' },
-          });
-        }
+        await handBackTasks(tx, {
+          projectId,
+          userId,
+          actorId: req.user!.id,
+          reason: 'member removed',
+        });
         await recordActivity(tx, {
           projectId,
           actorId: req.user!.id,

@@ -5,7 +5,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
-import { placeTask } from '../services/placement.ts';
+import { assertItemNotArchived, placeTask } from '../services/placement.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import * as schema from '../schemas.ts';
 import { activeBoardFor } from './board.ts';
@@ -193,6 +193,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
         if (task.archived) throw conflict('Restore the task before requesting placement.');
         if (task.completed) throw conflict('The task is already complete.');
         if (task.placement) throw conflict(`The task is already on ${task.placement.boardName}.`);
+        await assertItemNotArchived(tx, projectId, task.itemId);
         const inScope = await tx.query(
           'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
           [boardId, task.itemId],
@@ -296,6 +297,8 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
             if (task.completed) throw conflict('The task was completed in the meantime.');
             if (task.placement)
               throw conflict(`The task is already on ${task.placement.boardName}.`);
+            // The item may have been archived since the request was made.
+            await assertItemNotArchived(tx, projectId, task.itemId);
             const inScope = await tx.query(
               'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
               [boardId, task.itemId],

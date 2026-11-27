@@ -21,7 +21,12 @@ import { withTransaction, type Db, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
 import { calendarDate } from '../input.ts';
 import { recalculateItemState } from '../services/readiness.ts';
-import { placeTask, rankAtEndOfColumn, returnTask } from '../services/placement.ts';
+import {
+  assertItemNotArchived,
+  placeTask,
+  rankAtEndOfColumn,
+  returnTask,
+} from '../services/placement.ts';
 import * as schema from '../schemas.ts';
 import {
   CHECKLIST_COUNTS,
@@ -412,7 +417,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       if (!parsed.success) throw badRequest('Invalid Workboard', parsed.error.flatten());
       const projectId = req.access!.project.id;
       const boardId = await withTransaction(db, async (tx) => {
-        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR NO KEY UPDATE', [projectId]);
         const active = await tx.query(
           `SELECT 1 FROM workboards WHERE project_id = $1 AND state = 'active'`,
           [projectId],
@@ -880,6 +885,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
         if (task.archived) throw conflict('Restore the task before placing it.');
         if (task.completed) throw conflict('The task is already complete.');
         if (task.placement) throw conflict(`The task is already on ${task.placement.boardName}.`);
+        await assertItemNotArchived(tx, projectId, task.itemId);
         const inScope = await tx.query(
           'SELECT 1 FROM workboard_scope WHERE board_id = $1 AND item_id = $2',
           [boardId, task.itemId],

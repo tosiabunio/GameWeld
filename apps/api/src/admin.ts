@@ -69,7 +69,7 @@ export async function runAdmin(db: Db, args: string[], out: (line: string) => vo
         throw new Error(`Not a project id: ${projectId}. Run "projects" to list them.`);
       await withTransaction(db, async (tx) => {
         const project = await tx.query<{ demo: boolean }>(
-          'SELECT demo FROM projects WHERE id = $1 FOR UPDATE',
+          'SELECT demo FROM projects WHERE id = $1 FOR NO KEY UPDATE',
           [projectId],
         );
         if (!project.rowCount) throw new Error(`No project has the id ${projectId}.`);

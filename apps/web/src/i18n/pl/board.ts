@@ -107,6 +107,7 @@ export const texts: Record<string, string> = {
 
   // Out-of-scope requests
   'Out-of-scope requests': 'Prośby o pracę poza zakresem',
+  'Could not load the requests': 'Nie udało się wczytać próśb',
   '+ Request out-of-scope work': '+ Poproś o pracę poza zakresem',
   'Request out-of-scope work': 'Poproś o pracę poza zakresem',
   "No pending requests. Members ask here, or from a task’s row in the Breakdown, when the task's item is outside the scope.":
@@ -141,6 +142,7 @@ export const texts: Record<string, string> = {
   '<1>{actor}</1> {action}': '<1>{actor}</1>: {action}',
   System: 'System',
   'Nothing recorded yet.': 'Nic jeszcze nie zapisano.',
+  'Could not load the history': 'Nie udało się wczytać historii',
   '{file}, now the cover': '{file}, teraz okładka',
   'the item was accepted; {n} of its tasks left the board':
     'element został zaakceptowany; zadania, które opuściły tablicę: {n}',

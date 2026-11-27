@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
-import { badRequest } from '../errors.ts';
+import { badRequest, HttpError } from '../errors.ts';
 import { isCalendarDate } from '../input.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 
@@ -313,6 +313,26 @@ const categoryOf = (names: string[], fallback: TaskCategory): TaskCategory => {
   }
   return fallback;
 };
+/** How large a board a demo project takes: see the import route. */
+const DEMO_IMPORT_MAX_CARDS = 500;
+
+/** A comment among a Trello board's actions. */
+interface TrelloComment {
+  date?: string;
+  data?: { text?: string; card?: { id?: string } };
+  memberCreator?: { fullName?: string };
+}
+
+function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const group = groups.get(key(row));
+    if (group) group.push(row);
+    else groups.set(key(row), [row]);
+  }
+  return groups;
+}
+
 /** The day of a Trello date (an ISO time), or null for one that is not a date: it is left out. */
 const dayOf = (due: string | null | undefined): string | null => {
   const day = (due ?? '').slice(0, 10);
@@ -377,25 +397,29 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     '/projects/:projectId/import/trello',
     {
-      ...projectRoute('project.settings', {
-        id: 'importTrello',
-        summary: 'Import a Trello board from its JSON export',
-        description:
-          'Lists become items and cards their tasks (cards_as_tasks), or cards become items (cards_as_items). Labels, dates, checklists, comments, and links come along; members and attachments do not. Up to 25 MB.',
-        body: trelloSchema,
-        response: {
-          status: 201,
-          schema: z.object({
-            items: z.number().int(),
-            tasks: z.number().int(),
-            labels: z.number().int(),
-            checklistItems: z.number().int(),
-            comments: z.number().int(),
-            links: z.number().int(),
-          }),
-          description: 'What was imported',
+      ...projectRoute(
+        'project.settings',
+        {
+          id: 'importTrello',
+          summary: 'Import a Trello board from its JSON export',
+          description:
+            'Lists become items and cards their tasks (cards_as_tasks), or cards become items (cards_as_items). Labels, dates, checklists, comments, and links come along; members and attachments do not. Up to 25 MB.',
+          body: trelloSchema,
+          response: {
+            status: 201,
+            schema: z.object({
+              items: z.number().int(),
+              tasks: z.number().int(),
+              labels: z.number().int(),
+              checklistItems: z.number().int(),
+              comments: z.number().int(),
+              links: z.number().int(),
+            }),
+            description: 'What was imported',
+          },
         },
-      }),
+        { costly: true },
+      ),
       bodyLimit: 25 * 1024 * 1024,
     },
     async (req, reply) => {
@@ -414,10 +438,25 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
       const cards = board.cards
         .filter((c) => !c.closed && open.has(c.idList))
         .sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0));
+      // An open demo takes a board of a size to try the import with, not one to keep it busy.
+      if (req.access!.project.demo && cards.length > DEMO_IMPORT_MAX_CARDS)
+        throw new HttpError(
+          413,
+          `The demo imports boards of up to ${DEMO_IMPORT_MAX_CARDS} cards; this one has ${cards.length}.`,
+        );
       const labelById = new Map((board.labels ?? []).map((l) => [l.id, l]));
+      // By card, once: looking through every checklist and action for each card would take the
+      // square of a large board's size.
+      const checklistsByCard = groupBy(board.checklists ?? [], (k) => k.idCard);
+      const commentsByCard = groupBy(
+        (board.actions ?? [])
+          .filter((a) => a.type === 'commentCard')
+          .map((a) => a as TrelloComment)
+          .filter((a) => a.data?.card?.id && a.data.text),
+        (a) => a.data!.card!.id!,
+      );
       const checklistsOf = (cardId: string) =>
-        (board.checklists ?? [])
-          .filter((k) => k.idCard === cardId)
+        (checklistsByCard.get(cardId) ?? [])
           .flatMap((k) =>
             [...k.checkItems]
               .sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0))
@@ -425,17 +464,7 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
           )
           .filter((i) => i.title !== '');
       const commentsOf = (cardId: string) =>
-        (board.actions ?? [])
-          .filter((a) => a.type === 'commentCard')
-          .map(
-            (a) =>
-              a as {
-                date?: string;
-                data?: { text?: string; card?: { id?: string } };
-                memberCreator?: { fullName?: string };
-              },
-          )
-          .filter((a) => a.data?.card?.id === cardId && a.data.text)
+        [...(commentsByCard.get(cardId) ?? [])]
           .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
           .map(
             (a) =>
@@ -454,7 +483,7 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
 
       const counts = { items: 0, tasks: 0, labels: 0, checklistItems: 0, comments: 0, links: 0 };
       await withTransaction(db, async (tx) => {
-        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR UPDATE', [projectId]);
+        await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR NO KEY UPDATE', [projectId]);
         const lastRank = (
           await tx.query<{ rank: string }>(
             `SELECT rank FROM backlog_items WHERE project_id = $1 AND category = 'should'

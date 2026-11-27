@@ -90,6 +90,35 @@ The sign-in page then offers Google above the personas. The two never mix:
 
 Session cookies are marked `Secure` whenever `PUBLIC_URL` is HTTPS.
 
+### What the open demo may use
+
+Anyone may be a persona, so the demo has limits that a team's members do not meet:
+
+```sh
+RATE_LIMIT_PER_MINUTE=1200  # requests a minute from one address; 0: no limit
+DEMO_STORAGE_MB=1024        # room for the attachments of all demo projects; 0: no limit
+```
+
+- **Requests** are counted by address for visitors who are not signed in and for personas. An
+  upload, a Trello import, and a persona sign-in each count as twenty. Over the limit the answer
+  is 429 with `Retry-After`. Members of teams are not counted, nor are requests from the server
+  itself, such as the scripts of a demo reset. The default leaves room for a class trying the
+  demo from one school address. The address is the one the reverse proxy reports in
+  `X-Forwarded-For`, so the proxy must set that header itself rather than pass on what a client
+  sent; Traefik does by default.
+- **Storage:** once the demo projects' attachments reach the limit together, uploads to them are
+  refused until the next reset empties them. Team projects are not counted.
+- **A Trello import** into a demo project takes a board of up to 500 cards.
+- **`RESET_DATABASE=true` is refused** when a sign-in provider is configured: such an instance
+  may hold teams' work, and a reset would take it with the demo.
+
+### Headers
+
+Every answer tells the browser to take its type as given (`X-Content-Type-Options`), to show
+the application in no frame, to send no referrer to other sites, and to load scripts only from
+the instance (`Content-Security-Policy`). Where `PUBLIC_URL` is HTTPS, or in production mode, it
+also sends `Strict-Transport-Security` for a year, so serve the instance over HTTPS only.
+
 Once teams keep their work on an instance, it holds data worth keeping: set up backups first, as
 [backup-plan.md](backup-plan.md) describes for gameweld.eu.
 

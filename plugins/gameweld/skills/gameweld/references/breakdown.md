@@ -37,7 +37,8 @@ Rules of thumb that make a breakdown useful:
 - Skip what the existing tasks already cover, and say so.
 - Don't add testing tasks unless the team works that way: Testers check work as it reaches Done.
 - Leave tasks unassigned unless the user asks. If they do, match people by role and by the work
-  they already have; GameWeld records no skills, so ask when unsure.
+  they already have; GameWeld records no skills, so ask when unsure. An Observer only reads the
+  project and cannot be given tasks.
 
 ## 3. Propose
 

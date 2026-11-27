@@ -1,8 +1,9 @@
 import type { ProjectSummary } from '@gameweld/domain';
 import { ROLE_LABELS } from '@gameweld/domain';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../api.ts';
+import { LoadError } from '../components/LoadError.tsx';
 import { useSession } from '../session.tsx';
 import { t, tp } from '../i18n/index.ts';
 import { Shell } from './Shell.tsx';
@@ -13,10 +14,26 @@ export function ProjectsPage() {
   const { session } = useSession();
   const mayCreate = session.state === 'signed-in' && session.user.mayCreateProjects;
 
-  useEffect(() => {
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Counts the loads, so that an answer that comes late, after the list was switched between
+  // active and archived, is not shown as the other list.
+  const asked = useRef(0);
+
+  const load = useCallback(async () => {
+    const mine = ++asked.current;
     setProjects(null);
-    api.projects(showArchived).then(setProjects);
+    setLoadFailed(false);
+    try {
+      const list = await api.projects(showArchived);
+      if (mine === asked.current) setProjects(list);
+    } catch {
+      if (mine === asked.current) setLoadFailed(true);
+    }
   }, [showArchived]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   return (
     <Shell>
@@ -34,7 +51,11 @@ export function ProjectsPage() {
         </div>
       </div>
       {projects === null ? (
-        <p>{t('Loading…')}</p>
+        loadFailed ? (
+          <LoadError message={t('Could not load the projects')} retry={() => void load()} />
+        ) : (
+          <p>{t('Loading…')}</p>
+        )
       ) : projects.length === 0 ? (
         <p className="muted">
           {showArchived

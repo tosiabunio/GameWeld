@@ -151,9 +151,13 @@ export async function requireSession(req: FastifyRequest, reply: FastifyReply): 
       .send({ message: 'API tokens are managed in the app, not with a token' });
 }
 
-/** Over HTTPS the browser keeps the cookies to it, as it must once real teams sign in. */
-const secureCookies = (config: Config) =>
+/**
+ * Whether people reach the instance over HTTPS. The browser then keeps the cookies to it, as it
+ * must once real teams sign in, and is told to come back over HTTPS only.
+ */
+export const servedOverHttps = (config: Config): boolean =>
   config.appEnv === 'production' || config.publicUrl?.startsWith('https://') === true;
+const secureCookies = servedOverHttps;
 
 async function startSession(app: FastifyInstance, reply: FastifyReply, userId: string) {
   const { config, db } = app.ctx;
@@ -267,7 +271,8 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
     const hidden = { summary: 'Sign in as a persona', tag, response: null, hidden: true } as const;
     app.post(
       '/api/auth/mock/sign-in',
-      publicRoute({ id: 'signInAsPersona', ...hidden }),
+      // Each sign-in makes a session: not something to do a thousand times a minute.
+      { config: { ...publicRoute({ id: 'signInAsPersona', ...hidden }).config, costly: true } },
       async (req, reply) => {
         const parsed = body.safeParse(req.body);
         const persona = parsed.success ? findPersona(parsed.data.persona) : undefined;

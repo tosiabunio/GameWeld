@@ -1,9 +1,13 @@
 import type { CurrentUser } from '@gameweld/domain';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api } from './api.ts';
+import { api, onSignedOut } from './api.ts';
 
 export type Session =
-  { state: 'loading' } | { state: 'anonymous' } | { state: 'signed-in'; user: CurrentUser };
+  | { state: 'loading' }
+  | { state: 'anonymous' }
+  | { state: 'signed-in'; user: CurrentUser }
+  /** The server could not be asked who is signed in. */
+  | { state: 'unreachable' };
 
 interface SessionContextValue {
   session: Session;
@@ -17,8 +21,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>({ state: 'loading' });
 
   const refresh = useCallback(async () => {
-    const user = await api.me();
-    setSession(user ? { state: 'signed-in', user } : { state: 'anonymous' });
+    try {
+      const user = await api.me();
+      setSession(user ? { state: 'signed-in', user } : { state: 'anonymous' });
+    } catch (e) {
+      // Before anyone is known, the failure is shown, with a way to try again, instead of
+      // "Loading…" for good. Later, a failed refresh leaves the session as it was.
+      setSession((s) =>
+        s.state === 'loading' || s.state === 'unreachable' ? { state: 'unreachable' } : s,
+      );
+      throw e;
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -27,8 +40,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    void refresh();
+    refresh().catch(() => undefined);
   }, [refresh]);
+
+  // A request refused with 401 means the session is over, whatever this tab still shows.
+  useEffect(() => {
+    onSignedOut(() => setSession((s) => (s.state === 'signed-in' ? { state: 'anonymous' } : s)));
+    return () => onSignedOut(null);
+  }, []);
 
   return (
     <SessionContext.Provider value={{ session, refresh, signOut }}>

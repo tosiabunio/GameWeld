@@ -40,12 +40,23 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
   const [doneRestricted, setDoneRestricted] = useState(project.doneRestricted);
   const [status, setStatus] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
+  // Take each field from the server only when it changed there. The project is loaded again for
+  // many reasons (a member's roles on this very page, a label, someone else's change), and none
+  // of them should wipe a name or description that is still being written.
+  useEffect(() => setName(project.name), [project.name]);
+  useEffect(() => setDescription(project.description), [project.description]);
+  useEffect(() => setScopeLimit(project.scopeLimit), [project.scopeLimit]);
+  useEffect(() => setDoneRestricted(project.doneRestricted), [project.doneRestricted]);
+  // A save refused because the project changed meanwhile gives every field up to what is there
+  // now. The count moves after the reload, so the values taken are the current ones.
+  const [discarded, setDiscarded] = useState(0);
   useEffect(() => {
     setName(project.name);
     setDescription(project.description);
     setScopeLimit(project.scopeLimit);
     setDoneRestricted(project.doneRestricted);
-  }, [project]);
+    // Only when a save was refused: the fields above follow the server one by one.
+  }, [discarded]);
 
   const dirty =
     name !== project.name ||
@@ -69,6 +80,7 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         await reload();
+        setDiscarded((n) => n + 1);
         setStatus({
           kind: 'error',
           text: `${err.message} ${t('Your unsaved changes were replaced with the current values.')}`,
