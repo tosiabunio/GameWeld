@@ -11,6 +11,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest } from '../errors.ts';
+import { isCalendarDate } from '../input.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 
 /** A project's data belongs to its team: everything in it can be taken out, and a Trello board can be brought in. */
@@ -312,6 +313,11 @@ const categoryOf = (names: string[], fallback: TaskCategory): TaskCategory => {
   }
   return fallback;
 };
+/** The day of a Trello date (an ISO time), or null for one that is not a date: it is left out. */
+const dayOf = (due: string | null | undefined): string | null => {
+  const day = (due ?? '').slice(0, 10);
+  return isCalendarDate(day) ? day : null;
+};
 const clip = (text: string, max: number) =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
@@ -487,7 +493,7 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
                 clip(t.description ?? '', 50_000),
                 t.done,
                 actorId,
-                t.due ? t.due.slice(0, 10) : null,
+                dayOf(t.due),
               ],
             )
           ).rows[0]!.id;
@@ -597,8 +603,8 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
             const notes = [
               `From the Trello list “${listName.get(card.idList)}”.`,
               labelNames(card).length > 0 ? `Labels: ${labelNames(card).join(', ')}.` : '',
-              card.due
-                ? `Due ${card.due.slice(0, 10)}${card.dueComplete ? ' (marked complete)' : ''}.`
+              dayOf(card.due)
+                ? `Due ${dayOf(card.due)}${card.dueComplete ? ' (marked complete)' : ''}.`
                 : '',
             ].filter((n) => n !== '');
             const itemId = await insertItem(

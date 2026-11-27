@@ -14,6 +14,7 @@ import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { isPersonaEmail, personaSql } from '../demo.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
+import { emitLive } from '../live.ts';
 import type { RouteDoc } from '../openapi.ts';
 import * as schema from '../schemas.ts';
 import { addMember } from './members.ts';
@@ -240,6 +241,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
               : 'UPDATE users SET can_create_projects = true WHERE id = $1',
             [userId],
           );
+          if (as === 'admin') await emitLive(tx, { t: 'user', id: userId, a: 'admin.updated' });
         } else {
           const admin = as === 'admin';
           const invitation = await tx.query<{ id: string }>(
@@ -306,6 +308,9 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
             WHERE id = $1`,
           [userId, isAdmin ?? null, canCreateProjects ?? null],
         );
+        // An admin hears of every project, so their open tabs must learn that this changed.
+        if (isAdmin !== undefined && isAdmin !== before.isAdmin)
+          await emitLive(tx, { t: 'user', id: userId, a: 'admin.updated' });
         return (await people(tx, userId))[0]!;
       });
     },

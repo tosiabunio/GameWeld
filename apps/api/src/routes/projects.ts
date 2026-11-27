@@ -8,6 +8,7 @@ import { fetchLabels } from './labels.ts';
 import { addMember, projectInvitations } from './members.ts';
 import { withTransaction } from '../db.ts';
 import { isPersona } from '../demo.ts';
+import { emitLive } from '../live.ts';
 import { badRequest, conflict, HttpError } from '../errors.ts';
 import { memberRoute } from '../openapi.ts';
 import * as schema from '../schemas.ts';
@@ -133,11 +134,15 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
             canAccept: false,
             actorId: user.id,
           });
-        else
+        else {
           await tx.query(
             `INSERT INTO project_memberships (project_id, user_id, roles) VALUES ($1, $2, '{director}')`,
             [id, user.id],
           );
+          // The creator's open tabs listen to the projects they were in when their stream began:
+          // this has them take the new one in, as becoming a member of any project does.
+          await emitLive(tx, { p: id, t: 'user', id: user.id, a: 'member.added' });
+        }
         return id;
       });
 

@@ -19,6 +19,7 @@ import { projectRoute } from '../authz.ts';
 import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Db, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
+import { calendarDate } from '../input.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import { placeTask, rankAtEndOfColumn, returnTask } from '../services/placement.ts';
 import * as schema from '../schemas.ts';
@@ -41,12 +42,7 @@ const updateBoardSchema = z.object({
   version: z.number().int(),
   name: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(5000).optional(),
-  endsOn: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine((d) => !Number.isNaN(Date.parse(d)), 'Not a date')
-    .nullable()
-    .optional(),
+  endsOn: calendarDate.nullable().optional(),
 });
 const archiveSchema = z.object({ returnUnfinished: z.boolean().default(false) });
 const createColumnSchema = z.object({
@@ -115,8 +111,11 @@ async function fetchColumns(db: Queryable, boardId: string): Promise<BoardColumn
     'SELECT id, name, kind, rank, version FROM board_columns WHERE board_id = $1 AND deleted_at IS NULL',
     [boardId],
   );
+  // Ranks compare bytewise, as fractional index keys do: localeCompare would put "a0l" before
+  // "a0V".
   return res.rows.sort(
-    (a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.rank.localeCompare(b.rank),
+    (a, b) =>
+      KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0),
   );
 }
 

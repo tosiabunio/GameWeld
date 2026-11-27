@@ -3,6 +3,7 @@ import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance, type FastifyPluginAsync } from 'fastify';
 import path from 'node:path';
+import pg from 'pg';
 import type { CustomFetch } from 'openid-client';
 import { registerAuth } from './auth.ts';
 import type { Config } from './config.ts';
@@ -109,10 +110,13 @@ export async function buildApp(
   beforeRoutes?.(app);
 
   // Must precede route registration: child contexts inherit the handler that exists at that time.
-  app.setErrorHandler((err: FastifyError | HttpError, _req, reply) => {
-    const status = err.statusCode ?? 500;
+  app.setErrorHandler((err: FastifyError | HttpError | pg.DatabaseError, _req, reply) => {
+    // Input the database cannot hold is the caller's mistake, not a failure of the server.
+    const refused = err instanceof pg.DatabaseError ? UNSTORABLE_INPUT[err.code ?? ''] : undefined;
+    if (refused) return reply.status(refused.status).send({ message: refused.message });
+    const status = ('statusCode' in err ? err.statusCode : undefined) ?? 500;
     if (status >= 500) app.log.error(err);
-    reply.status(status).send({
+    return reply.status(status).send({
       message: status >= 500 ? 'Internal error' : err.message,
       ...(err instanceof HttpError && err.details !== undefined ? { details: err.details } : {}),
     });
@@ -202,6 +206,19 @@ export async function buildApp(
 
   return app;
 }
+
+/**
+ * PostgreSQL's refusals of a value it was given, by SQLSTATE, and what they mean to the caller.
+ * Request bodies are checked before they get that far; what remains is an id in the address that
+ * is not a UUID, a date that passed the shape but not the calendar, and the NUL character, which
+ * text cannot hold.
+ */
+const UNSTORABLE_INPUT: Record<string, { status: number; message: string }> = {
+  '22P02': { status: 404, message: 'Not found' },
+  '22007': { status: 400, message: 'Not a date' },
+  '22008': { status: 400, message: 'Not a date' },
+  '22021': { status: 400, message: 'Text cannot contain the NUL character.' },
+};
 
 /** A group of routes, each listed under the tag in the API's description unless it names its own. */
 function tagged(routes: FastifyPluginAsync, tag: string): FastifyPluginAsync {

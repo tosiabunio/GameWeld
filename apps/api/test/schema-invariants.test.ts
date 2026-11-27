@@ -109,6 +109,22 @@ describe('schema-level invariants', () => {
     ).rejects.toThrow(/work_requests_one_pending/);
   });
 
+  it('every rank column compares bytewise, as fractional index keys do', async () => {
+    const ranks = await db.query<{ table_name: string; collation_name: string | null }>(
+      `SELECT table_name, collation_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND column_name = 'rank' ORDER BY table_name`,
+    );
+    expect(ranks.rows.map((r) => r.table_name)).toEqual([
+      'backlog_items',
+      'board_columns',
+      'my_task_ranks',
+      'task_checklist_items',
+      'task_placements',
+    ]);
+    // Whatever collation the database was made with: "Zz" is the key before "a0".
+    expect(ranks.rows.filter((r) => r.collation_name !== 'C')).toEqual([]);
+  });
+
   it('a membership must carry at least one role', async () => {
     const user = (await db.query<{ id: string }>(`SELECT id FROM users LIMIT 1`)).rows[0]!.id;
     await expect(

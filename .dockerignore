@@ -9,3 +9,12 @@ docs
 !docs/methodology.md
 !docs/methodology.pl.md
 .github
+# Local secrets and settings never go into an image: `COPY . .` would take them along.
+.env
+.env.*
+**/.env
+**/.env.*
+# Local clutter
+.DS_Store
+**/.DS_Store
+output

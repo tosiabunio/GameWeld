@@ -14,6 +14,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import { linkUrl } from '../input.ts';
 import { notifyOfMentions } from '../services/notifications.ts';
 import { clearItemFromBoards, settleRequests } from '../services/placement.ts';
 import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
@@ -42,7 +43,7 @@ const moveSchema = z.object({
 });
 
 const linkSchema = z.object({
-  url: z.string().trim().url().max(2000),
+  url: linkUrl,
   label: z.string().trim().max(200).default(''),
 });
 

@@ -308,6 +308,47 @@ describe('workboard', () => {
     ).toBe(200);
   });
 
+  it('keeps intermediate columns in the order they were put in, whatever letters their ranks hold', async () => {
+    // Two columns put one after the other into the same gap get ranks that differ only in the
+    // case of a letter ("a0V", "a0l"), which a language's collation orders the other way round.
+    let b: BoardView = await board();
+    for (const name of ['First', 'Last', 'Second', 'Third'])
+      b = (await post(`${boards()}/${boardId}/columns`, { name })).json();
+    const named = (name: string) => b.columns.find((c) => c.name === name)!;
+    for (const [name, after] of [
+      ['Second', 'First'],
+      ['Third', 'Second'],
+    ] as const) {
+      const moved = await t.app.inject({
+        method: 'PATCH',
+        url: `${boards()}/${boardId}/columns/${named(name).id}`,
+        headers: { cookie: director },
+        payload: {
+          version: named(name).version,
+          afterColumnId: named(after).id,
+          beforeColumnId: named('Last').id,
+        },
+      });
+      expect(moved.statusCode).toBe(200);
+      b = moved.json();
+    }
+    const intermediate = () => b.columns.filter((c) => c.kind === 'intermediate');
+    expect(intermediate().map((c) => c.name)).toEqual(['First', 'Second', 'Third', 'Last']);
+    expect(intermediate().map((c) => c.rank)).toEqual(
+      intermediate()
+        .map((c) => c.rank)
+        .sort((x, y) => (x < y ? -1 : x > y ? 1 : 0)),
+    );
+    expect((await board()).columns.map((c) => c.id)).toEqual(b.columns.map((c) => c.id));
+
+    for (const c of intermediate())
+      await t.app.inject({
+        method: 'DELETE',
+        url: `${boards()}/${boardId}/columns/${c.id}`,
+        headers: { cookie: director },
+      });
+  });
+
   it('keeps To Do columns category-specific and orders cards within a column', async () => {
     let b = await board();
     expect((await move(tasks['Targeting']!, column(b, 'todo_assets').id)).statusCode).toBe(409);

@@ -184,6 +184,29 @@ describe('export, and import from Trello', () => {
     expect(dodge.taskCounts).toEqual({ total: 2, completed: 1 });
   });
 
+  it('leaves out a date that is none, rather than refusing the whole board', async () => {
+    const projectId = await newProject('Odd dates');
+    const res = await importTrello(projectId, {
+      mode: 'cards_as_tasks',
+      board: {
+        lists: [{ id: 'l', name: 'List' }],
+        cards: [
+          { id: 'a', idList: 'l', name: 'No such day', due: 'not a date' },
+          { id: 'b', idList: 'l', name: 'A day', due: '2026-11-05T12:00:00.000Z' },
+        ],
+      },
+    });
+    expect(res.statusCode, res.body).toBe(201);
+    const due = await t.db.query<{ title: string; due: string | null }>(
+      `SELECT title, to_char(due_date, 'YYYY-MM-DD') AS due FROM tasks WHERE project_id = $1 ORDER BY title`,
+      [projectId],
+    );
+    expect(due.rows).toEqual([
+      { title: 'A day', due: '2026-11-05' },
+      { title: 'No such day', due: null },
+    ]);
+  });
+
   it('refuses what is not a Trello export, and anyone but a Director', async () => {
     const projectId = await newProject('Refusals');
     expect(

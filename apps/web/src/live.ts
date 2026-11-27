@@ -27,10 +27,17 @@ type Listener = (event: LiveEvent) => void;
 const listeners = new Set<Listener>();
 let source: EventSource | null = null;
 let interrupted = false;
+let reopening: ReturnType<typeof setTimeout> | null = null;
+
+/** How long to wait before opening a stream the browser gave up on: doubling, up to a minute. */
+const REOPEN_FIRST_MS = 3_000;
+const REOPEN_LONGEST_MS = 60_000;
+let reopenAfter = REOPEN_FIRST_MS;
 
 function open() {
-  source = new EventSource('/api/events');
-  source.onmessage = (message) => {
+  const opened = new EventSource('/api/events');
+  source = opened;
+  opened.onmessage = (message) => {
     let event: LiveEvent;
     try {
       event = JSON.parse(message.data as string) as LiveEvent;
@@ -39,9 +46,21 @@ function open() {
     }
     for (const listener of listeners) listener(event);
   };
-  // The browser reconnects by itself. What happened in between is unknown, so everyone looks again.
-  source.onerror = () => (interrupted = true);
-  source.onopen = () => {
+  // What happened while the connection was down is unknown, so everyone looks again once it is
+  // back. After a dropped connection the browser reconnects by itself. It gives up for good when
+  // the answer is not a stream, such as a proxy's 502 while the server restarts for a deploy:
+  // then the stream is opened anew from here, or the tab would show old data until reloaded.
+  opened.onerror = () => {
+    interrupted = true;
+    if (source !== opened || opened.readyState !== EventSource.CLOSED) return;
+    reopening = setTimeout(() => {
+      reopening = null;
+      if (listeners.size > 0) open();
+    }, reopenAfter);
+    reopenAfter = Math.min(reopenAfter * 2, REOPEN_LONGEST_MS);
+  };
+  opened.onopen = () => {
+    reopenAfter = REOPEN_FIRST_MS;
     if (!interrupted) return;
     interrupted = false;
     for (const listener of listeners) listener({ resync: true });
@@ -54,6 +73,9 @@ export function subscribeLive(listener: Listener): () => void {
   return () => {
     listeners.delete(listener);
     if (listeners.size === 0) {
+      if (reopening) clearTimeout(reopening);
+      reopening = null;
+      reopenAfter = REOPEN_FIRST_MS;
       source?.close();
       source = null;
       interrupted = false;

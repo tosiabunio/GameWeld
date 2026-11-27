@@ -569,6 +569,52 @@ describe('collaboration and history (Phase 7)', () => {
     expect((await taskDetail()).links).toEqual([]);
   });
 
+  it('takes only http and https links, on tasks and on items', async () => {
+    for (const url of [
+      'javascript:alert(document.domain)',
+      'data:text/html,<script>alert(1)</script>',
+      'file:///etc/passwd',
+    ]) {
+      const refused = await t.app.inject({
+        method: 'POST',
+        url: p(`/tasks/${taskId}/links`),
+        headers: { cookie: tester },
+        payload: { url, label: 'click' },
+      });
+      expect(refused.statusCode, url).toBe(400);
+    }
+    expect((await taskDetail()).links).toEqual([]);
+  });
+
+  it('answers what the database cannot hold as the caller’s mistake, not its own failure', async () => {
+    // The NUL character, which text cannot hold.
+    const nul = await t.app.inject({
+      method: 'POST',
+      url: p(`/tasks/${taskId}/comments`),
+      headers: { cookie: developer },
+      payload: { body: 'a\u0000b' },
+    });
+    expect(nul.statusCode).toBe(400);
+    expect(nul.json().message).toMatch(/NUL/);
+    // An id in the address that is no UUID, where a route passes it on unchecked.
+    for (const method of ['PATCH', 'DELETE'] as const) {
+      const res = await t.app.inject({
+        method,
+        url: p('/members/not-a-uuid'),
+        headers: { cookie: director },
+        ...(method === 'PATCH' ? { payload: { roles: ['developer'] } } : {}),
+      });
+      expect(res.statusCode, method).toBe(404);
+    }
+    // The shape of an id, and still none.
+    const hyphens = await t.app.inject({
+      method: 'GET',
+      url: `/api/projects/${'-'.repeat(36)}`,
+      headers: { cookie: director },
+    });
+    expect(hyphens.statusCode).toBe(404);
+  });
+
   it('D9: informational dependencies between items, never blocking', async () => {
     const other = (
       await t.app.inject({

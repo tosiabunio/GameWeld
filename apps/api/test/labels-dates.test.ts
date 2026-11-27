@@ -121,6 +121,9 @@ describe('labels, the blocked flag, and dates', () => {
       (await patch(developer, { labelIds: ['00000000-0000-4000-8000-000000000000'] })).statusCode,
     ).toBe(400);
     expect((await patch(developer, { dueDate: '2026-13-45' })).statusCode).toBe(400);
+    // The right shape, and no such day.
+    expect((await patch(developer, { dueDate: '2026-02-31' })).statusCode).toBe(400);
+    expect((await patch(developer, { dueDate: '0000-01-01' })).statusCode).toBe(400);
     expect((await patch(developer, { dueDate: null })).json().dueDate).toBeNull();
     // An edit that does not mention them leaves them alone.
     expect((await patch(developer, { title: 'Phase two, enraged' })).json().labels).toHaveLength(1);

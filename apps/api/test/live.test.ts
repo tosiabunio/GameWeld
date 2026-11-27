@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signInAs, startApp, type TestContext } from './helpers.ts';
+import { signInAs, signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
 
 // Other test files use the same personas and database at the same time, so a stream also carries
 // their projects' events: every expectation here names this file's own project.
@@ -71,6 +71,11 @@ describe('live updates', () => {
       body: JSON.stringify(payload),
     });
 
+  /** A request whose answer the test does not read: read to its end, so its connection is free. */
+  const sent = async (cookie: string, url: string, payload: object) => {
+    await (await post(cookie, url, payload)).text();
+  };
+
   beforeAll(async () => {
     t = await startApp();
     await t.app.listen({ port: 0, host: '127.0.0.1' });
@@ -94,6 +99,9 @@ describe('live updates', () => {
     ).id;
   });
   afterAll(async () => {
+    // fetch keeps its connections for a few seconds after the last answer, and closing the
+    // server would wait for them.
+    t.app.server.closeAllConnections();
     await t.close();
   });
 
@@ -167,6 +175,71 @@ describe('live updates', () => {
     } finally {
       dev.close();
       newcomer.close();
+    }
+  });
+
+  it('tells whoever creates a project about it from the start, in the tab they already had open', async () => {
+    const creator = await Stream.open(base, director);
+    try {
+      const made = (
+        await (await post(director, '/projects', { name: 'Made while listening' })).json()
+      ).id as string;
+      await sent(director, `/projects/${made}/members`, {
+        email: 'developer@gameweld.local',
+        roles: ['developer'],
+      });
+      const item = await (
+        await post(director, `/projects/${made}/backlog`, { title: 'First', category: 'must' })
+      ).json();
+      // A teammate's change in the new project reaches the creator without a reload.
+      await sent(developer, `/projects/${made}/backlog/${item.id}/tasks`, {
+        title: 'By a teammate',
+        category: 'code',
+      });
+      expect(await creator.next((e) => e.p === made && e.a === 'task.created')).toMatchObject({
+        p: made,
+        t: 'task',
+      });
+    } finally {
+      creator.close();
+    }
+  });
+
+  it('tells an admin about every project, member or not, and stops when they are admin no longer', async () => {
+    const run = Math.random().toString(36).slice(2, 8);
+    const admin = await signInAsTeamMember(t, `live-admin-${run}@example.com`, { admin: true });
+    const second = await signInAsTeamMember(t, `live-admin2-${run}@example.com`, { admin: true });
+    const watching = await Stream.open(base, admin.cookie);
+    try {
+      await sent(director, `/projects/${projectId}/backlog/${itemId}/tasks`, {
+        title: 'Seen by the admin',
+        category: 'code',
+      });
+      expect(await watching.next((e) => e.p === projectId && e.a === 'task.created')).toMatchObject(
+        { p: projectId },
+      );
+
+      const demoted = await fetch(`${base}/api/admin/people/${admin.id}`, {
+        method: 'PATCH',
+        headers: { cookie: second.cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ isAdmin: false }),
+      });
+      expect(demoted.status).toBe(200);
+      await demoted.text();
+      await watching.next((e) => e.t === 'user' && e.a === 'admin.updated');
+      watching.events.length = 0;
+      await sent(director, `/projects/${projectId}/backlog/${itemId}/tasks`, {
+        title: 'Not for them any more',
+        category: 'code',
+      });
+      await new Promise((done) => setTimeout(done, 150));
+      expect(watching.events.filter((e) => e.p === projectId)).toEqual([]);
+    } finally {
+      watching.close();
+      // Other test files share this database and count on it having no admin.
+      await t.db.query('UPDATE users SET is_admin = false WHERE id = ANY($1)', [
+        [admin.id, second.id],
+      ]);
     }
   });
 });

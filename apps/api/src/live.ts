@@ -31,9 +31,15 @@ export async function emitLive(db: Queryable, event: LiveEvent): Promise<void> {
   await db.query('SELECT pg_notify($1, $2)', [CHANNEL, JSON.stringify({ ...event, c })]);
 }
 
+/** The projects a viewer hears about: their own, or every one for an admin, who may open any. */
+interface Scope {
+  all: boolean;
+  projects: Set<string>;
+}
+
 interface Viewer {
   userId: string;
-  projects: Set<string>;
+  scope: Scope;
   res: ServerResponse;
 }
 
@@ -55,12 +61,15 @@ export class LiveHub {
     private log: (message: string, error?: unknown) => void = () => undefined,
   ) {}
 
-  private async projectsOf(userId: string): Promise<Set<string>> {
-    const res = await this.db.query<{ project_id: string }>(
-      'SELECT project_id FROM project_memberships WHERE user_id = $1',
+  private async scopeOf(userId: string): Promise<Scope> {
+    const res = await this.db.query<{ is_admin: boolean; projects: string[] }>(
+      `SELECT u.is_admin,
+              ARRAY(SELECT m.project_id::text FROM project_memberships m WHERE m.user_id = u.id) AS projects
+         FROM users u WHERE u.id = $1`,
       [userId],
     );
-    return new Set(res.rows.map((r) => r.project_id));
+    const row = res.rows[0];
+    return { all: row?.is_admin ?? false, projects: new Set(row?.projects ?? []) };
   }
 
   /**
@@ -69,7 +78,7 @@ export class LiveHub {
    * change made right after cannot slip through the gap.
    */
   async add(userId: string, res: ServerResponse): Promise<void> {
-    const viewer: Viewer = { userId, projects: await this.projectsOf(userId), res };
+    const viewer: Viewer = { userId, scope: await this.scopeOf(userId), res };
     this.ready ??= this.listen();
     await this.ready;
     if (this.stopped || res.destroyed) return void res.end();
@@ -103,11 +112,17 @@ export class LiveHub {
     client.on('end', () => retry());
     client.on('notification', (message) => {
       if (message.channel !== CHANNEL || !message.payload) return;
+      let event: LiveEvent;
       try {
-        void this.dispatch(JSON.parse(message.payload) as LiveEvent);
+        event = JSON.parse(message.payload) as LiveEvent;
       } catch (error) {
         this.log('live updates: unreadable event', error);
+        return;
       }
+      // A failed query here must not end the process as an unhandled rejection.
+      this.dispatch(event).catch((error: unknown) =>
+        this.log('live updates: an event could not be passed on', error),
+      );
     });
     try {
       await client.connect();
@@ -122,14 +137,14 @@ export class LiveHub {
 
   private async dispatch(event: LiveEvent): Promise<void> {
     for (const viewer of this.viewers) {
-      // A change of membership changes what this viewer may hear about.
+      // A change of membership, or of who is admin, changes what this viewer may hear about.
       if (event.t === 'user' && event.id === viewer.userId) {
-        viewer.projects = await this.projectsOf(viewer.userId);
+        viewer.scope = await this.scopeOf(viewer.userId);
         send(viewer, { p: event.p, t: event.t, a: event.a, c: event.c ?? null });
         continue;
       }
       if (event.u?.includes(viewer.userId)) send(viewer, { n: true });
-      if (event.p && event.t && viewer.projects.has(event.p))
+      if (event.p && event.t && (viewer.scope.all || viewer.scope.projects.has(event.p)))
         send(viewer, { p: event.p, t: event.t, id: event.id, a: event.a, c: event.c ?? null });
     }
   }

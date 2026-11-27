@@ -14,6 +14,7 @@ import { recordActivity } from '../activity.ts';
 import { projectRoute } from '../authz.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, notFound, HttpError } from '../errors.ts';
+import { calendarDate } from '../input.ts';
 import { recalculateItemState } from '../services/readiness.ts';
 import { notifyOfMentions } from '../services/notifications.ts';
 import { placeIfInScope, placeTask, returnTask, settleRequests } from '../services/placement.ts';
@@ -41,12 +42,7 @@ const updateSchema = z.object({
   archived: z.boolean().optional(),
   coverAttachmentId: uuid.nullable().optional(),
   labelIds: z.array(uuid).max(50).optional(),
-  dueDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine((d) => !Number.isNaN(Date.parse(d)), 'Not a date')
-    .nullable()
-    .optional(),
+  dueDate: calendarDate.nullable().optional(),
   blocked: z.boolean().optional(),
   blockedReason: z.string().trim().max(500).optional(),
 });

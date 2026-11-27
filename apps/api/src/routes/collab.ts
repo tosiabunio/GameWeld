@@ -9,13 +9,14 @@ import { emitLive } from '../live.ts';
 import { notifyOfComment, notifyOfMentions } from '../services/notifications.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
+import { linkUrl } from '../input.ts';
 import { PayloadTooLarge, PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import * as schema from '../schemas.ts';
 
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 const commentSchema = z.object({ body: z.string().trim().min(1).max(20_000) });
 const linkSchema = z.object({
-  url: z.string().trim().url().max(2000),
+  url: linkUrl,
   label: z.string().trim().max(200).default(''),
 });
 const dependencySchema = z.object({ dependsOnItemId: z.string().uuid() });
