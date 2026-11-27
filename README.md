@@ -65,7 +65,7 @@ The [roadmap](docs/roadmap.md) lists what is still missing next to Trello, Plank
 
 ### Locally
 
-You need Docker (on macOS, [OrbStack](https://orb.stack) or Docker Desktop), `make`, and Node.js 22 or newer.
+You need Docker (on macOS, [OrbStack](https://orb.stack) or Docker Desktop), `make`, and Node.js 22.22 or newer.
 
 ```
 git clone https://github.com/tosiabunio/GameWeld.git

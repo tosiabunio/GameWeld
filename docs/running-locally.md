@@ -5,7 +5,7 @@ Run GameWeld on your own machine, with its sample data, to try it or to work on 
 ## Once
 
 1. Install Docker. On macOS, [OrbStack](https://orb.stack) or Docker Desktop provides the `docker` command.
-2. Install Node.js 22 or newer.
+2. Install Node.js 22.22 or newer.
 3. Clone the repository (`git clone https://github.com/tosiabunio/GameWeld.git`) and open a terminal in it.
 
 ## Every time

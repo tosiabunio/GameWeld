@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22"
   },
   "workspaces": [
     "packages/*",
@@ -23,12 +23,12 @@
     "dev": "npm run dev -w apps/api & npm run dev -w apps/web; wait"
   },
   "devDependencies": {
-    "@eslint/js": "^9.30.0",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.54.0",
-    "eslint": "^9.30.0",
+    "eslint": "^10.16.0",
     "prettier": "^3.6.0",
-    "typescript": "^5.8.0",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.35.0",
-    "vitest": "^4.1.12"
+    "vitest": "^5.1.2"
   }
 }
