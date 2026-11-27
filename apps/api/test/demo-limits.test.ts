@@ -166,12 +166,25 @@ describe('limits on the open demo', () => {
     const team = await bring(member.cookie);
     expect(team.res.statusCode, team.res.body).toBe(201);
     expect(team.res.json()).toMatchObject({ tasks: 501, checklistItems: 1, comments: 2 });
-    // Each card gets its own comments, and only those.
+    // Each card gets its own comments, and only those, in the order they were written; the
+    // cards keep the order of their list. All of them are made in one transaction.
     const comments = await t.db.query<{ body: string }>(
       `SELECT c.body FROM comments c JOIN tasks k ON k.id = c.task_id
-        WHERE k.project_id = $1 AND k.title = 'Card 7'`,
+        WHERE k.project_id = $1 AND k.title = 'Card 7' ORDER BY c.created_at`,
       [team.projectId],
     );
-    expect(comments.rows.map((r) => r.body.split('\n').pop()).sort()).toEqual(['First', 'Second']);
+    expect(comments.rows.map((r) => r.body.split('\n').pop())).toEqual(['First', 'Second']);
+    const edited = await t.db.query(
+      `SELECT 1 FROM comments WHERE project_id = $1 AND updated_at <> created_at`,
+      [team.projectId],
+    );
+    expect(edited.rowCount).toBe(0);
+    const cards = await t.db.query<{ title: string }>(
+      'SELECT title FROM tasks WHERE project_id = $1 ORDER BY created_at',
+      [team.projectId],
+    );
+    expect(cards.rows.map((r) => r.title)).toEqual(
+      Array.from({ length: 501 }, (_, i) => `Card ${i}`),
+    );
   });
 });

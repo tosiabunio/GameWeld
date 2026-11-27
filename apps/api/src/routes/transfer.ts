@@ -500,6 +500,11 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
               [projectId, clip(title.trim() || 'Untitled', 500), clip(description, 50_000), rank],
             )
           ).rows[0]!.id;
+        // Everything in a transaction is made at the same moment, and tasks, comments, and links
+        // are listed by when they were made: imported together, they would come out in any
+        // order. Each takes the next microsecond, so they stay in the order they arrive in:
+        // cards as in their Trello list, comments as they were written.
+        let made = 0;
         const insertTask = async (
           itemId: string,
           t: {
@@ -512,8 +517,9 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
         ) =>
           (
             await tx.query<{ id: string }>(
-              `INSERT INTO tasks (project_id, item_id, category, title, description, completed, completed_at, completed_by, due_date)
-               VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6 THEN now() END, CASE WHEN $6 THEN $7::uuid END, $8::date) RETURNING id`,
+              `INSERT INTO tasks (project_id, item_id, category, title, description, completed, completed_at, completed_by, due_date, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6 THEN now() END, CASE WHEN $6 THEN $7::uuid END, $8::date,
+                       now() + $9 * interval '1 microsecond') RETURNING id`,
               [
                 projectId,
                 itemId,
@@ -523,6 +529,7 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
                 t.done,
                 actorId,
                 dayOf(t.due),
+                made++,
               ],
             )
           ).rows[0]!.id;
@@ -532,8 +539,17 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
         ) => {
           for (const body of bodies) {
             await tx.query(
-              'INSERT INTO comments (project_id, item_id, task_id, author_id, body) VALUES ($1, $2, $3, $4, $5)',
-              [projectId, owner.itemId ?? null, owner.taskId ?? null, actorId, clip(body, 20_000)],
+              // Made and last changed at the same moment, or the comment would read as edited.
+              `INSERT INTO comments (project_id, item_id, task_id, author_id, body, created_at, updated_at)
+               SELECT $1, $2, $3, $4, $5, at, at FROM (SELECT now() + $6 * interval '1 microsecond' AS at) moment`,
+              [
+                projectId,
+                owner.itemId ?? null,
+                owner.taskId ?? null,
+                actorId,
+                clip(body, 20_000),
+                made++,
+              ],
             );
             counts.comments++;
           }
@@ -544,7 +560,8 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
         ) => {
           for (const link of links) {
             await tx.query(
-              'INSERT INTO links (project_id, item_id, task_id, url, label, created_by) VALUES ($1, $2, $3, $4, $5, $6)',
+              `INSERT INTO links (project_id, item_id, task_id, url, label, created_by, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, now() + $7 * interval '1 microsecond')`,
               [
                 projectId,
                 owner.itemId ?? null,
@@ -552,6 +569,7 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
                 clip(link.url, 2000),
                 clip(link.label, 200),
                 actorId,
+                made++,
               ],
             );
             counts.links++;

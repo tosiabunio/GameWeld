@@ -1,7 +1,7 @@
 import { generateKeyPairSync, randomUUID, sign, type KeyObject } from 'node:crypto';
 import type { CustomFetch } from 'openid-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
+import { ownDatabase, signInAsTeamMember, startApp, type TestContext } from './helpers.ts';
 
 /**
  * Google sign-in (T1) against a stand-in for Google: its discovery document, token endpoint, and
@@ -92,14 +92,19 @@ describe('Google sign-in (T1)', () => {
   let t: TestContext;
   let google: FakeGoogle;
   let director: string;
+  let databaseUrl: string;
   let projectId: string;
   const run = randomUUID().slice(0, 8);
   const address = (name: string) => `${name}-${run}@example.com`;
 
   beforeAll(async () => {
     google = new FakeGoogle();
+    // A database of its own: one test here takes admin away from everyone, to see the initial
+    // admin become one, and other test files, running at the same time, have admins of theirs.
+    databaseUrl = await ownDatabase('gameweld_google_sign_in');
     t = await startApp(
       {
+        DATABASE_URL: databaseUrl,
         PUBLIC_URL: 'http://localhost:8090',
         GOOGLE_CLIENT_ID: CLIENT_ID,
         GOOGLE_CLIENT_SECRET: 'secret',
@@ -262,6 +267,7 @@ describe('Google sign-in (T1)', () => {
   it('says so when Google cannot be reached', async () => {
     const fresh = await startApp(
       {
+        DATABASE_URL: databaseUrl,
         PUBLIC_URL: 'http://localhost:8090',
         GOOGLE_CLIENT_ID: CLIENT_ID,
         GOOGLE_CLIENT_SECRET: 'secret',

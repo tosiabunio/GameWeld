@@ -1,5 +1,14 @@
 import type { CurrentUser } from '@gameweld/domain';
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useNavigate } from 'react-router';
 import { api, onSignedOut } from './api.ts';
 
 export type Session =
@@ -44,10 +53,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   // A request refused with 401 means the session is over, whatever this tab still shows.
+  // Whoever signs in next starts from the projects list, as after signing out: the page this tab
+  // was on may be of a project that is not theirs, or that went with a demo reset. The method
+  // is for anyone, so a reader of it stays there.
+  const navigate = useNavigate();
+  const signedIn = useRef(false);
+  signedIn.current = session.state === 'signed-in';
   useEffect(() => {
-    onSignedOut(() => setSession((s) => (s.state === 'signed-in' ? { state: 'anonymous' } : s)));
+    onSignedOut(() => {
+      // Several requests may be refused at once; the first of them ends the session.
+      if (!signedIn.current) return;
+      signedIn.current = false;
+      setSession({ state: 'anonymous' });
+      if (window.location.pathname !== '/method') void navigate('/', { replace: true });
+    });
     return () => onSignedOut(null);
-  }, []);
+  }, [navigate]);
 
   return (
     <SessionContext.Provider value={{ session, refresh, signOut }}>
