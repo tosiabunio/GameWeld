@@ -2,6 +2,17 @@ import type { PluralForms } from '../index.ts';
 
 /** Polish: the Workboard, its scope and columns, out-of-scope requests, history, and card badges. */
 export const texts: Record<string, string> = {
+  // Moving a card by keyboard, as a screen reader tells it
+  'a card': 'karta',
+  'To pick up a card, press Space or Enter. Move it with the arrow keys, drop it with Space or Enter, or cancel with Escape.':
+    'Aby podnieść kartę, naciśnij spację lub Enter. Przenoś ją klawiszami strzałek, upuść spacją lub Enterem albo anuluj klawiszem Escape.',
+  'Picked up: {card}.': 'Podniesiono: {card}.',
+  '{card} is now at: {place}.': '{card} jest teraz w miejscu: {place}.',
+  'Dropped {card} at: {place}.': 'Upuszczono {card} w miejscu: {place}.',
+  'Dropped: {card}.': 'Upuszczono: {card}.',
+  'Moving cancelled. {card} is back where it was.':
+    'Anulowano przenoszenie. {card} wraca na swoje miejsce.',
+
   // The Workboard page
   'That Workboard does not exist.': 'Ta Tablica nie istnieje.',
   'Could not load the Workboard': 'Nie udało się wczytać Tablicy',
@@ -180,6 +191,9 @@ export const texts: Record<string, string> = {
   'removed the item from the Workboard scope': 'usunięto element z zakresu Tablicy',
   'created the Workboard': 'utworzono Tablicę',
   'renamed the Workboard': 'zmieniono nazwę Tablicy',
+  'edited the Workboard': 'zmieniono Tablicę',
+  'set the Workboard’s end date': 'ustawiono datę końca Tablicy',
+  'cleared the Workboard’s end date': 'wyczyszczono datę końca Tablicy',
   'archived the Workboard': 'zarchiwizowano Tablicę',
   'added a column': 'dodano kolumnę',
   'changed a column': 'zmieniono kolumnę',

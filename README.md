@@ -57,7 +57,7 @@ See [The API](docs/api.md) for tokens, the tools the MCP server offers, and what
 
 ## Status
 
-GameWeld is in active development by one author and has not been released. Phases 0 to 7 of the [implementation plan](docs/gameweld-implementation-plan.md) are built: projects and permissions, the Backlog, breakdowns, the Workboard, acceptance, out-of-scope requests, collaboration, and history. Of Phase 8, Google sign-in by invitation and continuous deployment are built; backups are not yet. There is no tagged release, and the database schema may still change between commits (migrations are applied automatically).
+GameWeld is in active development by one author and has not been released. Phases 0 to 7 of the [implementation plan](docs/gameweld-implementation-plan.md) are built: projects and permissions, the Backlog, breakdowns, the Workboard, acceptance, out-of-scope requests, collaboration, and history. Of Phase 8, Google sign-in by invitation, continuous deployment, and backups of gameweld.eu are built ([Backups](docs/backup-plan.md)). There is no tagged release, and the database schema may still change between commits (migrations are applied automatically).
 
 The [roadmap](docs/roadmap.md) lists what is still missing next to Trello, Planka, Wekan, Taiga, and Plane, and a proposed order.
 
@@ -103,7 +103,7 @@ The image `ghcr.io/tosiabunio/gameweld` is published from every green build of `
 - **Workboard** — a board holding the current portion of work; may represent a sprint, week, milestone, or continuous period.
 - **Ready for Review** — all constituent tasks are complete and the item awaits acceptance.
 
-Roles in the first specification are **Game Director**, **Developer**, and **Tester**.
+Roles are **Game Director**, **Developer**, and **Tester**, and the read-only **Observer**.
 
 ## Repository layout
 

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createSession, deleteExpiredSessions, hashToken } from '../src/auth.ts';
 import { signInAs, startApp, type TestContext } from './helpers.ts';
 
 describe('mock sign-in (T1)', () => {
@@ -29,6 +30,31 @@ describe('mock sign-in (T1)', () => {
     expect(res.body).toBe('null');
     const projects = await t.app.inject({ method: 'GET', url: '/api/projects' });
     expect(projects.statusCode).toBe(401);
+  });
+
+  it('deletes sessions whose time is up, and leaves the others', async () => {
+    const cookie = await signInAs(t.app, 'tester');
+    const me = (await t.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } })).json();
+    const over = await createSession(t.db, me.id, -60_000);
+    const current = await createSession(t.db, me.id, 60_000);
+    // A session past its time signs nobody in, deleted yet or not.
+    const stale = await t.app.inject({
+      method: 'GET',
+      url: '/api/me',
+      headers: { cookie: `gw_session=${over.token}` },
+    });
+    expect(stale.body).toBe('null');
+
+    await deleteExpiredSessions(t.db);
+    const left = await t.db.query<{ token_hash: string }>(
+      'SELECT token_hash FROM sessions WHERE token_hash = ANY($1)',
+      [[hashToken(over.token), hashToken(current.token)]],
+    );
+    expect(left.rows.map((r) => r.token_hash)).toEqual([hashToken(current.token)]);
+    // The session the persona signed in with is untouched.
+    expect(
+      (await t.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } })).json().id,
+    ).toBe(me.id);
   });
 
   it('signs in a persona, reports it, and signs out', async () => {

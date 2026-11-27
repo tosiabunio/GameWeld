@@ -134,6 +134,15 @@ export async function deleteSession(db: Queryable, token: string): Promise<void>
   await db.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(token)]);
 }
 
+/**
+ * Removes the sessions whose time is up; returns how many. They no longer sign anyone in, and
+ * would otherwise stay for good: on an open demo, one for every visitor who ever picked a persona.
+ */
+export async function deleteExpiredSessions(db: Queryable): Promise<number> {
+  const res = await db.query('DELETE FROM sessions WHERE expires_at <= now()');
+  return res.rowCount ?? 0;
+}
+
 /** Fails the request with 401 unless a user is signed in. Use as a preHandler. */
 export async function requireUser(req: FastifyRequest, reply: FastifyReply): Promise<void> {
   if (!req.user) await reply.status(401).send({ message: 'Sign in required' });

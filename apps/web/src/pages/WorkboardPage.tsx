@@ -10,6 +10,7 @@ import { CardFilterControls, CardFilterRow } from '../components/CardFilterBar.t
 import { AssigneePicker } from '../components/AssigneePicker.tsx';
 import { CardLanes, type Lane } from '../components/CardLanes.tsx';
 import { ChecklistProgress } from '../components/Checklist.tsx';
+import { DateInput } from '../components/DateInput.tsx';
 import { coverImages, NOT_A_COVER_IMAGE } from '../components/coverDrop.ts';
 import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { History } from '../components/History.tsx';
@@ -439,7 +440,7 @@ function BoardEnd({
   const editable = canManage && board.state === 'active';
   if (!editable) return board.endsOn ? <span data-testid="board-end">{text}</span> : null;
   const save = (endsOn: string | null) =>
-    void onChange(() => api.updateBoard(project.id, board.id, { version: board.version, endsOn }));
+    onChange(() => api.updateBoard(project.id, board.id, { version: board.version, endsOn }));
   return (
     <ActionMenu
       label={text}
@@ -449,14 +450,10 @@ function BoardEnd({
     >
       <label className="menu-field first">
         {t('The Workboard ends on')}
-        <input
-          type="date"
-          value={board.endsOn ?? ''}
-          onChange={(e) => save(e.target.value || null)}
-        />
+        <DateInput value={board.endsOn} onCommit={save} />
       </label>
       {board.endsOn && (
-        <button type="button" data-close-menu onClick={() => save(null)}>
+        <button type="button" data-close-menu onClick={() => void save(null)}>
           {t('Clear the date')}
         </button>
       )}

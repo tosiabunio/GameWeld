@@ -5,7 +5,7 @@ import Fastify, { type FastifyError, type FastifyInstance, type FastifyPluginAsy
 import path from 'node:path';
 import pg from 'pg';
 import type { CustomFetch } from 'openid-client';
-import { registerAuth, servedOverHttps } from './auth.ts';
+import { deleteExpiredSessions, registerAuth, servedOverHttps } from './auth.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
 import { isPersona } from './demo.ts';
@@ -99,8 +99,18 @@ export async function buildApp(
     const clientId = typeof header === 'string' && /^[\w-]{1,64}$/.test(header) ? header : null;
     requestContext.run({ clientId, token: null }, done);
   });
+  // Sessions past their time go when the instance starts and every hour after. A failure waits
+  // for the next hour; the timer does not keep the process alive.
+  const sweepSessions = () =>
+    deleteExpiredSessions(ctx.db).catch((err: unknown) =>
+      app.log.error(err, 'expired sessions could not be deleted'),
+    );
+  app.addHook('onReady', async () => void sweepSessions());
+  const sessionSweep = setInterval(() => void sweepSessions(), 60 * 60 * 1000);
+  sessionSweep.unref();
   // Before the server waits for requests in flight: a stream is one, and never ends by itself.
   app.addHook('preClose', () => {
+    clearInterval(sessionSweep);
     ctx.demoReset?.stop();
     ctx.live.stop();
   });

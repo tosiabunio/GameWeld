@@ -18,6 +18,7 @@ import { DisplayMenu } from '../components/DisplayMenu.tsx';
 import { LabelChips, TaskFlags } from '../components/TaskBadges.tsx';
 import { TaskStatus } from '../components/TaskStatus.tsx';
 import { useCardSensors } from '../dragSensors.ts';
+import { dragAccessibility } from '../dragAnnouncements.ts';
 import { t, tp } from '../i18n/index.ts';
 import { isCardClick, useTaskLinks } from '../taskLinks.ts';
 import { useProject } from './ProjectPage.tsx';
@@ -187,6 +188,7 @@ export function MyTasksPage() {
       <DndContext
         sensors={sensors}
         collisionDetection={collide}
+        accessibility={dragAccessibility((id) => tasks.find((task) => task.id === id)?.title)}
         onDragStart={(e) => {
           keyboardTarget.current = null;
           setActiveId(String(e.active.id));

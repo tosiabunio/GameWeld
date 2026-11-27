@@ -2,8 +2,10 @@ import type { ActivityEntry, ActivityQuery } from '@gameweld/domain';
 import { useEffect, useState } from 'react';
 import { api } from '../api.ts';
 import { t, tj } from '../i18n/index.ts';
+import { clientId, subscribeLive } from '../live.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { LoadError } from './LoadError.tsx';
+import { formatDay } from './TaskBadges.tsx';
 
 const LABELS: Record<string, string> = {
   'project.created': 'created the project',
@@ -55,6 +57,22 @@ const LABELS: Record<string, string> = {
   'project.seeded': 'seeded the demo project',
 };
 
+/** What an entry says was done. One action can stand for several things, told apart by what changed. */
+function label(e: ActivityEntry): string {
+  if (e.action === 'board.updated') {
+    const was = (e.previous ?? {}) as Record<string, unknown>;
+    const is = (e.next ?? {}) as Record<string, unknown>;
+    // The Workboard's name, its end date, and its description are changed by the same action.
+    if (was.name === is.name)
+      return was.endsOn === is.endsOn
+        ? t('edited the Workboard')
+        : is.endsOn
+          ? t('set the Workboard’s end date')
+          : t('cleared the Workboard’s end date');
+  }
+  return t(LABELS[e.action] ?? e.action);
+}
+
 function detail(e: ActivityEntry): string | null {
   const n = (e.next ?? {}) as Record<string, unknown>;
   const p = (e.previous ?? {}) as Record<string, unknown>;
@@ -84,6 +102,12 @@ function detail(e: ActivityEntry): string | null {
         : str(n.fileName);
     case 'attachment.removed':
       return str(p.fileName);
+    case 'board.updated':
+      return str(p.name) !== str(n.name)
+        ? `${str(p.name)} → ${str(n.name)}`
+        : str(n.endsOn) && str(p.endsOn) !== str(n.endsOn)
+          ? formatDay(str(n.endsOn)!)
+          : null;
     case 'column.updated':
       return str(p.name) !== str(n.name) ? `${str(p.name)} → ${str(n.name)}` : null;
     case 'column.created':
@@ -116,6 +140,17 @@ export function History({
   const [entries, setEntries] = useState<ActivityEntry[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [retries, setRetries] = useState(0);
+  const [ownChanges, setOwnChanges] = useState(0);
+
+  // What others do moves the project's data on, and the history with it. What this tab does is
+  // already on screen, so the project's data stays as it is, but the history has a new entry: the
+  // server's word that the change is in is what brings it up.
+  useEffect(() => {
+    if (!open) return;
+    return subscribeLive((event) => {
+      if (event.p === project.id && event.c === clientId) setOwnChanges((n) => n + 1);
+    });
+  }, [open, project.id]);
 
   // An open history follows what happens, by whoever's hand.
   useEffect(() => {
@@ -133,7 +168,7 @@ export function History({
     return () => {
       current = false;
     };
-  }, [open, project.id, query.entityType, query.entityId, dataVersion, retries]);
+  }, [open, project.id, query.entityType, query.entityId, dataVersion, retries, ownChanges]);
 
   return (
     <section
@@ -178,7 +213,7 @@ export function History({
                     '<1>{actor}</1> {action}',
                     {
                       actor: e.actor?.displayName ?? t('System'),
-                      action: t(LABELS[e.action] ?? e.action),
+                      action: label(e),
                     },
                     { 1: (s) => <strong>{s}</strong> },
                   )}

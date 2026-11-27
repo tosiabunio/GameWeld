@@ -10,6 +10,7 @@ import { api, ApiError } from '../api.ts';
 import { t } from '../i18n/index.ts';
 import { useProject } from '../pages/ProjectPage.tsx';
 import { ActionMenu } from './ActionMenu.tsx';
+import { DateInput } from './DateInput.tsx';
 import { LabelChip } from './TaskBadges.tsx';
 
 type Patch = Omit<UpdateTaskInput, 'version'>;
@@ -42,11 +43,10 @@ export function TaskMeta({
       </div>
       <label>
         {t('Due date')}
-        <input
-          type="date"
-          value={task.dueDate ?? ''}
+        <DateInput
+          value={task.dueDate}
           disabled={readOnly}
-          onChange={(e) => void onPatch({ dueDate: e.target.value || null })}
+          onCommit={(dueDate) => onPatch({ dueDate })}
         />
       </label>
       <div className="field">

@@ -23,6 +23,7 @@ import {
 } from 'react';
 import { useDisplayOptions } from '../displayOptions.ts';
 import { useCardSensors } from '../dragSensors.ts';
+import { dragAccessibility } from '../dragAnnouncements.ts';
 import { t, tp } from '../i18n/index.ts';
 import { LANE_PAGE, shownCards, type ShownBefore } from '../lanePaging.ts';
 import { isCardClick } from '../taskLinks.ts';
@@ -70,7 +71,7 @@ export interface CardRenderContext {
   isDragging: boolean;
 }
 
-export interface CardLanesProps<T extends { id: string }> {
+export interface CardLanesProps<T extends { id: string; title: string }> {
   lanes: Lane<T>[];
   /** Whether the current user may drag at all. */
   canDrag: boolean;
@@ -135,7 +136,7 @@ export function useCollapsedLanes(key: string | undefined) {
   return [collapsed, toggle] as const;
 }
 
-export function CardLanes<T extends { id: string }>({
+export function CardLanes<T extends { id: string; title: string }>({
   lanes,
   canDrag,
   isDraggable,
@@ -430,6 +431,13 @@ export function CardLanes<T extends { id: string }>({
     return Object.keys(local).find((laneId) => local[laneId]!.some((i) => i.id === id));
   };
 
+  // A drag knows cards and lanes by their ids; a screen reader is told their titles.
+  const accessibility = dragAccessibility(
+    (id) =>
+      lanes.find((lane) => lane.id === id)?.title ??
+      lanes.flatMap((lane) => lane.items).find((item) => item.id === id)?.title,
+  );
+
   function onDragStart(e: DragStartEvent) {
     keyboardTarget.current = null;
     setActiveId(String(e.active.id));
@@ -539,6 +547,7 @@ export function CardLanes<T extends { id: string }>({
     <DndContext
       sensors={sensors}
       collisionDetection={collide}
+      accessibility={accessibility}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={(e) => void onDragEnd(e)}
