@@ -1,6 +1,6 @@
 import type { Task, TaskCategory } from '@gameweld/domain';
 import { TASK_CATEGORIES, TASK_CATEGORY_LABELS } from '@gameweld/domain';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { t, tp } from '../i18n/index.ts';
@@ -387,7 +387,7 @@ function AddTaskForm({
   onAdd: (title: string) => Promise<void>;
 }) {
   const [title, setTitle] = useState('');
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
     const value = title.trim();
     if (!value) return;

@@ -5,7 +5,7 @@ import {
   type InstanceRole,
   type InviteResult,
 } from '@gameweld/domain';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
 import { Navigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { t } from '../i18n/index.ts';
@@ -52,7 +52,7 @@ export function AdminPage() {
     }
   }
 
-  async function invite(e: FormEvent) {
+  async function invite(e: SubmitEvent) {
     e.preventDefault();
     const address = email.trim();
     await run(async () => {

@@ -1,5 +1,5 @@
 import type { BacklogItemDetail } from '@gameweld/domain';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { api, ApiError } from '../api.ts';
 import { t, tj } from '../i18n/index.ts';
 import { Comments } from './Comments.tsx';
@@ -81,7 +81,7 @@ export function ReviewPanel({
             <form
               className="form"
               aria-label={mode === 'accept' ? t('Accept item') : t('Reject item')}
-              onSubmit={(e: FormEvent) => {
+              onSubmit={(e: SubmitEvent) => {
                 e.preventDefault();
                 void run(() =>
                   mode === 'accept'

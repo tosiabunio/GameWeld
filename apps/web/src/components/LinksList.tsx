@@ -1,5 +1,5 @@
 import type { ItemLink } from '@gameweld/domain';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { ApiError } from '../api.ts';
 import { t } from '../i18n/index.ts';
 
@@ -64,7 +64,7 @@ export function LinksList({
         <form
           className="form inline"
           aria-label={t('Add link')}
-          onSubmit={(e: FormEvent) => {
+          onSubmit={(e: SubmitEvent) => {
             e.preventDefault();
             void run(() => onAdd(url.trim(), label.trim())).then((ok) => {
               if (ok) {

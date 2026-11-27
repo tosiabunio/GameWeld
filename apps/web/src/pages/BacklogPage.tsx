@@ -6,7 +6,7 @@ import {
   laneOf,
   MOSCOW_CATEGORIES,
 } from '@gameweld/domain';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type SubmitEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { backlogFiltersOn, matchesItem, useCardFilters } from '../cardFilters.ts';
@@ -397,7 +397,7 @@ function AddItemForm({
   onAdd: (title: string) => Promise<void>;
 }) {
   const [title, setTitle] = useState('');
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
     const value = title.trim();
     if (!value) return;

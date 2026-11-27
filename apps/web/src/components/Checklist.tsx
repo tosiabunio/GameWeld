@@ -1,5 +1,5 @@
 import type { ChecklistItem, UpdateChecklistItemInput } from '@gameweld/domain';
-import { useEffect, useState, type ClipboardEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ClipboardEvent, type SubmitEvent } from 'react';
 import { t } from '../i18n/index.ts';
 
 /** Progress of a task's checklist, as cards show it when the task has one. */
@@ -111,7 +111,7 @@ export function Checklist({
             {renaming?.id === item.id ? (
               <form
                 aria-label={t('Rename {title}', { title: item.title })}
-                onSubmit={(e: FormEvent) => {
+                onSubmit={(e: SubmitEvent) => {
                   e.preventDefault();
                   const title = renaming.title.trim();
                   if (title === '' || title === item.title) return setRenaming(null);
@@ -164,7 +164,7 @@ export function Checklist({
         <form
           className="add-item"
           aria-label={t('Add checklist item')}
-          onSubmit={(e: FormEvent) => {
+          onSubmit={(e: SubmitEvent) => {
             e.preventDefault();
             add([draft]);
           }}

@@ -1,6 +1,6 @@
 import type { BacklogItemDetail } from '@gameweld/domain';
 import { CATEGORY_LABELS, STATE_LABELS } from '@gameweld/domain';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { assignable } from '../assignees.ts';
@@ -224,7 +224,7 @@ function ItemForm({
   useEffect(() => setDescription(item.description), [item.description]);
   const dirty = title !== item.title || description !== item.description;
 
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
     const ok = await onSave({ title: title.trim(), description });
     setSaved(ok);

@@ -1,5 +1,5 @@
 import type { Comment } from '@gameweld/domain';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { api, ApiError } from '../api.ts';
 import { t } from '../i18n/index.ts';
 import { MentionTextarea } from './MentionTextarea.tsx';
@@ -88,7 +88,7 @@ export function Comments({
                 <form
                   className="form"
                   aria-label={t('Edit comment')}
-                  onSubmit={(e: FormEvent) => {
+                  onSubmit={(e: SubmitEvent) => {
                     e.preventDefault();
                     void run(() =>
                       api.updateComment(project.id, c.id, { body: editing.body.trim() }),
@@ -122,7 +122,7 @@ export function Comments({
         <form
           className="form"
           aria-label={t('Add comment')}
-          onSubmit={(e: FormEvent) => {
+          onSubmit={(e: SubmitEvent) => {
             e.preventDefault();
             void run(() => api.addComment(project.id, owner, draft.trim())).then(
               (ok) => ok && setDraft(''),

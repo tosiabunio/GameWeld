@@ -1,5 +1,5 @@
 import type { ApiToken, CreatedToken, TokenAccess } from '@gameweld/domain';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { api, ApiError } from '../api.ts';
 import { t, tj } from '../i18n/index.ts';
 
@@ -25,7 +25,7 @@ export function ApiTokens() {
     api.tokens().then(setTokens, () => setTokens([]));
   }, []);
 
-  async function make(e: FormEvent) {
+  async function make(e: SubmitEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);

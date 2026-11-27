@@ -1,5 +1,5 @@
 import { TASK_CATEGORIES, TASK_CATEGORY_LABELS, type TaskCategory } from '@gameweld/domain';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { Link } from 'react-router';
 import { api, ApiError, type TrelloImportMode, type TrelloImportResult } from '../api.ts';
 import { t, tj, tp } from '../i18n/index.ts';
@@ -18,7 +18,7 @@ export function TransferPanel() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<TrelloImportResult | null>(null);
 
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
     if (!file) return;
     setBusy(true);

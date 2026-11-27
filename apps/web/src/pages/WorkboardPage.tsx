@@ -1,6 +1,6 @@
 import type { BoardCard, BoardColumn, BoardView, ScopeItem, TaskCategory } from '@gameweld/domain';
 import { CATEGORY_LABELS, STATE_LABELS, TASK_CATEGORY_LABELS, todoKindFor } from '@gameweld/domain';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type SubmitEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { assignable } from '../assignees.ts';
@@ -186,7 +186,7 @@ function CreateBoardForm({
   return (
     <form
       className="form"
-      onSubmit={(e: FormEvent) => {
+      onSubmit={(e: SubmitEvent) => {
         e.preventDefault();
         void onCreate(name.trim());
       }}

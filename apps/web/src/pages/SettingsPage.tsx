@@ -1,6 +1,6 @@
 import type { ProjectInvitation, ProjectMember, ProjectRole, UserSummary } from '@gameweld/domain';
 import { PROJECT_ROLES, ROLE_LABELS, toggleRole } from '@gameweld/domain';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { TransferPanel } from '../components/TransferPanel.tsx';
@@ -64,7 +64,7 @@ function SettingsForm({ readOnly }: { readOnly: boolean }) {
     scopeLimit !== project.scopeLimit ||
     doneRestricted !== project.doneRestricted;
 
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
     setStatus(null);
     try {
@@ -320,7 +320,7 @@ function AddMemberForm() {
     (u) => u.email && !project.members.some((m) => m.userId === u.id),
   );
 
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
     setError(null);
     setInvited(null);

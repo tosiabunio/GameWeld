@@ -5,7 +5,7 @@ import {
   TASK_CATEGORIES,
   TASK_CATEGORY_LABELS,
 } from '@gameweld/domain';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { api, ApiError } from '../api.ts';
 import { assignable } from '../assignees.ts';
@@ -463,7 +463,7 @@ function TaskForm({
   });
   useEffect(() => reportDirty.current(dirty), [dirty]);
 
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
     setSaving(true);
     const ok = await onSave({ title: title.trim(), description, category });
