@@ -204,7 +204,7 @@ interface Tool<S extends ZodRawShape = ZodRawShape> {
 }
 const tool = <S extends ZodRawShape>(t: Tool<S>): Tool => t as unknown as Tool;
 
-const projectId = z.string().uuid().describe('The project, from list_projects.');
+const projectId = z.uuid().describe('The project, from list_projects.');
 const version = z
   .number()
   .int()
@@ -278,7 +278,7 @@ const TOOLS: Tool[] = [
     input: {
       projectId,
       acceptedSince: z
-        .union([z.string().datetime({ offset: true }), z.string().date()])
+        .union([z.iso.datetime({ offset: true }), z.iso.date()])
         .optional()
         .describe(
           `List the Done items accepted from this date or time on; the last ${RECENT_DONE_DAYS} days unless given.`,
@@ -350,7 +350,7 @@ const TOOLS: Tool[] = [
     title: 'Backlog item',
     description:
       'A Backlog item with its breakdown: its description, its tasks and where each is, its links, dependencies, acceptance, and comments.',
-    input: { projectId, itemId: z.string().uuid() },
+    input: { projectId, itemId: z.uuid() },
     run: async (api, { projectId, itemId }) => {
       const [i, tasks] = await Promise.all([
         api.get<BacklogItemDetail>(`/projects/${projectId}/backlog/${itemId}`),
@@ -379,7 +379,7 @@ const TOOLS: Tool[] = [
     title: 'Task',
     description:
       'A task with its description, checklist, comments, links, labels, and where it is on the Workboard.',
-    input: { projectId, taskId: z.string().uuid() },
+    input: { projectId, taskId: z.uuid() },
     run: async (api, { projectId, taskId }) => {
       const t = await api.get<TaskDetail>(`/projects/${projectId}/tasks/${taskId}`);
       return {
@@ -401,11 +401,7 @@ const TOOLS: Tool[] = [
       'The active Workboard, or another by id: the items in its scope, the item the priorities suggest bringing in next, and its columns with their cards in order.',
     input: {
       projectId,
-      boardId: z
-        .string()
-        .uuid()
-        .optional()
-        .describe('An archived board; the active one unless given.'),
+      boardId: z.uuid().optional().describe('An archived board; the active one unless given.'),
     },
     run: async (api, { projectId, boardId }) => {
       const board = boardId
@@ -492,10 +488,10 @@ const TOOLS: Tool[] = [
       projectId,
       from: z.string().optional().describe('ISO date or time: only from then on.'),
       to: z.string().optional().describe('ISO date or time: only before then.'),
-      actorId: z.string().uuid().optional().describe('Only what this member did.'),
+      actorId: z.uuid().optional().describe('Only what this member did.'),
       actions: z.string().optional().describe('Comma-separated, such as task.moved,item.rejected.'),
       entityType: z.enum(['backlog_item', 'task', 'workboard']).optional(),
-      entityId: z.string().uuid().optional(),
+      entityId: z.uuid().optional(),
       before: z.number().int().optional().describe('Only entries older than this entry id.'),
       limit: z.number().int().min(1).max(500).optional().describe('100 unless given.'),
     },
@@ -509,8 +505,8 @@ const TOOLS: Tool[] = [
       'How long cards stayed in each Workboard column, with hours, oldest first: where work waits and for how long. Filter by board, task, or time.',
     input: {
       projectId,
-      boardId: z.string().uuid().optional(),
-      taskId: z.string().uuid().optional(),
+      boardId: z.uuid().optional(),
+      taskId: z.uuid().optional(),
       from: z.string().optional().describe('ISO date or time: stays that had not ended by then.'),
       to: z.string().optional().describe('ISO date or time: stays that began before then.'),
     },
@@ -573,7 +569,7 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      itemId: z.string().uuid(),
+      itemId: z.uuid(),
       title: z.string().min(1).max(500).optional(),
       description: z.string().max(50_000).optional().describe('Markdown; replaces the old one.'),
       version,
@@ -594,10 +590,10 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      itemId: z.string().uuid(),
+      itemId: z.uuid(),
       category: z.enum(MOSCOW_CATEGORIES),
-      afterId: z.string().uuid().optional().describe('The item it goes after.'),
-      beforeId: z.string().uuid().optional().describe('The item it goes before.'),
+      afterId: z.uuid().optional().describe('The item it goes after.'),
+      beforeId: z.uuid().optional().describe('The item it goes before.'),
     },
     run: async (api, { projectId, itemId, ...place }) =>
       compactItem(
@@ -612,7 +608,7 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      itemId: z.string().uuid(),
+      itemId: z.uuid(),
       tasks: z
         .array(
           z.object({
@@ -620,7 +616,6 @@ const TOOLS: Tool[] = [
             category: z.enum(TASK_CATEGORIES),
             description: z.string().max(50_000).optional().describe('Markdown.'),
             assigneeId: z
-              .string()
               .uuid()
               .optional()
               .describe('A member from get_project who is not an Observer.'),
@@ -654,17 +649,16 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      taskId: z.string().uuid(),
+      taskId: z.uuid(),
       title: z.string().min(1).max(500).optional(),
       description: z.string().max(50_000).optional().describe('Markdown; replaces the old one.'),
       assigneeId: z
-        .string()
         .uuid()
         .nullable()
         .optional()
         .describe('A member who is not an Observer, or null for nobody.'),
-      labelIds: z.array(z.string().uuid()).optional().describe('All its labels, from get_project.'),
-      dueDate: z.string().date().nullable().optional().describe('YYYY-MM-DD, or null for none.'),
+      labelIds: z.array(z.uuid()).optional().describe('All its labels, from get_project.'),
+      dueDate: z.iso.date().nullable().optional().describe('YYYY-MM-DD, or null for none.'),
       blocked: z.boolean().optional(),
       blockedReason: z.string().max(500).optional(),
       version,
@@ -681,7 +675,7 @@ const TOOLS: Tool[] = [
     description:
       'Complete a task, which moves its card to Done, or reopen it. Reopening returns its item to Open if it was Ready for Review or Done.',
     writes: true,
-    input: { projectId, taskId: z.string().uuid(), completed: z.boolean() },
+    input: { projectId, taskId: z.uuid(), completed: z.boolean() },
     run: async (api, { projectId, taskId, completed }) =>
       compactTask(
         await api.call<TaskDetail>(
@@ -697,7 +691,7 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      taskId: z.string().uuid(),
+      taskId: z.uuid(),
       steps: z.array(z.string().min(1).max(500)).min(1).max(30),
     },
     run: async (api, { projectId, taskId, steps }) => {
@@ -715,7 +709,7 @@ const TOOLS: Tool[] = [
     description:
       'Bring an open item into the active Workboard’s scope, within its scope limit; its tasks go to their To Do columns. Any item outside Won’t Have may come in; the next in priority (nextEligible in get_workboard) is the usual choice, and taking another is the Game Director’s call. Needs the Game Director role.',
     writes: true,
-    input: { projectId, itemId: z.string().uuid() },
+    input: { projectId, itemId: z.uuid() },
     run: async (api, { projectId, itemId }) => {
       const board = await api.activeBoard(projectId);
       const view = await api.call<BoardView>(
@@ -733,7 +727,7 @@ const TOOLS: Tool[] = [
     description:
       'Put an unplaced task of an item in scope on the active Workboard, in its To Do column. A task of an item outside the scope needs request_out_of_scope instead.',
     writes: true,
-    input: { projectId, taskId: z.string().uuid() },
+    input: { projectId, taskId: z.uuid() },
     run: async (api, { projectId, taskId }) => {
       const board = await api.activeBoard(projectId);
       await api.call('POST', `/projects/${projectId}/boards/${board.id}/placements`, { taskId });
@@ -748,10 +742,10 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      taskId: z.string().uuid(),
+      taskId: z.uuid(),
       column: z.string().min(1).describe('The column’s name, such as Done, or its id.'),
-      afterTaskId: z.string().uuid().optional(),
-      beforeTaskId: z.string().uuid().optional(),
+      afterTaskId: z.uuid().optional(),
+      beforeTaskId: z.uuid().optional(),
     },
     run: async (api, { projectId, taskId, column, afterTaskId, beforeTaskId }) => {
       const task = await api.get<TaskDetail>(`/projects/${projectId}/tasks/${taskId}`);
@@ -782,8 +776,8 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      taskId: z.string().uuid().optional(),
-      itemId: z.string().uuid().optional(),
+      taskId: z.uuid().optional(),
+      itemId: z.uuid().optional(),
       body: z.string().min(1).max(20_000),
     },
     run: async (api, { projectId, taskId, itemId, body }) => {
@@ -802,10 +796,10 @@ const TOOLS: Tool[] = [
     writes: true,
     input: {
       projectId,
-      taskId: z.string().uuid().optional(),
+      taskId: z.uuid().optional(),
       newTask: z
         .object({
-          itemId: z.string().uuid(),
+          itemId: z.uuid(),
           category: z.enum(TASK_CATEGORIES),
           title: z.string().min(1).max(500),
         })

@@ -36,7 +36,7 @@ import {
   type TaskExtrasRow,
 } from './tasks.ts';
 
-const uuid = z.string().uuid();
+const uuid = z.uuid();
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 
 const createBoardSchema = z.object({

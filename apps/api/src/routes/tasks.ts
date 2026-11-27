@@ -25,7 +25,7 @@ import { PREVIEW_IMAGE_TYPES } from '../storage.ts';
 import * as schema from '../schemas.ts';
 import { fetchAttachments, fetchComments, fetchLinks } from './collab.ts';
 
-const uuid = z.string().uuid();
+const uuid = z.uuid();
 
 const createSchema = z.object({
   category: z.enum(TASK_CATEGORIES),

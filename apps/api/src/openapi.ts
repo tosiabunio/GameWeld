@@ -1,6 +1,6 @@
 import type { ProjectAction } from '@gameweld/domain';
 import type { FastifyInstance, FastifyReply, FastifyRequest, RouteOptions } from 'fastify';
-import { z, type ZodTypeAny } from 'zod';
+import { z } from 'zod';
 import { requireSession, requireUser } from './auth.ts';
 import { components } from './schemas.ts';
 
@@ -22,14 +22,14 @@ export interface RouteDoc {
   tag?: string;
   query?: z.ZodObject;
   /** The JSON body. Wrapped in `.optional()` when the route also takes none. */
-  body?: ZodTypeAny;
+  body?: z.ZodType;
   /** The body is a multipart form with one file, in the field `file`. */
   upload?: true;
   /**
    * What success returns: a schema (200, JSON), null (204, nothing), or the full form, several
    * when the status says which of them it is.
    */
-  response: ZodTypeAny | null | ResponseDoc | ResponseDoc[];
+  response: z.ZodType | null | ResponseDoc | ResponseDoc[];
   /** Steps of a browser sign-in, which a client does not call: served, not described. */
   hidden?: true;
 }
@@ -37,7 +37,7 @@ export interface RouteDoc {
 export interface ResponseDoc {
   /** 200 unless given. */
   status?: number;
-  schema?: ZodTypeAny;
+  schema?: z.ZodType;
   /** A file, a redirect, or a stream instead of JSON, with this content type. */
   content?: string;
   description?: string;
@@ -141,7 +141,7 @@ export class ApiDescription {
     );
     // Any other shape, in place, referring to the named ones it holds. One given a name becomes
     // a named shape itself.
-    const convert = (schema: ZodTypeAny, name?: string): Json => {
+    const convert = (schema: z.ZodType, name?: string): Json => {
       const converted = pointToComponents(z.toJSONSchema(schema, JSON_SCHEMA)) as Json;
       delete converted.$defs;
       delete converted.$schema;
@@ -162,13 +162,10 @@ export class ApiDescription {
         required: true,
         schema: { type: 'string', format: 'uuid' },
       }));
-      for (const [name, field] of Object.entries(doc.query?.shape ?? {}) as [
-        string,
-        ZodTypeAny,
-      ][]) {
+      for (const [name, field] of Object.entries(doc.query?.shape ?? {}) as [string, z.ZodType][]) {
         // Whether it may be left out is the parameter's `required`, not part of its schema.
         const schema = convert(
-          field instanceof z.ZodOptional ? (field.unwrap() as ZodTypeAny) : field,
+          field instanceof z.ZodOptional ? (field.unwrap() as z.ZodType) : field,
         );
         // What the parameter is for, said where it is used, comes before what its shape says of
         // itself; described before it was made optional, it is found on the shape inside.
@@ -177,7 +174,8 @@ export class ApiDescription {
         parameters.push({
           name,
           in: 'query',
-          required: !field.isOptional(),
+          // Whether it may be left out: whether leaving it out is accepted.
+          required: !field.safeParse(undefined).success,
           ...(description ? { description } : {}),
           schema,
         });
@@ -198,7 +196,7 @@ export class ApiDescription {
 
       if (doc.body) {
         const optional = doc.body instanceof z.ZodOptional;
-        const body = optional ? (doc.body as z.ZodOptional<ZodTypeAny>).unwrap() : doc.body;
+        const body = optional ? (doc.body as z.ZodOptional<z.ZodType>).unwrap() : doc.body;
         operation.requestBody = {
           required: !optional,
           content: { 'application/json': { schema: convert(body, `${doc.id}Body`) } },

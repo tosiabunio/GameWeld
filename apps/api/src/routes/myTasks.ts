@@ -8,7 +8,7 @@ import { badRequest, conflict, notFound } from '../errors.ts';
 import * as schema from '../schemas.ts';
 import { taskSelect, toTask, type TaskRow } from './tasks.ts';
 
-const uuid = z.string().uuid();
+const uuid = z.uuid();
 const moveSchema = z.object({ afterId: uuid.nullish(), beforeId: uuid.nullish() });
 
 type MyTaskRow = TaskRow & {

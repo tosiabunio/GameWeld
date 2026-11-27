@@ -12,7 +12,7 @@ import {
   TOKEN_ACCESS,
   type ProjectAction,
 } from '@gameweld/domain';
-import { z, type ZodTypeAny } from 'zod';
+import { z } from 'zod';
 
 /**
  * The shapes the API answers with, for its OpenAPI description (openapi.ts). Each is held to the
@@ -25,21 +25,21 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 const exact =
   <T>() =>
-  <S extends ZodTypeAny>(
+  <S extends z.ZodType>(
     schema: S,
     ..._mismatch: Same<z.output<S>, T> extends true ? [] : [schemaDoesNotMatchType: never]
   ): S =>
     schema;
 
 // New instances each time: a schema used twice in one place would be described by a reference.
-const id = () => z.string().uuid();
-const timestamp = () => z.string().datetime({ offset: true });
-const day = () => z.string().date();
+const id = () => z.uuid();
+const timestamp = () => z.iso.datetime({ offset: true });
+const day = () => z.iso.date();
 
 /** A time in a query, or a date, which means its start in UTC. */
 export const moment = () =>
   z
-    .union([z.string().datetime({ offset: true }), z.string().date()])
+    .union([z.iso.datetime({ offset: true }), z.iso.date()])
     .describe('A time, or a date, which means its start in UTC.');
 
 export const ProjectRole = z.enum(PROJECT_ROLES);
@@ -177,7 +177,7 @@ export const TaskCounts = exact<d.TaskCounts>()(
 );
 
 export const TaskFacet = exact<d.TaskFacet>()(
-  z.object({ assigneeId: z.string().uuid().nullable(), category: TaskCategory }),
+  z.object({ assigneeId: z.uuid().nullable(), category: TaskCategory }),
 );
 
 export const BacklogItem = exact<d.BacklogItem>()(
@@ -199,7 +199,7 @@ export const BacklogItem = exact<d.BacklogItem>()(
       .object({ id: id(), name: z.string() })
       .nullable()
       .describe('The active Workboard whose scope includes the item.'),
-    coverAttachmentId: z.string().uuid().nullable(),
+    coverAttachmentId: z.uuid().nullable(),
     acceptedAt: timestamp()
       .nullable()
       .describe('When the item was accepted as Done; null unless it is Done.'),
@@ -320,7 +320,7 @@ export const Task = exact<d.Task>()(
     completed: z.boolean(),
     completedAt: timestamp().nullable(),
     archived: z.boolean(),
-    coverAttachmentId: z.string().uuid().nullable(),
+    coverAttachmentId: z.uuid().nullable(),
     checklist: z.object({ total: z.number().int(), done: z.number().int() }),
     labels: z.array(Label),
     dueDate: day().nullable(),
@@ -546,7 +546,7 @@ export const CreatedToken = exact<d.CreatedToken>()(
 );
 
 /** The shapes named in the description, by name. */
-export const components: Record<string, ZodTypeAny> = {
+export const components: Record<string, z.ZodType> = {
   ProjectRole,
   MoscowCategory,
   ItemState,

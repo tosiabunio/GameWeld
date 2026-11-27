@@ -16,12 +16,21 @@ export function isCalendarDate(value: string): boolean {
 export const calendarDate = z.string().refine(isCalendarDate, 'Not a date');
 
 /**
+ * An e-mail address as someone types it: the space around it and its capitals do not matter, so
+ * they go before it is checked, and the address comes out trimmed and in lower case. (Asked to
+ * trim, `z.email()` itself would check first and refuse an address for a space after it.)
+ */
+export const emailAddress = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+  z.email(),
+);
+
+/**
  * A link's address: http or https only. Anything else that parses as a URL (javascript:, data:,
  * file:) is not somewhere a link on a card should lead, whichever client shows it.
  */
 export const linkUrl = z
-  .string()
-  .trim()
   .url()
+  .trim()
   .max(2000)
   .refine((url) => /^https?:\/\//i.test(url), 'A link starts with http:// or https://');

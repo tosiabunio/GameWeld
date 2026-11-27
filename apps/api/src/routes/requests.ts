@@ -11,7 +11,7 @@ import * as schema from '../schemas.ts';
 import { activeBoardFor } from './board.ts';
 import { fetchTask } from './tasks.ts';
 
-const uuid = z.string().uuid();
+const uuid = z.uuid();
 const createSchema = z
   .object({
     taskId: uuid.optional(),
@@ -25,7 +25,7 @@ const createSchema = z
     reason: z.string().max(5000).default(''),
   })
   .refine((input) => (input.taskId === undefined) !== (input.newTask === undefined), {
-    message: 'Name an existing task or describe a new one, not both.',
+    error: 'Name an existing task or describe a new one, not both.',
   });
 const decideSchema = z.object({ note: z.string().max(5000).default('') });
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/i.test(v);

@@ -246,18 +246,16 @@ const trelloSchema = z.object({
             idLabels: z.array(z.string()).optional(),
             idChecklists: z.array(z.string()).optional(),
             attachments: z
-              .array(
-                z.object({ url: z.string().optional(), name: z.string().optional() }).passthrough(),
-              )
+              .array(z.object({ url: z.string().optional(), name: z.string().optional() }).loose())
               .optional(),
           })
-          .passthrough(),
+          .loose(),
       ),
       labels: z
         .array(
           z
             .object({ id: z.string(), name: z.string().optional(), color: z.string().nullish() })
-            .passthrough(),
+            .loose(),
         )
         .optional(),
       checklists: z
@@ -274,15 +272,15 @@ const trelloSchema = z.object({
                     state: z.string().optional(),
                     pos: z.number().optional(),
                   })
-                  .passthrough(),
+                  .loose(),
               ),
             })
-            .passthrough(),
+            .loose(),
         )
         .optional(),
-      actions: z.array(z.object({ type: z.string() }).passthrough()).optional(),
+      actions: z.array(z.object({ type: z.string() }).loose()).optional(),
     })
-    .passthrough(),
+    .loose(),
 });
 
 const TRELLO_COLORS: Record<string, LabelColor> = {

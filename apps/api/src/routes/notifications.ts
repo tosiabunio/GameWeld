@@ -11,7 +11,7 @@ import { badRequest } from '../errors.ts';
 import { memberRoute } from '../openapi.ts';
 import * as schema from '../schemas.ts';
 
-const readSchema = z.object({ ids: z.array(z.string().uuid()).max(500).optional() });
+const readSchema = z.object({ ids: z.array(z.uuid()).max(500).optional() });
 const LISTED = 50;
 
 /**

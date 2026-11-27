@@ -33,13 +33,13 @@ const updateSchema = z.object({
   title: z.string().trim().min(1).max(500).optional(),
   description: z.string().max(50_000).optional(),
   archived: z.boolean().optional(),
-  coverAttachmentId: z.string().uuid().nullable().optional(),
+  coverAttachmentId: z.uuid().nullable().optional(),
 });
 
 const moveSchema = z.object({
   category: z.enum(MOSCOW_CATEGORIES),
-  afterId: z.string().uuid().nullish(),
-  beforeId: z.string().uuid().nullish(),
+  afterId: z.uuid().nullish(),
+  beforeId: z.uuid().nullish(),
 });
 
 const linkSchema = z.object({

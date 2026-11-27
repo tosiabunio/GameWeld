@@ -11,7 +11,7 @@ const schema = z.object({
     z.coerce.number().int().positive().optional(),
   ),
   PROJECT_CREATORS: z.enum(['everyone', 'admins']).default('everyone'),
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.url(),
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().default('0.0.0.0'),
   WEB_DIST: z.string().optional(),
@@ -36,7 +36,7 @@ const schema = z.object({
   // An empty value (as Compose passes an unset variable) means unset.
   INITIAL_ADMIN_EMAIL: z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
-    z.string().trim().email().optional(),
+    z.string().trim().pipe(z.email()).optional(),
   ),
 });
 

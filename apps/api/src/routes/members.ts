@@ -14,6 +14,7 @@ import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { isPersonaEmail } from '../demo.ts';
 import { badRequest, conflict, notFound } from '../errors.ts';
+import { emailAddress } from '../input.ts';
 import * as schema from '../schemas.ts';
 
 const rolesSchema = z
@@ -22,7 +23,7 @@ const rolesSchema = z
   .transform((r) => [...new Set(r)]);
 
 const addSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  email: emailAddress,
   roles: rolesSchema,
   canAccept: z.boolean().default(false),
 });

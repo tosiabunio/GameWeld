@@ -10,6 +10,7 @@ import { withTransaction } from '../db.ts';
 import { isPersona } from '../demo.ts';
 import { emitLive } from '../live.ts';
 import { badRequest, conflict, HttpError } from '../errors.ts';
+import { emailAddress } from '../input.ts';
 import { memberRoute } from '../openapi.ts';
 import * as schema from '../schemas.ts';
 
@@ -18,7 +19,7 @@ const createSchema = z.object({
   description: z.string().max(5000).default(''),
   doneRestricted: z.boolean().default(false),
   scopeLimit: z.number().int().min(1).max(1000).default(5),
-  directorEmail: z.string().trim().toLowerCase().email().optional(),
+  directorEmail: emailAddress.optional(),
 });
 
 const updateSchema = z.object({

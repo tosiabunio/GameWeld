@@ -8,10 +8,10 @@ import * as schema from '../schemas.ts';
 
 const activityQuery = z.object({
   entityType: z.enum(['backlog_item', 'task', 'workboard']).optional(),
-  entityId: z.string().uuid().optional(),
+  entityId: z.uuid().optional(),
   from: schema.moment().optional().describe('Only entries from this time on.'),
   to: schema.moment().optional().describe('Only entries before this time.'),
-  actorId: z.string().uuid().optional().describe('Only what this member did.'),
+  actorId: z.uuid().optional().describe('Only what this member did.'),
   actions: z
     .string()
     .regex(/^[a-z_]+\.(\*|[a-z_]+)(,[a-z_]+\.(\*|[a-z_]+))*$/)
@@ -35,8 +35,8 @@ const activityQuery = z.object({
 });
 
 const staysQuery = z.object({
-  boardId: z.string().uuid().optional().describe('Only this Workboard; every board unless given.'),
-  taskId: z.string().uuid().optional().describe('Only this task.'),
+  boardId: z.uuid().optional().describe('Only this Workboard; every board unless given.'),
+  taskId: z.uuid().optional().describe('Only this task.'),
   from: schema
     .moment()
     .optional()

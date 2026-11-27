@@ -19,7 +19,7 @@ const linkSchema = z.object({
   url: linkUrl,
   label: z.string().trim().max(200).default(''),
 });
-const dependencySchema = z.object({ dependsOnItemId: z.string().uuid() });
+const dependencySchema = z.object({ dependsOnItemId: z.uuid() });
 
 // ---------------------------------------------------------------------------------------------
 // Readers shared with the item and task detail routes

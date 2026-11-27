@@ -14,7 +14,7 @@ const addSchema = z.object({ title: z.string().trim().min(1).max(500) });
 const updateSchema = z
   .object({ title: z.string().trim().min(1).max(500).optional(), done: z.boolean().optional() })
   .refine((input) => input.title !== undefined || input.done !== undefined, {
-    message: 'Nothing to change.',
+    error: 'Nothing to change.',
   });
 
 /**

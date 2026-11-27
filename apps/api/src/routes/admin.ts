@@ -14,6 +14,7 @@ import { avatarUrl } from '../avatars.ts';
 import { withTransaction, type Queryable } from '../db.ts';
 import { isPersonaEmail, personaSql } from '../demo.ts';
 import { badRequest, conflict, HttpError, notFound } from '../errors.ts';
+import { emailAddress } from '../input.ts';
 import { emitLive } from '../live.ts';
 import type { RouteDoc } from '../openapi.ts';
 import * as schema from '../schemas.ts';
@@ -21,12 +22,12 @@ import { addMember } from './members.ts';
 
 const inviteSchema = z
   .object({
-    email: z.string().trim().toLowerCase().email(),
+    email: emailAddress,
     as: z.enum(INSTANCE_ROLES),
-    projectIds: z.array(z.string().uuid()).max(200).optional(),
+    projectIds: z.array(z.uuid()).max(200).optional(),
   })
   .refine((v) => v.as !== 'observer' || (v.projectIds?.length ?? 0) > 0, {
-    message: 'Choose the projects an Observer may read.',
+    error: 'Choose the projects an Observer may read.',
     path: ['projectIds'],
   });
 
