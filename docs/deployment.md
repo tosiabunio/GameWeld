@@ -15,6 +15,24 @@ and service names of gameweld.eu are kept out of this repository.
 
 Migrations run when the application starts.
 
+### The user the application runs as
+
+The application runs as the unprivileged user `node` (uid 1000), not as root. Its own files in
+the image belong to root, so it can read its code and not change it; it writes only to the
+attachments volume and to `/tmp`.
+
+The container itself starts as root, for one thing: a volume made by an earlier image, or filled
+by a restore from backup, holds files that belong to root. Its entrypoint gives whatever in
+`ATTACHMENTS_DIR` is not `node`'s to `node`, and then gives up root for good. An upgrade from an
+image that ran as root therefore needs nothing done to the volume.
+
+A platform that forbids containers that start as root can start it as uid 1000 itself
+(`docker run --user 1000:1000`, or the equivalent). Nothing is changed on the volume then, so
+make it writable by that user first: `chown -R 1000:1000` on its files.
+
+`docker exec` into the container is root, as before, which is what the admin recovery commands
+([google-sign-in.md](google-sign-in.md)) are run as.
+
 ## Environment
 
 For a team, with sign-in by Google and invitations ([google-sign-in.md](google-sign-in.md)):

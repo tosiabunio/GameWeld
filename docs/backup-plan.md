@@ -53,7 +53,9 @@ manager:
 In Duplicati: **Restore → GameWeld**, pick a version, and restore to a directory. The dump is
 loaded into an empty database with
 `pg_restore --clean --if-exists --no-owner -d <database URL> gameweld.dump`, and the attachments
-go back into the volume. Without the server, Duplicati on any machine restores from R2 with the
+go back into the volume. Restored files may belong to root: restart the application afterwards,
+and it takes them as its own ([deployment.md](deployment.md#the-user-the-application-runs-as)).
+Without the server, Duplicati on any machine restores from R2 with the
 passphrase and the key (**Restore → Direct restore from backup files**).
 
 A test restore on 29 September 2026 brought back a dump identical to the one on the server, which

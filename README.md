@@ -116,7 +116,7 @@ plugins/gameweld/  The GameWeld skill for Claude Code, served as a plugin
 scripts/           Sample-data scripts for the demo instance
 docs/              Method, specification, plans, and guides
 compose.yml        Local stack; driven by the Makefile
-Dockerfile         Application image (API plus built client)
+Dockerfile         Application image (API plus built client), with its entrypoint beside it
 ```
 
 ## Feedback and contributing
