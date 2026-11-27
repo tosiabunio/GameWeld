@@ -62,7 +62,7 @@ export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = acceptSchema.safeParse(req.body ?? {});
-      if (!parsed.success) throw badRequest('Invalid acceptance', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid acceptance', z.flattenError(parsed.error));
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
       const actorId = req.user!.id;
@@ -158,7 +158,8 @@ export const acceptanceRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = rejectSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Say what needs to change.', parsed.error.flatten());
+      if (!parsed.success)
+        throw badRequest('Say what needs to change.', z.flattenError(parsed.error));
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
       const actorId = req.user!.id;

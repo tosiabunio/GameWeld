@@ -22,7 +22,7 @@ export const mcpRoutes: FastifyPluginAsync = async (app) => {
           description:
             'Model Context Protocol over streamable HTTP, stateless, answered with JSON. Its tools read and change the project as the member whose API token comes with the request; a read-only token is offered only the tools that read. See docs/api.md for connecting an assistant.',
           body: z
-            .union([z.record(z.unknown()), z.array(z.record(z.unknown()))])
+            .union([z.record(z.string(), z.unknown()), z.array(z.record(z.string(), z.unknown()))])
             .describe('A JSON-RPC message, or a batch of them.'),
           response: { content: 'application/json', description: 'The JSON-RPC answers' },
         },

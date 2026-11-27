@@ -56,7 +56,7 @@ export const checklistRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply): Promise<ChecklistItem[]> => {
       const parsed = addSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid checklist item', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid checklist item', z.flattenError(parsed.error));
       const items = await withTransaction(db, async (tx) => {
         const taskId = await editableTask(tx, req);
         const last = await tx.query<{ rank: string }>(
@@ -85,7 +85,8 @@ export const checklistRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req): Promise<ChecklistItem[]> => {
       const parsed = updateSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid checklist change', parsed.error.flatten());
+      if (!parsed.success)
+        throw badRequest('Invalid checklist change', z.flattenError(parsed.error));
       const { checkId } = req.params as { checkId: string };
       return withTransaction(db, async (tx) => {
         const taskId = await editableTask(tx, req);

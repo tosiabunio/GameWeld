@@ -200,7 +200,7 @@ interface Tool<S extends ZodRawShape = ZodRawShape> {
   input: S;
   /** Changes something: not offered to a read-only token. */
   writes?: true;
-  run: (api: MemberApi, args: z.objectOutputType<S, z.ZodTypeAny>) => Promise<unknown>;
+  run: (api: MemberApi, args: z.output<z.ZodObject<S>>) => Promise<unknown>;
 }
 const tool = <S extends ZodRawShape>(t: Tool<S>): Tool => t as unknown as Tool;
 

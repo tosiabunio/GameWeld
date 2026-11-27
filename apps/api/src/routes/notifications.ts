@@ -161,7 +161,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = readSchema.safeParse(req.body ?? {});
-      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid request', z.flattenError(parsed.error));
       await db.query(
         `UPDATE notifications SET read_at = now()
           WHERE user_id = $1 AND read_at IS NULL AND ($2::uuid[] IS NULL OR id = ANY($2::uuid[]))`,

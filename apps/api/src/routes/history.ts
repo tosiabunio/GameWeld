@@ -66,7 +66,7 @@ export const historyRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req): Promise<ActivityEntry[]> => {
       const parsed = activityQuery.safeParse(req.query);
-      if (!parsed.success) throw badRequest('Invalid history query', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid history query', z.flattenError(parsed.error));
       const q = parsed.data;
       const params: unknown[] = [req.access!.project.id, q.limit ?? 100];
       const param = (value: unknown) => `$${params.push(value)}`;
@@ -160,7 +160,7 @@ export const historyRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req): Promise<ColumnStay[]> => {
       const parsed = staysQuery.safeParse(req.query);
-      if (!parsed.success) throw badRequest('Invalid query', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid query', z.flattenError(parsed.error));
       const stays = await columnStays(db, req.access!.project.id, parsed.data);
       return stays.slice(0, MAX_STAYS);
     },

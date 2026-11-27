@@ -427,7 +427,7 @@ export const transferRoutes: FastifyPluginAsync = async (app) => {
       if (!parsed.success)
         throw badRequest(
           'This does not look like a Trello board export (JSON).',
-          parsed.error.flatten(),
+          z.flattenError(parsed.error),
         );
       const { mode, category: fallback, board } = parsed.data;
       const projectId = req.access!.project.id;

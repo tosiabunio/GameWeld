@@ -190,7 +190,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         throw badRequest(
           parsed.error.issues.find((i) => i.path[0] === 'projectIds')?.message ??
             'Invalid invitation',
-          parsed.error.flatten(),
+          z.flattenError(parsed.error),
         );
       const { email, as, projectIds } = parsed.data;
       if (isPersonaEmail(email)) throw badRequest('The demo personas cannot be given rights.');
@@ -292,7 +292,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = updateSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid change', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid change', z.flattenError(parsed.error));
       const { isAdmin, canCreateProjects } = parsed.data;
       const { userId } = req.params as { userId: string };
       if (!/^[0-9a-f-]{36}$/i.test(userId)) throw notFound('Account not found');

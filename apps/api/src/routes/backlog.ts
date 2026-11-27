@@ -223,7 +223,7 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req): Promise<BacklogItem[]> => {
       const parsed = listQuery.safeParse(req.query);
-      if (!parsed.success) throw badRequest('Invalid backlog query', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid backlog query', z.flattenError(parsed.error));
       const q = parsed.data;
       const params: unknown[] = [req.access!.project.id];
       const param = (value: unknown) => `$${params.push(value)}`;
@@ -250,7 +250,7 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = createSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid backlog item', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid backlog item', z.flattenError(parsed.error));
       const input = parsed.data;
       const projectId = req.access!.project.id;
 
@@ -324,7 +324,8 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = updateSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid backlog item update', parsed.error.flatten());
+      if (!parsed.success)
+        throw badRequest('Invalid backlog item update', z.flattenError(parsed.error));
       const { version, archived, coverAttachmentId, ...fields } = parsed.data;
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
@@ -465,7 +466,7 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = moveSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid move', z.flattenError(parsed.error));
       const { category, afterId, beforeId } = parsed.data;
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
@@ -545,7 +546,7 @@ export const backlogRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = linkSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid link', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid link', z.flattenError(parsed.error));
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
       const item = await fetchItem(db, projectId, itemId);

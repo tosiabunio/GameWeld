@@ -271,8 +271,8 @@ export const ActivityEntry = exact<d.ActivityEntry>()(
     entityTitle: z.string().nullable().describe('What it concerns, by its title as it is now.'),
     actor: Person.nullable().describe('Who did it; null when the system did.'),
     via: z.string().nullable().describe('The API token it was done with, by name.'),
-    previous: z.record(z.unknown()).nullable(),
-    next: z.record(z.unknown()).nullable(),
+    previous: z.record(z.string(), z.unknown()).nullable(),
+    next: z.record(z.string(), z.unknown()).nullable(),
     createdAt: timestamp(),
   }),
 );
@@ -405,7 +405,7 @@ export const BoardSummary = exact<d.BoardSummary>()(
 export const BoardView = exact<d.BoardView>()(
   BoardSummary.extend({
     columns: z.array(BoardColumn),
-    cards: z.record(z.array(BoardCard)).describe('Cards by column id, in order.'),
+    cards: z.record(z.string(), z.array(BoardCard)).describe('Cards by column id, in order.'),
     scope: z.array(ScopeItem),
     scopeLimit: z.number().int(),
     counts: z.object({

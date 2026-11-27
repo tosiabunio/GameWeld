@@ -206,7 +206,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
       }),
       async (req, reply) => {
         const parsed = commentSchema.safeParse(req.body);
-        if (!parsed.success) throw badRequest('Invalid comment', parsed.error.flatten());
+        if (!parsed.success) throw badRequest('Invalid comment', z.flattenError(parsed.error));
         const projectId = req.access!.project.id;
         const target = await resolveOwner(
           db,
@@ -253,7 +253,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
     ),
     async (req) => {
       const parsed = commentSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid comment', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid comment', z.flattenError(parsed.error));
       const { commentId } = req.params as { commentId: string };
       const projectId = req.access!.project.id;
       if (!isUuid(commentId)) throw notFound('Comment not found');
@@ -355,7 +355,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = linkSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid link', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid link', z.flattenError(parsed.error));
       const projectId = req.access!.project.id;
       const target = await resolveOwner(db, projectId, req.params as { taskId: string });
       const created = await db.query<{ id: string; url: string; label: string }>(
@@ -667,7 +667,7 @@ export const collabRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = dependencySchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid dependency', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid dependency', z.flattenError(parsed.error));
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
       if (!isUuid(itemId)) throw notFound('Backlog item not found');

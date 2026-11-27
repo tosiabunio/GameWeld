@@ -218,7 +218,7 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = addSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid member', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid member', z.flattenError(parsed.error));
       const { email, roles, canAccept } = parsed.data;
       const projectId = req.access!.project.id;
 
@@ -281,7 +281,7 @@ export const memberRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = updateSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid member update', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid member update', z.flattenError(parsed.error));
       const { roles, canAccept } = parsed.data;
       const projectId = req.access!.project.id;
       const { userId } = req.params as { userId: string };

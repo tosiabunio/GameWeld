@@ -368,7 +368,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = createSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid task', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid task', z.flattenError(parsed.error));
       const input = parsed.data;
       const { itemId } = req.params as { itemId: string };
       const projectId = req.access!.project.id;
@@ -474,7 +474,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = updateSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid task update', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid task update', z.flattenError(parsed.error));
       const {
         version,
         itemId: newItemId,

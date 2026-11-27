@@ -57,7 +57,7 @@ export const labelRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = labelSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid label', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid label', z.flattenError(parsed.error));
       const projectId = req.access!.project.id;
       try {
         const created = await db.query<{ id: string }>(
@@ -85,7 +85,7 @@ export const labelRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = labelSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid label', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid label', z.flattenError(parsed.error));
       const projectId = req.access!.project.id;
       const { labelId } = req.params as { labelId: string };
       try {

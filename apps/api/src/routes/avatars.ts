@@ -30,7 +30,10 @@ const SOURCE_URL = '/api/me/avatar/source';
 function parseCrop(input: unknown): AvatarCrop {
   const parsed = cropSchema.safeParse(input);
   if (!parsed.success)
-    throw badRequest('Choose the circle to keep: its left, top, and size.', parsed.error.flatten());
+    throw badRequest(
+      'Choose the circle to keep: its left, top, and size.',
+      z.flattenError(parsed.error),
+    );
   return parsed.data;
 }
 

@@ -72,7 +72,7 @@ export const myTaskRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req): Promise<MyTask[]> => {
       const parsed = moveSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid move', z.flattenError(parsed.error));
       const { taskId } = req.params as { taskId: string };
       const { afterId, beforeId } = parsed.data;
       const projectId = req.access!.project.id;

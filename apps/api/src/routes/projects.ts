@@ -101,7 +101,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = createSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid project', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid project', z.flattenError(parsed.error));
       const { directorEmail, ...input } = parsed.data;
       const user = req.user!;
       if (!user.mayCreateProjects)
@@ -207,7 +207,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = updateSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid settings', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid settings', z.flattenError(parsed.error));
       const { version, archived, ...fields } = parsed.data;
       const { project } = req.access!;
       const userId = req.user!.id;

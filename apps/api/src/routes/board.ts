@@ -414,7 +414,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = createBoardSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid Workboard', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid Workboard', z.flattenError(parsed.error));
       const projectId = req.access!.project.id;
       const boardId = await withTransaction(db, async (tx) => {
         await tx.query('SELECT 1 FROM projects WHERE id = $1 FOR NO KEY UPDATE', [projectId]);
@@ -466,7 +466,8 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = updateBoardSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid Workboard update', parsed.error.flatten());
+      if (!parsed.success)
+        throw badRequest('Invalid Workboard update', z.flattenError(parsed.error));
       const { boardId } = req.params as { boardId: string };
       const projectId = req.access!.project.id;
       await withTransaction(db, async (tx) => {
@@ -514,7 +515,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = archiveSchema.safeParse(req.body ?? {});
-      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid request', z.flattenError(parsed.error));
       const { boardId } = req.params as { boardId: string };
       const projectId = req.access!.project.id;
       await withTransaction(db, async (tx) => {
@@ -579,7 +580,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = createColumnSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid column', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid column', z.flattenError(parsed.error));
       const { boardId } = req.params as { boardId: string };
       const projectId = req.access!.project.id;
       await withTransaction(db, async (tx) => {
@@ -618,7 +619,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = updateColumnSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid column update', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid column update', z.flattenError(parsed.error));
       const { boardId, columnId } = req.params as { boardId: string; columnId: string };
       const projectId = req.access!.project.id;
       await withTransaction(db, async (tx) => {
@@ -723,7 +724,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = scopeSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid request', z.flattenError(parsed.error));
       const { boardId } = req.params as { boardId: string };
       const { project } = req.access!;
       const actorId = req.user!.id;
@@ -814,7 +815,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
       if (!parsed.success)
         throw badRequest(
           'Say whether unfinished tasks return to Breakdown or stay as exceptions.',
-          parsed.error.flatten(),
+          z.flattenError(parsed.error),
         );
       const { boardId, itemId } = req.params as { boardId: string; itemId: string };
       const projectId = req.access!.project.id;
@@ -873,7 +874,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = placeSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid request', z.flattenError(parsed.error));
       const { boardId } = req.params as { boardId: string };
       const projectId = req.access!.project.id;
       const actorId = req.user!.id;
@@ -925,7 +926,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = boardTaskSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid task', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid task', z.flattenError(parsed.error));
       const { boardId } = req.params as { boardId: string };
       const projectId = req.access!.project.id;
       const actorId = req.user!.id;
@@ -995,7 +996,7 @@ export const boardRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req) => {
       const parsed = moveSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid move', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid move', z.flattenError(parsed.error));
       const { boardId, taskId } = req.params as { boardId: string; taskId: string };
       const { columnId, afterId, beforeId } = parsed.data;
       const projectId = req.access!.project.id;

@@ -148,7 +148,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = createSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid request', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid request', z.flattenError(parsed.error));
       const { boardId } = req.params as { boardId: string };
       const projectId = req.access!.project.id;
       const actorId = req.user!.id;
@@ -275,7 +275,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
       }),
       async (req) => {
         const parsed = decideSchema.safeParse(req.body ?? {});
-        if (!parsed.success) throw badRequest('Invalid decision', parsed.error.flatten());
+        if (!parsed.success) throw badRequest('Invalid decision', z.flattenError(parsed.error));
         const { boardId, requestId } = req.params as { boardId: string; requestId: string };
         const projectId = req.access!.project.id;
         const actorId = req.user!.id;

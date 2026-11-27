@@ -69,7 +69,7 @@ export const tokenRoutes: FastifyPluginAsync = async (app) => {
     }),
     async (req, reply) => {
       const parsed = createSchema.safeParse(req.body);
-      if (!parsed.success) throw badRequest('Invalid token', parsed.error.flatten());
+      if (!parsed.success) throw badRequest('Invalid token', z.flattenError(parsed.error));
       const { name, access } = parsed.data;
       const userId = req.user!.id;
       // The prefix tells a person, and secret scanners, what the string is.

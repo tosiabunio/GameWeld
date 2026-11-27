@@ -1,7 +1,6 @@
 import type { ProjectAction } from '@gameweld/domain';
 import type { FastifyInstance, FastifyReply, FastifyRequest, RouteOptions } from 'fastify';
 import { z, type ZodTypeAny } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { requireSession, requireUser } from './auth.ts';
 import { components } from './schemas.ts';
 
@@ -21,7 +20,7 @@ export interface RouteDoc {
   description?: string;
   /** Overrides the tag of the route's group. */
   tag?: string;
-  query?: z.AnyZodObject;
+  query?: z.ZodObject;
   /** The JSON body. Wrapped in `.optional()` when the route also takes none. */
   body?: ZodTypeAny;
   /** The body is a multipart form with one file, in the field `file`. */
@@ -127,21 +126,28 @@ export class ApiDescription {
   }
 
   private build(publicUrl: string | null): Json {
-    const schemas: Json = {};
+    // The named shapes, each once, referring to one another by name.
+    const schemas: Json = Object.fromEntries(
+      Object.entries(
+        (z.toJSONSchema(z.globalRegistry, { ...JSON_SCHEMA, uri: (id) => COMPONENTS + id }) as Json)
+          .schemas as Record<string, Json>,
+      )
+        .filter(([name]) => name in components)
+        .map(([name, schema]) => {
+          delete schema.$schema;
+          delete schema.$id;
+          return [name, schema];
+        }),
+    );
+    // Any other shape, in place, referring to the named ones it holds. One given a name becomes
+    // a named shape itself.
     const convert = (schema: ZodTypeAny, name?: string): Json => {
-      const converted = zodToJsonSchema(schema, {
-        name,
-        definitions: components,
-        basePath: ['#', 'components'],
-        definitionPath: 'schemas',
-        target: 'jsonSchema7',
-        // What a handler does not know it ignores, and a response may grow new fields.
-        rejectedAdditionalProperties: undefined,
-      }) as Json;
-      Object.assign(schemas, converted.schemas);
-      delete converted.schemas;
+      const converted = pointToComponents(z.toJSONSchema(schema, JSON_SCHEMA)) as Json;
+      delete converted.$defs;
       delete converted.$schema;
-      return converted;
+      if (!name) return converted;
+      schemas[name] = converted;
+      return { $ref: COMPONENTS + name };
     };
 
     const paths: Record<string, Json> = {};
@@ -161,13 +167,18 @@ export class ApiDescription {
         ZodTypeAny,
       ][]) {
         // Whether it may be left out is the parameter's `required`, not part of its schema.
-        const schema = convert(field instanceof z.ZodOptional ? field.unwrap() : field);
+        const schema = convert(
+          field instanceof z.ZodOptional ? (field.unwrap() as ZodTypeAny) : field,
+        );
+        // What the parameter is for, said where it is used, comes before what its shape says of
+        // itself; described before it was made optional, it is found on the shape inside.
+        const description = field.description ?? (schema.description as string | undefined);
         delete schema.description;
         parameters.push({
           name,
           in: 'query',
           required: !field.isOptional(),
-          ...(field.description ? { description: field.description } : {}),
+          ...(description ? { description } : {}),
           schema,
         });
       }
@@ -266,6 +277,48 @@ export class ApiDescription {
       },
     };
   }
+}
+
+const COMPONENTS = '#/components/schemas/';
+
+/**
+ * How a shape is described. As what a client sends or reads, so a default is a field that may be
+ * left out, and an object says nothing against fields it does not list: what a handler does not
+ * know it ignores, and a response may grow new fields. What has no description in JSON Schema,
+ * such as a value changed on the way in, is described as anything.
+ */
+const JSON_SCHEMA = {
+  target: 'draft-2020-12',
+  io: 'input',
+  unrepresentable: 'any',
+  override: ({ jsonSchema }: { jsonSchema: Json }) => {
+    // A format says what a string is; the expression zod checks it with says it again, at length.
+    if (jsonSchema.format) delete jsonSchema.pattern;
+    // An integer is one as far as JSON carries it, without the bounds of a JavaScript number.
+    if (jsonSchema.minimum === Number.MIN_SAFE_INTEGER) delete jsonSchema.minimum;
+    if (jsonSchema.maximum === Number.MAX_SAFE_INTEGER) delete jsonSchema.maximum;
+    // The names of an object's fields are strings in JSON.
+    delete jsonSchema.propertyNames;
+  },
+} as const;
+
+// The shapes named in the description are known to zod by their names, which is how it tells
+// them apart from the shapes that hold them and refers to them instead of repeating them.
+for (const [name, schema] of Object.entries(components))
+  z.globalRegistry.add(schema, { ...z.globalRegistry.get(schema), id: name });
+
+/** References to named shapes, from where zod puts them to where the description keeps them. */
+function pointToComponents(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(pointToComponents);
+  if (!node || typeof node !== 'object') return node;
+  return Object.fromEntries(
+    Object.entries(node).map(([key, value]) => [
+      key,
+      key === '$ref' && typeof value === 'string'
+        ? value.replace(/^#\/\$defs\//, COMPONENTS)
+        : pointToComponents(value),
+    ]),
+  );
 }
 
 function normalize(response: RouteDoc['response']): (ResponseDoc & { status: number })[] {
